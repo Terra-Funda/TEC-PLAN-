@@ -68,8 +68,10 @@ label.f{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mu
 .hint{position:absolute;bottom:8px;right:8px;font-size:11px;color:var(--mu);background:rgba(13,15,18,.8);padding:4px 8px;border-radius:5px;max-width:60%;pointer-events:none}
 footer{display:flex;align-items:center;gap:14px;padding:0 10px;background:var(--p1);border-top:1px solid var(--ln);font-family:var(--mono);font-size:11px;color:var(--mu);white-space:nowrap;overflow:hidden}
 footer .er{color:var(--er)}footer .am{color:var(--am)}
-#isobar{position:absolute;top:0;left:0;right:0;display:flex;gap:6px;align-items:center;padding:8px;background:rgba(22,25,31,.95);border-bottom:1px solid var(--ln);overflow-x:auto;z-index:3;scrollbar-width:none}
-#isobar>*{flex:none}
+#isobar{position:absolute;top:0;left:0;right:0;display:flex;flex-direction:column;gap:6px;padding:8px;background:rgba(22,25,31,.95);border-bottom:1px solid var(--ln);overflow-x:auto;z-index:3;scrollbar-width:none}
+#isobar .ibrow{display:flex;gap:6px;align-items:center;overflow-x:auto;scrollbar-width:none}
+#isobar .ibrow>*{flex:none}
+#isobar .ibrow .mut{font-size:12px}
 #isobar .sep{width:1px;height:22px;background:var(--ln);flex:none}
 #isobar select,#isobar input{height:28px;padding:2px 6px;width:auto}
 #viso canvas{position:absolute;top:0;left:0}
@@ -594,6 +596,109 @@ const CIVIL = {
 };
 for (const k in CIVIL) CIVIL[k].weight = civW(CIVIL[k]);
 Object.assign(TYPES, CIVIL);
+
+/* ---------------- Caldeiraria: caixa, chapa e cilindro de aço ---------------- */
+const STEEL_KG = 7.85e-6;
+const BOOL = [0, 1];
+const STEELT = {
+  steelbox: {
+    name: 'Caixa de aço', prefix: 'CX', spool: false, struct: true,
+    defaults: { dn: 0, shape: 'rect', L: 1000, W: 600, H: 500, hollow: 1, t: 6.35, lid: 0 },
+    fields: [['shape', 'Formato da base', ['rect', 'tri'], k => k === 'rect' ? 'Quadrado / retângulo' : 'Triângulo'], ['L', 'Comprimento (mm)'], ['W', 'Largura (mm)'], ['H', 'Altura (mm)'],
+      ['hollow', 'Preenchimento', BOOL, k => k ? 'Oco (chapas)' : 'Maciço'], ['t', 'Espessura da parede (mm)'], ['lid', 'Tampa', BOOL, k => k ? 'Com tampa' : 'Sem tampa']],
+    desc: p => p.shape === 'tri' ? `Prisma triangular de aço maciço ${p.L}×${p.W}×${p.H} mm` : p.hollow ? `Caixa de aço em chapa ${p.t} mm, ${p.L}×${p.W}×${p.H} mm${p.lid ? ' c/ tampa' : ' aberta'}` : `Bloco de aço maciço ${p.L}×${p.W}×${p.H} mm`,
+    std: () => 'ASTM A36', mat: () => 'Aço carbono ASTM A36',
+    ports: () => [],
+    prims(p) {
+      const E = { mat: 'steel', edges: true };
+      if (p.shape === 'tri') return [Object.assign({ k: 'prism', pts: [[0, 0], [p.L, 0], [0, p.W]], y0: 0, y1: p.H }, E)];
+      if (!p.hollow) return [box(new V3(p.L / 2, p.H / 2, p.W / 2), [p.L, p.H, p.W], E)];
+      const t = Math.min(p.t, p.L / 3, p.W / 3, p.H / 3), out = [
+        box(new V3(p.L / 2, t / 2, p.W / 2), [p.L, t, p.W], E),
+        box(new V3(p.L / 2, p.H / 2, t / 2), [p.L, p.H, t], E), box(new V3(p.L / 2, p.H / 2, p.W - t / 2), [p.L, p.H, t], E),
+        box(new V3(t / 2, p.H / 2, p.W / 2), [t, p.H, p.W - 2 * t], E), box(new V3(p.L - t / 2, p.H / 2, p.W / 2), [t, p.H, p.W - 2 * t], E)];
+      if (p.lid) out.push(box(new V3(p.L / 2, p.H - t / 2, p.W / 2), [p.L - 2 * t, t, p.W - 2 * t], E));
+      return out;
+    },
+    bomLines(p) {
+      if (p.shape === 'tri' || !p.hollow) { const v = p.shape === 'tri' ? p.L * p.W / 2 * p.H : p.L * p.W * p.H; return [{ desc: 'Aço maciço ASTM A36 (blocos e barras)', unit: 'kg', qty: v * STEEL_KG, std: 'ASTM A36', mat: 'Aço ASTM A36', w: v * STEEL_KG }]; }
+      const A = (p.L * p.W * (p.lid ? 2 : 1) + 2 * p.L * p.H + 2 * p.W * p.H) / 1e6, kg = A * 1e6 * p.t * STEEL_KG;
+      return [{ desc: `Chapa de aço ASTM A36 e = ${p.t} mm`, unit: 'kg', qty: kg, std: 'ASTM A36', mat: 'Aço ASTM A36', w: kg }, { desc: `Chapa de aço e = ${p.t} mm (área)`, unit: 'm²', qty: A, std: 'ASTM A36', mat: 'Aço ASTM A36', w: 0 }];
+    },
+    keys: civKeys,
+  },
+  plate: {
+    name: 'Chapa de aço', prefix: 'CH', spool: false, struct: true,
+    defaults: { dn: 0, L: 1000, W: 1000, t: 6.35 },
+    fields: [['L', 'Comprimento (mm)'], ['W', 'Largura (mm)'], ['t', 'Espessura (mm)']],
+    desc: p => `Chapa de aço ${p.L}×${p.W} mm, e = ${p.t} mm`,
+    std: () => 'ASTM A36', mat: () => 'Aço carbono ASTM A36',
+    ports: () => [],
+    prims: p => [box(new V3(p.L / 2, p.t / 2, p.W / 2), [p.L, p.t, p.W], { mat: 'steel', edges: true })],
+    bomLines(p) { const A = p.L * p.W / 1e6, kg = p.L * p.W * p.t * STEEL_KG; return [{ desc: `Chapa de aço ASTM A36 e = ${p.t} mm`, unit: 'kg', qty: kg, std: 'ASTM A36', mat: 'Aço ASTM A36', w: kg }, { desc: `Chapa de aço e = ${p.t} mm (área)`, unit: 'm²', qty: A, std: 'ASTM A36', mat: 'Aço ASTM A36', w: 0 }]; },
+    keys: civKeys,
+  },
+  cylinder: {
+    name: 'Cilindro de aço', prefix: 'CL', spool: false, struct: true,
+    defaults: { dn: 0, D: 600, H: 1200, hollow: 1, t: 6.35, caps: 1 },
+    fields: [['D', 'Diâmetro externo (mm)'], ['H', 'Altura / comprimento (mm)'], ['hollow', 'Preenchimento', BOOL, k => k ? 'Oco (costado)' : 'Maciço'], ['t', 'Espessura da parede (mm)'], ['caps', 'Tampos', BOOL, k => k ? 'Com tampos planos' : 'Sem tampos']],
+    desc: p => p.hollow ? `Costado cilíndrico Ø${p.D}×${p.H} mm, chapa ${p.t} mm${p.caps ? ' c/ tampos' : ''}` : `Cilindro de aço maciço Ø${p.D}×${p.H} mm`,
+    std: () => 'ASTM A36', mat: () => 'Aço carbono ASTM A36',
+    ports: () => [],
+    prims(p) {
+      const ro = p.D / 2, ri = p.hollow ? Math.max(0, ro - p.t) : 0, out = [{ k: 'lathe', ri, ro, h: p.H, mat: 'steel', edges: false }];
+      if (p.hollow && p.caps) out.push(cyl(new V3(0, 0, 0), new V3(0, p.t, 0), ri, null, { mat: 'steel' }), cyl(new V3(0, p.H - p.t, 0), new V3(0, p.H, 0), ri, null, { mat: 'steel' }));
+      return out;
+    },
+    bomLines(p) {
+      const ro = p.D / 2;
+      if (!p.hollow) { const kg = Math.PI * ro * ro * p.H * STEEL_KG; return [{ desc: 'Aço maciço ASTM A36 (blocos e barras)', unit: 'kg', qty: kg, std: 'ASTM A36', mat: 'Aço ASTM A36', w: kg }]; }
+      const A = (Math.PI * p.D * p.H + (p.caps ? 2 * Math.PI * ro * ro : 0)) / 1e6, kg = A * 1e6 * p.t * STEEL_KG;
+      return [{ desc: `Chapa de aço ASTM A36 e = ${p.t} mm`, unit: 'kg', qty: kg, std: 'ASTM A36', mat: 'Aço ASTM A36', w: kg }, { desc: `Chapa de aço e = ${p.t} mm (área)`, unit: 'm²', qty: A, std: 'ASTM A36', mat: 'Aço ASTM A36', w: 0 }, { desc: 'Calandragem de chapa', unit: 'm', qty: Math.PI * p.D / 1000, std: '—', mat: 'Serviço', w: 0 }];
+    },
+    keys: civKeys,
+  },
+};
+for (const k in STEELT) STEELT[k].weight = civW(STEELT[k]);
+Object.assign(TYPES, STEELT);
+
+/* ---------------- Inserir válvula / flanges no meio de um tubo ---------------- */
+const INLINE = {
+  gate: { label: 'Válvula gaveta', items: [['flange', { sub: 'WN' }, 'P1', 'P2'], ['valve', { sub: 'gate' }, 'P1', 'P2'], ['flange', { sub: 'WN' }, 'P2', 'P1']] },
+  ball: { label: 'Válvula esfera', items: [['flange', { sub: 'WN' }, 'P1', 'P2'], ['valve', { sub: 'ball' }, 'P1', 'P2'], ['flange', { sub: 'WN' }, 'P2', 'P1']] },
+  globe: { label: 'Válvula globo', items: [['flange', { sub: 'WN' }, 'P1', 'P2'], ['valve', { sub: 'globe' }, 'P1', 'P2'], ['flange', { sub: 'WN' }, 'P2', 'P1']] },
+  butterfly: { label: 'Válvula borboleta', items: [['flange', { sub: 'WN' }, 'P1', 'P2'], ['valve', { sub: 'butterfly' }, 'P1', 'P2'], ['flange', { sub: 'WN' }, 'P2', 'P1']] },
+  check: { label: 'Válvula de retenção', items: [['flange', { sub: 'WN' }, 'P1', 'P2'], ['valve', { sub: 'check' }, 'P1', 'P2'], ['flange', { sub: 'WN' }, 'P2', 'P1']] },
+  strainer: { label: 'Filtro Y', items: [['flange', { sub: 'WN' }, 'P1', 'P2'], ['strainer', {}, 'P1', 'P2'], ['flange', { sub: 'WN' }, 'P2', 'P1']] },
+  flanges: { label: 'Par de flanges', items: [['flange', { sub: 'WN' }, 'P1', 'P2'], ['flange', { sub: 'WN' }, 'P2', 'P1']] },
+};
+// items: [type, params, portThatAttachesToPrev, portThatContinues]
+function inlineLen(kind, dn, cls) {
+  let L = 0;
+  for (const [type, params] of INLINE[kind].items) {
+    const p = Object.assign({ dn, cls, sub: null }, TYPES[type].defaults || {}, params);
+    L += type === 'flange' ? TYPES.flange.len(p) : TYPES[type].len(p);
+  }
+  return L;
+}
+function insertInline(pr, pipeId, s, kind) {
+  const pipe = pr.get(pipeId); if (!pipe || pipe.type !== 'pipe') return { ok: false, msg: 'O símbolo não está sobre um tubo reto' };
+  const total = inlineLen(kind, pipe.dn, pipe.cls), a = s - total / 2, b = pipe.len - a - total;
+  if (a < 30 || b < 30) return { ok: false, msg: `${INLINE[kind].label}: não cabe nesse ponto (precisa de ${Math.round(total + 60)} mm de tubo reto)` };
+  const c2 = pipe.conn.P2; if (c2) pr.unlink(pipe, 'P2');
+  updateParams(pr, pipe.id, p => { p.len = Math.round(a * 10) / 10; });
+  let prev = pipe, prevPort = 'P2';
+  const made = [];
+  for (const [type, params, att, cont] of INLINE[kind].items) {
+    const pc = pr.create(type, Object.assign({ dn: pipe.dn, cls: pipe.cls }, params));
+    const pose = snapPose(pc, att, prev, prevPort); pc.pos = pose.pos; pc.q = pose.q; pr.link(pc, att, prev, prevPort);
+    prev = pc; prevPort = cont || (att === 'P1' ? 'P2' : 'P1'); made.push(pc);
+  }
+  const p2 = pr.create('pipe', { dn: pipe.dn, cls: pipe.cls, len: Math.round(b * 10) / 10 });
+  const pose = snapPose(p2, 'P1', prev, prevPort); p2.pos = pose.pos; p2.q = pose.q; pr.link(p2, 'P1', prev, prevPort);
+  if (c2) { const o = pr.get(c2.id); if (o) pr.link(p2, 'P2', o, c2.port); }
+  return { ok: true, made: made.concat(p2) };
+}
 const TYPE_PREF_UP = { valve: 1, strainer: 1, sightglass: 1, psv: 1, pgauge: 1, tgauge: 1, reducer: 1, tee: 0, elbow: 0 };
 
 /* ---------------- Peças e portas no mundo ---------------- */
@@ -942,7 +1047,7 @@ function isoTo3D(segs, gridMm = 100) {
       }
     }
   }
-  return { points: pos, edges, warnings: [...new Set(warnings)] };
+  return { points: pos, edges, verts, warnings: [...new Set(warnings)] };
 }
 
 // Gera peças reais (tubos + curvas + tês) a partir dos pontos 3D
@@ -1120,10 +1225,10 @@ function testNotes(pr) {
 }
 
 const fmtQty = g => (g.unit === 'pç' || g.unit === 'un') ? String(Math.round(g.qty)) : (Math.round(g.qty * 100) / 100).toFixed(2) + ' ' + g.unit;
-const TP = { fmtQty, WALL_K, ROOF_K, V3, Q, UP, AX, AZ, D2R, DNS, DIM, CLASSES, FLANGE_STDS, flg, TYPES, VALVE_SUBS, Project, localPorts, worldPorts, worldPort, worldPt,
+const TP = { INLINE, inlineLen, insertInline, WALL_K, ROOF_K, V3, Q, UP, AX, AZ, D2R, DNS, DIM, CLASSES, FLANGE_STDS, flg, TYPES, VALVE_SUBS, Project, localPorts, worldPorts, worldPort, worldPt,
   compatible, jointType, snapPose, component, branch, applyRigid, pivotPort, rotateBranch, roll, tilt, orient, moveGroup, updateParams, autoConnect, acoplar,
   segSegDist, capsules, detectClashes, ISO_AXES, PLANES, latticeToScreen, screenToLattice, snapLattice, classifyIso, isoDelta, isoTo3D, buildFromIso,
-  joints, analyze, bom, pcf, testNotes, nextDown, nextUp, odOf, r1, C30, S30 };
+  joints, analyze, bom, fmtQty, pcf, testNotes, nextDown, nextUp, odOf, r1, C30, S30 };
 if (typeof module !== 'undefined') module.exports = TP;
 if (typeof window !== 'undefined') window.TP = TP;
 
@@ -1152,6 +1257,8 @@ function geomOf(pc) { // primitivas em coordenadas do mundo
       for (let i = 0; i <= n; i++) { const t = p.ang * i / n; pts.push(worldPt(pc, p.c.add(p.u.scale(p.R * Math.cos(t))).add(p.v.scale(p.R * Math.sin(t))))); }
       out.push({ k: 'poly', pts, r: p.r, center: !p.accent && p.clash !== false });
     } else if (p.k === 'sph') out.push({ k: 'circ', c: worldPt(pc, p.c), r: p.r });
+    else if (p.k === 'lathe') out.push({ k: 'seg', a: worldPt(pc, new V3(0, 0, 0)), b: worldPt(pc, new V3(0, p.h, 0)), r: p.ro, rmax: p.ro, center: true });
+    else if (p.k === 'prism') { const pts = []; for (const y of [p.y0, p.y1]) for (const [x, z] of p.pts) pts.push(worldPt(pc, new V3(x, y, z))); out.push({ k: 'hull', pts }); }
     else if (p.mat && (p.k === 'box' || p.k === 'cbox')) {
       const pts = []; for (const a of [-1, 1]) for (const b of [-1, 1]) for (const c of [-1, 1]) { let v = new V3(a * p.s[0] / 2, b * p.s[1] / 2, c * p.s[2] / 2); if (p.rq) v = p.rq.rot(v); pts.push(worldPt(pc, p.c.add(v))); }
       out.push({ k: 'hull', pts });
@@ -1599,6 +1706,7 @@ const R = (() => {
   let markerMap = [];
   const COLORS = { pipe: 0xa3abb5, elbow: 0xa3abb5, tee: 0xa3abb5, reducer: 0xa3abb5, flange: 0x8c96a2, valve: 0x56677a, strainer: 0x56677a, expjoint: 0x7d8794, sightglass: 0x56677a, psv: 0x8a3b3b, pgauge: 0x7d8794, tgauge: 0x7d8794, custom: 0xb59a6a };
   const qYX = Q.fromUnitVectors(TP.UP, TP.AX);
+  const EDGE_M = new THREE.LineBasicMaterial({ color: 0x1b1f26 });
   /* ---- materiais PBR com texturas procedurais (concreto, alvenaria, telhas) ---- */
   const TEX = {};
   const rnd = (a => () => (a = (a * 16807) % 2147483647) / 2147483647)(12345);
@@ -1628,6 +1736,7 @@ const R = (() => {
     fiber: { draw: (g, n, b) => { noise(g, n, 1200, '#9aa0a3', 30, b); for (let x = 0; x < n; x++) { const v = Math.sin(x / n * Math.PI * 2 * 6); g.fillStyle = b ? `rgb(${128 + v * 110 | 0},${128 + v * 110 | 0},${128 + v * 110 | 0})` : `rgba(${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${Math.abs(v) * 0.18})`; g.fillRect(x, 0, 1, n); } }, u: 1100, v: 1100, rough: 0.85, metal: 0 },
     metal: { draw: (g, n, b) => { g.fillStyle = b ? '#808080' : '#c7ccd1'; g.fillRect(0, 0, n, n); for (let x = 0; x < n; x += n / 4) { g.fillStyle = b ? '#f0f0f0' : 'rgba(255,255,255,.25)'; g.fillRect(x, 0, n / 16, n); g.fillStyle = b ? '#404040' : 'rgba(0,0,0,.15)'; g.fillRect(x + n / 16, 0, 3, n); } }, u: 1000, v: 1000, rough: 0.35, metal: 0.7 },
     rebar: { color: 0x5b4636, rough: 0.6, metal: 0.6 },
+    steel: { draw: (g, n, b) => { g.fillStyle = b ? '#808080' : '#8b939c'; g.fillRect(0, 0, n, n); for (let i = 0; i < 900; i++) { const v = (rnd() - 0.5); g.fillStyle = b ? `rgba(${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},.08)` : `rgba(${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},.06)`; g.fillRect(0, rnd() * n, n, 1); } }, u: 1000, v: 1000, rough: 0.45, metal: 0.65 },
   };
   function civMat(key, ru, rv) {
     const d = MATS[key];
@@ -1688,6 +1797,13 @@ const R = (() => {
       g = new THREE.ExtrudeGeometry(sh, { depth: len, bevelEnabled: false }); g.translate(0, 0, -len / 2);
       if (p.axis === 'y') g.rotateX(-Math.PI / 2); else g.rotateY(Math.PI / 2);
       m = new THREE.Mesh(g, mat); m.position.copy(v(p.c));
+    } else if (p.k === 'lathe') {
+      const pts = p.ri > 0 ? [[p.ri, 0], [p.ro, 0], [p.ro, p.h], [p.ri, p.h], [p.ri, 0]] : [[0, 0], [p.ro, 0], [p.ro, p.h], [0, p.h]];
+      g = new THREE.LatheGeometry(pts.map(q => new THREE.Vector2(q[0], q[1])), 40); m = new THREE.Mesh(g, mat);
+    } else if (p.k === 'prism') {
+      const sh = new THREE.Shape(); p.pts.forEach((q, i) => i ? sh.lineTo(q[0], q[1]) : sh.moveTo(q[0], q[1])); sh.closePath();
+      g = new THREE.ExtrudeGeometry(sh, { depth: p.y1 - p.y0, bevelEnabled: false }); g.rotateX(Math.PI / 2); g.translate(0, p.y1, 0);
+      m = new THREE.Mesh(g, mat);
     } else if (p.k === 'frustum') {
       const [bx, bz] = p.b, [tx, tz] = p.t, B = [[-bx / 2, p.y0, -bz / 2], [bx / 2, p.y0, -bz / 2], [bx / 2, p.y0, bz / 2], [-bx / 2, p.y0, bz / 2]], T = [[-tx / 2, p.y1, -tz / 2], [tx / 2, p.y1, -tz / 2], [tx / 2, p.y1, tz / 2], [-tx / 2, p.y1, tz / 2]];
       const tri = []; for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; tri.push(B[i], T[j], B[j], B[i], T[i], T[j]); }
@@ -1711,7 +1827,7 @@ const R = (() => {
         if (d.draw) { if (p.k === 'box') { const roofy = p.rq || p.mat === 'tile' || p.mat === 'fiber' || p.mat === 'metal'; ru = p.s[0] / d.u; rv = (roofy ? p.s[2] : p.s[1]) / d.v; } else { ru = 1 / d.u; rv = 1 / d.v; } }
         const cm = civMat(p.mat, ru, rv); mat = cm.m; mats.push(mat); texs.push(...cm.t);
       }
-      const m = primMesh(p, mat); if (m) { m.userData.pid = pc.id; group.add(m); }
+      const m = primMesh(p, mat); if (m) { m.userData.pid = pc.id; group.add(m); if (p.edges) { const ln = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 25), EDGE_M); m.add(ln); } }
     }
     group.userData.pid = pc.id;
     return { group, mats, texs, key: pkey(pc) };
@@ -1724,7 +1840,7 @@ const R = (() => {
       if (!o || o.key !== pkey(pc)) { if (o) disposeObj(o); o = build(pc); objs.set(pc.id, o); root.add(o.group); }
       o.group.position.set(pc.pos.x, pc.pos.y, pc.pos.z); o.group.quaternion.set(pc.q.x, pc.q.y, pc.q.z, pc.q.w);
       const em = pc.id === S.sel ? 0x6a4300 : clashIds.has(pc.id) ? 0x7a0d0d : 0x000000;
-      o.mats.forEach((m, i) => { if (i !== 1) m.emissive.setHex(em); });
+      o.mats.forEach((m, i) => { if (i !== 1 && m.emissive) m.emissive.setHex(em); });
     }
     buildBolts(); buildMarkers(); buildClash(); updateGizmo(); render();
   }
@@ -2053,8 +2169,8 @@ function renderRight() {
   const dnOpts = (cur, f = () => true) => DNS.filter(f).map(d => `<option value="${d}" ${d == cur ? 'selected' : ''}>${DIM[d].nps} · DN ${d}</option>`).join('');
   const flTypes = ['flange', 'valve', 'strainer', 'expjoint', 'sightglass', 'psv'];
   let par = '';
-  if (T.civil) for (const [k, l, opts, lab] of T.fields) par += opts ? `<label class="f">${l}<select class="in" data-cf="${k}">${opts.map(o => `<option value="${o}" ${o == pc[k] ? 'selected' : ''}>${lab ? lab(o) : o}</option>`).join('')}</select></label>` : `<label class="f">${l}<input class="in" type="number" min="1" data-cf="${k}" value="${pc[k]}"></label>`;
-  if (pc.type !== 'custom' && !T.civil) par += `<label class="f">Diâmetro<select class="in" id="pDn">${dnOpts(pc.dn)}</select></label>`;
+  if (T.fields) for (const [k, l, opts, lab] of T.fields) par += opts ? `<label class="f">${l}<select class="in" data-cf="${k}">${opts.map(o => `<option value="${o}" ${o == pc[k] ? 'selected' : ''}>${lab ? lab(o) : o}</option>`).join('')}</select></label>` : `<label class="f">${l}<input class="in" type="number" min="1" data-cf="${k}" value="${pc[k]}"></label>`;
+  if (pc.type !== 'custom' && !T.fields) par += `<label class="f">Diâmetro<select class="in" id="pDn">${dnOpts(pc.dn)}</select></label>`;
   if (flTypes.includes(pc.type)) par += `<label class="f">Classe<select class="in" id="pCls">${CLASSES.map(c => `<option value="${c}" ${c == pc.cls ? 'selected' : ''}>${(FLANGE_STDS[pr.meta.fstd] || FLANGE_STDS['ASME B16.5'])[c]}</option>`).join('')}</select></label>`;
   if (pc.type === 'pipe' || pc.type === 'custom') par += `<label class="f">Comprimento (mm)<input class="in" id="pLen" type="number" step="1" value="${TP.r1(pc.len)}"></label>`;
   if (pc.type === 'elbow') par += `<label class="f">Ângulo (°)<input class="in" id="pAng" type="number" min="1" max="180" step="0.5" value="${pc.angle}"></label><label class="f">Raio<select class="in" id="pRad"><option value="LR" ${pc.radius !== 'SR' ? 'selected' : ''}>Longo 1,5D</option><option value="SR" ${pc.radius === 'SR' ? 'selected' : ''}>Curto 1D</option></select></label>`;
@@ -2063,26 +2179,26 @@ function renderRight() {
   if (pc.type === 'psv') par += `<label class="f">Saída<select class="in" id="pDn2">${dnOpts(pc.dn2, d => d >= pc.dn)}</select></label>`;
   if (pc.type === 'flange') par += `<label class="f">Tipo<select class="in" id="pSub">${[['WN', 'Weld Neck'], ['SO', 'Slip-On'], ['BL', 'Cego']].map(([k, l]) => `<option value="${k}" ${pc.sub === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
   if (pc.type === 'valve') par += `<label class="f">Tipo<select class="in" id="pSub">${Object.entries(VALVE_SUBS).map(([k, l]) => `<option value="${k}" ${pc.sub === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
-  const ports = Object.keys(pc.conn).map(k => {
+  const ports = !Object.keys(pc.conn).length ? '<div class="mut">Peça sem portas de conexão — posicione com o gizmo ou os botões de mover.</div>' : Object.keys(pc.conn).map(k => {
     const c = pc.conn[k], o = c && pr.get(c.id), isAct = S.active && S.active.id === pc.id && S.active.port === k;
     return `<div class="pt"><span><b class="mono">${k}</b> <span class="mut">${w[k].end === 'CV' ? (w[k].dir.y > 0.9 ? 'apoio superior' : w[k].dir.y < -0.9 ? 'apoio inferior' : 'ligação lateral') : (DIM[w[k].dn]?.nps || 'Ø' + TP.r1(w[k].od)) + ' · ' + { BW: 'solda topo', SW: 'solda encaixe', FL: 'flange', TH: 'rosca' }[w[k].end]}</span><br>${o ? `<span class="chip ok">→ ${esc(o.tag)} ${c.port}</span>` : '<span class="chip am">livre</span>'}</span>
       ${o ? `<button class="ib sm" data-unl="${k}">soltar</button>` : `<button class="ib sm ${isAct ? 'on' : ''}" data-act="${k}">${isAct ? 'ativa' : 'continuar aqui'}</button>`}</div>`;
   }).join('');
-  const pv = w[piv].pos;
+  const pv = piv && w[piv] ? w[piv].pos : pc.pos;
   const mis = S.mis.filter(m => m.a === pc.id || m.b === pc.id);
   Rt.innerHTML = `<div class="sec"><h3>${esc(T.name)} <span class="chip am">${esc(pc.tag)}</span></h3>
     <div style="margin-bottom:6px">${esc(T.desc(pc))}</div><div class="mut mono">${esc(T.mat(pc))} · ${fmt(T.weight(pc), 1)} kg</div>
     ${mis.length ? `<div class="chip er" style="margin-top:6px">Junta com desvio de ${mis.map(m => fmt(m.deg, 1) + '°').join(', ')}</div>` : ''}
     <div class="grid2" style="margin-top:8px"><label class="f">TAG<input class="in" id="pTag" value="${esc(pc.tag)}"></label>${par}</div></div>
-    <div class="sec"><h3>Orientação</h3><div class="mut" style="margin-bottom:6px">Pivô: face ${piv}${upc ? ' em ' + esc(upc.tag) : ''} · E ${fmt(pv.x)} N ${fmt(-pv.z)} EL ${fmt(pv.y)}</div>
+    <div class="sec"><h3>Orientação</h3><div class="mut" style="margin-bottom:6px">${piv ? `Pivô: face ${piv}${upc ? ' em ' + esc(upc.tag) : ''}` : 'Pivô: canto de referência'} · E ${fmt(pv.x)} N ${fmt(-pv.z)} EL ${fmt(pv.y)}</div>
       <div class="row" style="margin-bottom:6px"><label class="f" style="flex:1">Passo (°)<input class="in" id="oStep" type="number" value="${S.step}"></label></div>
-      ${T.civil ? `<div class="btns"><button class="ib" data-o="${pc.type === 'wall' ? 'th' : 'roll'}:90">Girar 90° ⟲</button><button class="ib" data-o="${pc.type === 'wall' ? 'th' : 'roll'}:-90">Girar 90° ⟳</button><button class="ib" data-o="${pc.type === 'wall' ? 'th' : 'roll'}:s">+passo</button><button class="ib" data-o="${pc.type === 'wall' ? 'th' : 'roll'}:-s">−passo</button></div>` : `<div class="btns">
+      ${T.struct ? `<div class="btns"><button class="ib" data-o="spin:90">Girar 90° ⟲</button><button class="ib" data-o="spin:-90">Girar 90° ⟳</button><button class="ib" data-o="spin:s">+passo</button><button class="ib" data-o="spin:-s">−passo</button><button class="ib" data-o="tipx:90">Tombar (eixo E)</button><button class="ib" data-o="tipz:90">Tombar (eixo N)</button></div>` : T.civil ? `<div class="btns"><button class="ib" data-o="${pc.type === 'wall' ? 'th' : 'roll'}:90">Girar 90° ⟲</button><button class="ib" data-o="${pc.type === 'wall' ? 'th' : 'roll'}:-90">Girar 90° ⟳</button><button class="ib" data-o="${pc.type === 'wall' ? 'th' : 'roll'}:s">+passo</button><button class="ib" data-o="${pc.type === 'wall' ? 'th' : 'roll'}:-s">−passo</button></div>` : `<div class="btns">
         <button class="ib" data-o="roll:90">Girar no eixo +90°</button><button class="ib" data-o="roll:-90">−90°</button>
         <button class="ib" data-o="roll:s">Girar +passo</button><button class="ib" data-o="roll:-s">−passo</button>
         <button class="ib" data-o="tv:s">Inclinar ↑</button><button class="ib" data-o="tv:-s">Inclinar ↓</button>
         <button class="ib" data-o="th:s">Desviar ⟲</button><button class="ib" data-o="th:-s">Desviar ⟳</button>
         <button class="ib" data-o="up">Em pé</button><button class="ib" data-o="flat">Deitado</button><button class="ib" data-o="flip">Inverter direção</button>
-      </div>`}<div class="mut" style="margin-top:6px;font-size:11px">${T.civil ? 'Gira em planta em torno do apoio; tudo o que está apoiado nesta peça acompanha.' : ''}${T.civil ? '</div><div style="display:none">' : ''}"Girar no eixo" mantém a junta perfeita. "Inclinar/Desviar" gira na face mas cria junta em ângulo (avisado em vermelho) — para trechos inclinados prefira curvas com ângulo.</div></div>
+      </div>`}<div class="mut" style="margin-top:6px;font-size:11px">${T.struct ? 'Gira em torno do centro da peça. Para arrastar livremente, use o gizmo no 3D.' : T.civil ? 'Gira em planta em torno do apoio; tudo o que está apoiado nesta peça acompanha.' : ''}${T.civil || T.struct ? '</div><div style="display:none">' : ''}"Girar no eixo" mantém a junta perfeita. "Inclinar/Desviar" gira na face mas cria junta em ângulo (avisado em vermelho) — para trechos inclinados prefira curvas com ângulo.</div></div>
     <div class="sec"><h3>Mover grupo conectado</h3><div class="row" style="margin-bottom:6px"><label class="f" style="flex:1">Passo (mm)<input class="in" id="mStep" type="number" value="${S.move}"></label></div>
       <div class="grid3">${[['E+', 'x', 1], ['N+', 'z', -1], ['EL+', 'y', 1], ['E−', 'x', -1], ['N−', 'z', 1], ['EL−', 'y', -1]].map(([l, a, s]) => `<button class="ib" data-mv="${a}:${s}">${l}</button>`).join('')}</div></div>
     <div class="sec"><h3>Portas</h3><div class="ports">${ports}</div></div>
@@ -2105,6 +2221,7 @@ function renderRight() {
     const [op, a] = b.dataset.o.split(':'), deg = a === 's' ? S.step : a === '-s' ? -S.step : +a;
     mutate(() => {
       let r;
+      if (op === 'spin' || op === 'tipx' || op === 'tipz') { const p0 = pr.get(id), c = p0.q.rot(structCenter(p0)).add(p0.pos); TP.applyRigid(pr, [id], c, c, Q.axisAngle(op === 'spin' ? TP.UP : op === 'tipx' ? TP.AX : TP.AZ, deg * Math.PI / 180)); return; }
       if (op === 'roll') r = TP.roll(pr, id, deg);
       else if (op === 'tv') r = TP.tilt(pr, id, deg, 'v');
       else if (op === 'th') r = TP.tilt(pr, id, deg, 'h');
@@ -2120,6 +2237,7 @@ function renderRight() {
   $('#aDup').onclick = () => mutate(() => { const o = pr.get(id); const { id: _i, tag: _t, conn: _c, ...rest } = o; const c = pr.create(o.type, Object.assign(rest, { pos: o.pos.add(new V3(0, 0, 500)), q: o.q })); S.sel = c.id; });
   $('#aDel').onclick = deleteSel;
 }
+function structCenter(pc) { const p = pc; if (pc.type === 'cylinder') return new V3(0, p.H / 2, 0); if (pc.type === 'plate') return new V3(p.L / 2, p.t / 2, p.W / 2); return new V3(p.L / 2, p.H / 2, p.W / 2); }
 function flip(id) {
   const pc = pr.get(id), ks = Object.keys(pc.conn), con = ks.filter(k => pc.conn[k]);
   if (con.length > 1) { toast('Inverter só funciona em peças com uma ligação (ponta de linha).', 'er'); return false; }
@@ -2146,14 +2264,29 @@ function renderStatus() {
 
 /* ======================= ISOMÉTRICO ======================= */
 const ISO = (() => {
-  const K = 'tecplan.iso.v1';
-  const st = Object.assign({ segs: [], strokes: [], ells: [], tool: 'line', skew: false, plane: 'EN', grid: 100, dn: 100, view: { k: 38, x: 0, y: 0 } }, store.get(K, {}));
-  let cv, ctx, W = 0, H = 0, dpr = 1, drag = null, preview = null, hist = [], fut = [], cursor = null, inited = false;
-  const C30 = TP.C30, S30 = TP.S30;
+  const K = 'tecplan.iso.v2';
+  const blank = { segs: [], strokes: [], ells: [], syms: [], boxes: [], plates: [], cyls: [] };
+  const st = Object.assign({}, blank, { tool: 'line', skew: false, plane: 'EN', grid: 100, dn: 100, view: { k: 38, x: 0, y: 0 },
+    sym: 'gate', bShape: 'rect', bH: 500, bHollow: 1, bT: 6.35, bLid: 0, pT: 6.35, pMat: 'steel', cH: 1000, cHollow: 1, cT: 6.35, cCaps: 1, elev: 0 }, store.get('tecplan.iso.v1', {}), store.get(K, {}));
+  for (const k in blank) if (!Array.isArray(st[k])) st[k] = [];
+  let cv, ctx, W = 0, H = 0, dpr = 1, drag = null, preview = null, hist = [], cursor = null, inited = false;
+  const C30 = TP.C30, S30 = TP.S30, AX = n => TP.ISO_AXES.find(a => a.n === n).s;
   const toS = p => [p[0] * st.view.k + st.view.x, p[1] * st.view.k + st.view.y];
   const toW = (x, y) => [(x - st.view.x) / st.view.k, (y - st.view.y) / st.view.k];
-  const persist = () => store.set(K, { segs: st.segs, strokes: st.strokes, ells: st.ells, tool: st.tool, skew: st.skew, plane: st.plane, grid: st.grid, dn: st.dn, view: st.view });
-  const push = () => { hist.push(JSON.stringify([st.segs, st.strokes, st.ells])); if (hist.length > 80) hist.shift(); fut = []; };
+  const add2 = (p, v, k = 1) => [p[0] + v[0] * k, p[1] + v[1] * k];
+  const DATA = Object.keys(blank);
+  const persist = () => store.set(K, Object.fromEntries(Object.keys(st).map(k => [k, st[k]])));
+  const snapData = () => JSON.stringify(Object.fromEntries(DATA.map(k => [k, st[k]])));
+  const push = () => { hist.push(snapData()); if (hist.length > 80) hist.shift(); };
+  const segKey = s => `${s.a[0].toFixed(3)},${s.a[1].toFixed(3)}|${s.b[0].toFixed(3)},${s.b[1].toFixed(3)}`;
+  // decompõe um vetor de tela nos dois eixos de um plano (resultado em células da grade)
+  function planeCoords(dx, dy, plane) {
+    const [un, vn] = TP.PLANES[plane], u = AX(un), v = AX(vn), det = u[0] * v[1] - u[1] * v[0];
+    return [(dx * v[1] - dy * v[0]) / det, (u[0] * dy - u[1] * dx) / det];
+  }
+  const TOOLS = [['line', '✏ Linha'], ['sym', '⧓ Símbolo'], ['box', '▣ Caixa'], ['plate', '🪣 Chapa'], ['cyl', '◎ Cilindro'], ['free', '∿ Livre'], ['ell', '◯ Elipse'], ['erase', '⌫ Borracha'], ['pan', '✋ Mover']];
+  const SYMS = { gate: 'Válvula gaveta', ball: 'Válvula esfera', globe: 'Válvula globo', butterfly: 'Válvula borboleta', check: 'Retenção', strainer: 'Filtro Y', flanges: 'Par de flanges' };
+  const PLANE_L = { EN: 'Horizontal (E-N)', EU: 'Vertical (E-Cima)', NU: 'Vertical (N-Cima)' };
   function init() {
     if (inited) return; inited = true;
     cv = $('#isoc'); ctx = cv.getContext('2d');
@@ -2162,32 +2295,51 @@ const ISO = (() => {
     if (!st.view.x && !st.view.y) { st.view.x = W * 0.3; st.view.y = H * 0.6; }
     persist(); draw();
   }
+  const sel = (id, opts, cur) => `<select class="in" id="${id}">${Object.entries(opts).map(([k, l]) => `<option value="${k}" ${String(k) === String(cur) ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
+  const num = (id, val, w = 72) => `<input class="in" id="${id}" type="number" min="0" step="any" value="${val}" style="width:${w}px">`;
+  function props() {
+    const t = st.tool, L = s => `<span class="mut">${s}</span>`;
+    const plane = sel('iPlane', PLANE_L, st.plane);
+    if (t === 'line') return `<button class="ib sm ${st.skew ? 'on' : ''}" id="iSkew" title="Permite trechos fora dos eixos">Inclinado</button>${st.skew ? plane : ''}${L('Diâmetro')}${sel('iDn', Object.fromEntries(DNS.map(d => [d, DIM[d].nps])), st.dn)}`;
+    if (t === 'sym') return `${L('Toque sobre um trecho para colocar:')}${sel('iSym', SYMS, st.sym)}`;
+    if (t === 'box') return `${sel('iBShape', { rect: 'Base retangular', tri: 'Base triangular' }, st.bShape)}${L('Altura')}${num('iBH', st.bH)}${L('mm')}${st.bShape === 'rect' ? sel('iBHollow', { 1: 'Oca (chapas)', 0: 'Maciça' }, st.bHollow) + (st.bHollow ? L('parede') + num('iBT', st.bT, 60) + L('mm') + sel('iBLid', { 0: 'Sem tampa', 1: 'Com tampa' }, st.bLid) : '') : ''}${L('EL base')}${num('iElev', st.elev)}`;
+    if (t === 'plate') return `${plane}${sel('iPMat', has('CL') ? { steel: 'Chapa de aço', wall: 'Parede de alvenaria' } : { steel: 'Chapa de aço' }, st.pMat)}${st.pMat === 'steel' ? L('espessura') + num('iPT', st.pT, 60) + L('mm') : ''}${L('EL base')}${num('iElev', st.elev)}`;
+    if (t === 'cyl') return `${plane}${L('Comprimento')}${num('iCH', st.cH)}${L('mm')}${sel('iCHollow', { 1: 'Oco (costado)', 0: 'Maciço' }, st.cHollow)}${st.cHollow ? L('parede') + num('iCT', st.cT, 60) + L('mm') + sel('iCCaps', { 1: 'Com tampos', 0: 'Sem tampos' }, st.cCaps) : ''}${L('EL base')}${num('iElev', st.elev)}`;
+    if (t === 'ell') return `${plane}${L('Elipse de anotação (não vira peça)')}`;
+    if (t === 'free') return L('Rabisco de anotação (não vira peça)');
+    if (t === 'erase') return L('Toque num traço, símbolo ou objeto para apagar');
+    return L('Arraste para mover a folha · pinça ou roda: zoom');
+  }
   function bar() {
-    const tools = [['line', '✏ Linha'], ['free', '∿ Livre'], ['ell', '◯ Elipse'], ['erase', '⌫ Borracha'], ['pan', '✋ Mover']];
-    $('#isobar').innerHTML = tools.map(([t, l]) => `<button class="ib sm ${st.tool === t ? 'on' : ''}" data-tool="${t}">${l}</button>`).join('') +
-      `<span class="sep"></span><button class="ib sm ${st.skew ? 'on' : ''}" id="iSkew" title="Permite trechos fora dos eixos">Inclinado</button>
-      <select class="in" id="iPlane" title="Plano para trechos inclinados e elipses"><option value="EN">Plano horizontal (E-N)</option><option value="EU">Plano vertical (E-Cima)</option><option value="NU">Plano vertical (N-Cima)</option></select>
-      <span class="sep"></span><label class="mut">Grade</label><input class="in" id="iGrid" type="number" min="10" step="10" value="${st.grid}" style="width:70px"><span class="mut">mm</span>
-      <select class="in" id="iDn">${DNS.map(d => `<option value="${d}" ${d == st.dn ? 'selected' : ''}>${DIM[d].nps}</option>`).join('')}</select>
-      <span class="sep"></span><button class="ib sm" id="iUndo">↶</button><button class="ib sm" id="iClr">Limpar</button><button class="ib sm" id="iCenter">Centralizar</button><button class="ib sm am" id="iConv">Converter para 3D</button>`;
-    $('#iPlane').value = st.plane;
-    $('#isobar').querySelectorAll('[data-tool]').forEach(b => b.onclick = () => { st.tool = b.dataset.tool; persist(); bar(); draw(); });
-    $('#iSkew').onclick = () => { st.skew = !st.skew; persist(); bar(); };
-    $('#iPlane').onchange = e => { st.plane = e.target.value; persist(); };
-    $('#iGrid').onchange = e => { st.grid = Math.max(10, +e.target.value || 100); persist(); draw(); };
-    $('#iDn').onchange = e => { st.dn = +e.target.value; persist(); };
-    $('#iUndo').onclick = () => { if (!hist.length) return; fut.push(JSON.stringify([st.segs, st.strokes, st.ells])); [st.segs, st.strokes, st.ells] = JSON.parse(hist.pop()); persist(); draw(); };
-    $('#iClr').onclick = () => { if (!st.segs.length && !st.strokes.length && !st.ells.length) return; push(); st.segs = []; st.strokes = []; st.ells = []; persist(); draw(); toast('Desenho limpo (↶ desfaz).'); };
-    $('#iCenter').onclick = center;
-    $('#iConv').onclick = convert;
+    $('#isobar').innerHTML = `<div class="ibrow">${TOOLS.map(([t, l]) => `<button class="ib sm ${st.tool === t ? 'on' : ''}" data-tool="${t}">${l}</button>`).join('')}
+      <span class="sep"></span><span class="mut">Grade</span>${num('iGrid', st.grid, 64)}<span class="mut">mm</span>
+      <span class="sep"></span><button class="ib sm" id="iUndo">↶</button><button class="ib sm" id="iClr">Limpar</button><button class="ib sm" id="iCenter">Centralizar</button><button class="ib sm am" id="iConv">Converter para 3D</button></div>
+      <div class="ibrow" id="iprops">${props()}</div>`;
+    const on = (id, ev, fn) => { const e = document.getElementById(id); if (e) e[ev] = fn; };
+    $('#isobar').querySelectorAll('[data-tool]').forEach(b => b.onclick = () => { st.tool = b.dataset.tool; persist(); bar(); draw(); info(); });
+    on('iSkew', 'onclick', () => { st.skew = !st.skew; persist(); bar(); });
+    const setv = (id, key, numeric, rebar) => on(id, 'onchange', e => { st[key] = numeric ? Math.max(0, +e.target.value || 0) : e.target.value; if (key === 'bHollow' || key === 'cHollow' || key === 'bLid' || key === 'cCaps') st[key] = +e.target.value; persist(); if (rebar) bar(); draw(); });
+    setv('iPlane', 'plane'); setv('iDn', 'dn', true); setv('iSym', 'sym'); setv('iBShape', 'bShape', false, true); setv('iBH', 'bH', true); setv('iBHollow', 'bHollow', true, true); setv('iBT', 'bT', true); setv('iBLid', 'bLid', true);
+    setv('iPMat', 'pMat', false, true); setv('iPT', 'pT', true); setv('iCH', 'cH', true); setv('iCHollow', 'cHollow', true, true); setv('iCT', 'cT', true); setv('iCCaps', 'cCaps', true); setv('iElev', 'elev', true);
+    on('iGrid', 'onchange', e => { st.grid = Math.max(10, +e.target.value || 100); persist(); draw(); info(); });
+    on('iUndo', 'onclick', () => { if (!hist.length) return; Object.assign(st, JSON.parse(hist.pop())); persist(); draw(); info(); });
+    on('iClr', 'onclick', () => { if (!DATA.some(k => st[k].length)) return; push(); DATA.forEach(k => st[k] = []); persist(); draw(); info(); toast('Desenho limpo (↶ desfaz).'); });
+    on('iCenter', 'onclick', center);
+    on('iConv', 'onclick', convert);
+  }
+  function allPts() {
+    const p = st.segs.flatMap(s => [s.a, s.b]);
+    st.boxes.forEach(b => boxPts(b).forEach(q => p.push(q))); st.plates.forEach(b => platePts(b).forEach(q => p.push(q))); st.cyls.forEach(c => cylOutline(c).forEach(q => p.push(q)));
+    return p;
   }
   function center() {
-    const pts = st.segs.flatMap(s => [s.a, s.b]);
+    const pts = allPts();
     if (!pts.length) { st.view.x = W * 0.3; st.view.y = H * 0.6; draw(); return; }
     const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
     const w = Math.max(...xs) - Math.min(...xs) || 1, h = Math.max(...ys) - Math.min(...ys) || 1;
-    st.view.k = Math.max(6, Math.min(120, Math.min((W - 80) / w, (H - 140) / h)));
-    st.view.x = W / 2 - (Math.min(...xs) + w / 2) * st.view.k; st.view.y = (H + 50) / 2 - (Math.min(...ys) + h / 2) * st.view.k; persist(); draw();
+    const top = $('#isobar').offsetHeight;
+    st.view.k = Math.max(4, Math.min(120, Math.min((W - 80) / w, (H - top - 80) / h)));
+    st.view.x = W / 2 - (Math.min(...xs) + w / 2) * st.view.k; st.view.y = top + (H - top) / 2 - (Math.min(...ys) + h / 2) * st.view.k; persist(); draw();
   }
   function resize() { const r = $('#viso').getBoundingClientRect(); dpr = Math.min(2, window.devicePixelRatio || 1); W = r.width; H = r.height; if (!W) return; cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; draw(); }
   function snapEnd(a, wpt) {
@@ -2199,6 +2351,24 @@ const ISO = (() => {
     return [a[0] + best.ax.s[0] * n, a[1] + best.ax.s[1] * n];
   }
   function segInfo(a, b, plane) { const d = TP.isoDelta(b[0] - a[0], b[1] - a[1], st.grid, plane); return { L: d.v.len(), axis: d.axis, v: d.v }; }
+  // ---- geometria dos objetos na tela ----
+  function boxBase(b) { const E = AX('E'), N = AX('N'); const p0 = b.a, p1 = add2(p0, E, b.da), p2 = add2(p1, N, b.db), p3 = add2(p0, N, b.db); return b.shape === 'tri' ? [p0, p1, p3] : [p0, p1, p2, p3]; }
+  function boxPts(b) { const base = boxBase(b), up = AX('Cima'), h = b.H / st.grid; return base.concat(base.map(p => add2(p, up, h))); }
+  function platePts(p) { const [un, vn] = TP.PLANES[p.plane], u = AX(un), v = AX(vn); const p1 = add2(p.a, u, p.du), p2 = add2(p1, v, p.dv), p3 = add2(p.a, v, p.dv); return [p.a, p1, p2, p3]; }
+  function ellPts(e, n = 48) { const [un, vn] = TP.PLANES[e.plane], u = AX(un), v = AX(vn), out = []; for (let i = 0; i <= n; i++) { const t = i / n * Math.PI * 2; out.push([e.c[0] + e.r * (Math.cos(t) * u[0] + Math.sin(t) * v[0]), e.c[1] + e.r * (Math.cos(t) * u[1] + Math.sin(t) * v[1])]); } return out; }
+  const cylAxis = plane => AX({ EN: 'Cima', EU: 'N', NU: 'E' }[plane]);
+  function cylOutline(c) { const ax = cylAxis(c.plane), h = c.H / st.grid; return ellPts(c).concat(ellPts({ c: add2(c.c, ax, h), r: c.r, plane: c.plane })); }
+  function symAt(sy) { const s = st.segs.find(x => segKey(x) === sy.seg); if (!s) return null; const L = Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1]); const f = sy.k / L; return { s, p: [s.a[0] + (s.b[0] - s.a[0]) * f, s.a[1] + (s.b[1] - s.a[1]) * f], dir: [(s.b[0] - s.a[0]) / L, (s.b[1] - s.a[1]) / L], L }; }
+  function nearestSeg(w) {
+    let best = null;
+    for (const s of st.segs) {
+      const dx = s.b[0] - s.a[0], dy = s.b[1] - s.a[1], l2 = dx * dx + dy * dy; if (!l2) continue;
+      const t = Math.max(0, Math.min(1, ((w[0] - s.a[0]) * dx + (w[1] - s.a[1]) * dy) / l2));
+      const d = Math.hypot(w[0] - s.a[0] - t * dx, w[1] - s.a[1] - t * dy);
+      if (!best || d < best.d) best = { s, t, d, L: Math.sqrt(l2) };
+    }
+    return best;
+  }
   function bind() {
     const P = new Map(); let pinch = null;
     cv.addEventListener('contextmenu', e => e.preventDefault());
@@ -2206,10 +2376,17 @@ const ISO = (() => {
     cv.addEventListener('pointerdown', e => {
       cv.setPointerCapture(e.pointerId); P.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
       if (P.size === 2) { drag = null; preview = null; pinch = null; draw(); return; }
-      const w = toW(e.offsetX, e.offsetY), tool = (e.button === 1 || e.button === 2) ? 'pan' : st.tool;
-      if (tool === 'line') { const a = TP.snapLattice(w[0], w[1]); drag = { tool, a }; preview = { a, b: a }; }
+      const w = toW(e.offsetX, e.offsetY), tool = (e.button === 1 || e.button === 2) ? 'pan' : st.tool, sn = TP.snapLattice(w[0], w[1]);
+      if (tool === 'line') { drag = { tool, a: sn }; preview = { a: sn, b: sn }; }
       else if (tool === 'free') drag = { tool, pts: [w] };
-      else if (tool === 'ell') { const c = TP.snapLattice(w[0], w[1]); drag = { tool, c, r: 0 }; }
+      else if (tool === 'ell' || tool === 'cyl') drag = { tool, c: sn, r: 0 };
+      else if (tool === 'box' || tool === 'plate') drag = { tool, a: sn, du: 0, dv: 0 };
+      else if (tool === 'sym') {
+        const n = nearestSeg(w);
+        if (!n || n.d * st.view.k > 22) { toast('Toque sobre um trecho de tubulação desenhado.', 'er'); }
+        else { const k = Math.max(0.5, Math.min(n.L - 0.5, Math.round(n.t * n.L * 2) / 2)); push(); st.syms = st.syms.filter(x => !(x.seg === segKey(n.s) && Math.abs(x.k - k) < 0.4)); st.syms.push({ seg: segKey(n.s), k, kind: st.sym }); persist(); toast(`Símbolo colocado: ${SYMS[st.sym]}.`, 'ok'); }
+        drag = null;
+      }
       else if (tool === 'erase') { drag = { tool, pushed: false }; erase(e.offsetX, e.offsetY, drag); }
       else drag = { tool: 'pan', x: e.offsetX, y: e.offsetY };
       draw();
@@ -2222,10 +2399,13 @@ const ISO = (() => {
         if (pinch) { st.view.x += mid[0] - pinch.mid[0]; st.view.y += mid[1] - pinch.mid[1]; zoomAt(mid[0], mid[1], dist / pinch.dist); }
         pinch = { dist, mid }; return;
       }
-      if (!drag) { info(); draw(); return; }
+      if (!drag) { draw(); return; }
+      const g = st.grid;
       if (drag.tool === 'line') { preview = { a: drag.a, b: snapEnd(drag.a, w) }; const s = segInfo(preview.a, preview.b, st.plane); info(`Trecho: ${fmt(s.L)} mm · ${s.axis === 'skew' ? 'inclinado (' + st.plane + ')' : s.axis}`); }
       else if (drag.tool === 'free') drag.pts.push(w);
-      else if (drag.tool === 'ell') { drag.r = Math.max(1, Math.round(Math.hypot(w[0] - drag.c[0], w[1] - drag.c[1]))); info(`Raio: ${fmt(drag.r * st.grid)} mm`); }
+      else if (drag.tool === 'ell' || drag.tool === 'cyl') { drag.r = Math.max(1, Math.round(Math.hypot(w[0] - drag.c[0], w[1] - drag.c[1]))); info(drag.tool === 'cyl' ? `Cilindro Ø${fmt(2 * drag.r * g)} × ${fmt(st.cH)} mm` : `Raio: ${fmt(drag.r * g)} mm`); }
+      else if (drag.tool === 'box') { const [a, b] = TP.screenToLattice(w[0] - drag.a[0], w[1] - drag.a[1]); drag.du = Math.round(a); drag.dv = Math.round(b); info(`Caixa ${fmt(Math.abs(drag.du) * g)} × ${fmt(Math.abs(drag.dv) * g)} × ${fmt(st.bH)} mm`); }
+      else if (drag.tool === 'plate') { const [a, b] = planeCoords(w[0] - drag.a[0], w[1] - drag.a[1], st.plane); drag.du = Math.round(a); drag.dv = Math.round(b); info(`${st.pMat === 'wall' ? 'Parede' : 'Chapa'} ${fmt(Math.abs(drag.du) * g)} × ${fmt(Math.abs(drag.dv) * g)} mm`); }
       else if (drag.tool === 'erase') erase(e.offsetX, e.offsetY, drag);
       else if (drag.tool === 'pan') { st.view.x += e.offsetX - drag.x; st.view.y += e.offsetY - drag.y; drag.x = e.offsetX; drag.y = e.offsetY; }
       draw();
@@ -2233,51 +2413,107 @@ const ISO = (() => {
     const end = e => {
       P.delete(e.pointerId); if (P.size < 2) pinch = null;
       if (!drag) { persist(); return; }
-      if (drag.tool === 'line' && preview && (preview.a[0] !== preview.b[0] || preview.a[1] !== preview.b[1])) { push(); st.segs.push({ a: preview.a, b: preview.b, plane: st.skew ? st.plane : 'EN' }); }
-      if (drag.tool === 'free' && drag.pts.length > 2) { push(); st.strokes.push(drag.pts.filter((p, i) => i % 2 === 0)); }
-      if (drag.tool === 'ell' && drag.r > 0) { push(); st.ells.push({ c: drag.c, r: drag.r, plane: st.plane }); }
+      const d = drag;
+      if (d.tool === 'line' && preview && (preview.a[0] !== preview.b[0] || preview.a[1] !== preview.b[1])) { push(); st.segs.push({ a: preview.a, b: preview.b, plane: st.skew ? st.plane : 'EN' }); }
+      if (d.tool === 'free' && d.pts.length > 2) { push(); st.strokes.push(d.pts.filter((p, i) => i % 2 === 0)); }
+      if (d.tool === 'ell' && d.r > 0) { push(); st.ells.push({ c: d.c, r: d.r, plane: st.plane }); }
+      if (d.tool === 'cyl' && d.r > 0) { push(); st.cyls.push({ c: d.c, r: d.r, plane: st.plane, H: st.cH, hollow: st.cHollow, t: st.cT, caps: st.cCaps, elev: st.elev }); }
+      if (d.tool === 'box' && d.du && d.dv) { push(); st.boxes.push({ a: d.a, da: d.du, db: d.dv, shape: st.bShape, H: st.bH, hollow: st.bHollow, t: st.bT, lid: st.bLid, elev: st.elev }); }
+      if (d.tool === 'plate' && d.du && d.dv) { push(); st.plates.push({ a: d.a, du: d.du, dv: d.dv, plane: st.plane, mat: st.pMat, t: st.pT, elev: st.elev }); }
       drag = null; preview = null; persist(); info(); draw();
     };
     cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
   }
   function zoomAt(x, y, f) { const k2 = Math.max(4, Math.min(200, st.view.k * f)); const r = k2 / st.view.k; st.view.x = x - (x - st.view.x) * r; st.view.y = y - (y - st.view.y) * r; st.view.k = k2; draw(); }
   function distSeg(p, a, b) { const dx = b[0] - a[0], dy = b[1] - a[1], l = dx * dx + dy * dy || 1; const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l)); return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy); }
+  const nearPoly = (p, pts, closed) => pts.some((q, i) => (i || closed) && distSeg(p, toS(pts[(i || pts.length) - 1]), toS(q)) < 12);
   function erase(x, y, d) {
-    const p = [x, y], tol = 12;
-    const hit = (arr, f) => { const i = arr.findIndex(f); if (i >= 0) { if (!d.pushed) { push(); d.pushed = true; } arr.splice(i, 1); return true; } };
-    hit(st.segs, s => distSeg(p, toS(s.a), toS(s.b)) < tol) || hit(st.strokes, s => s.some((q, i) => i && distSeg(p, toS(s[i - 1]), toS(q)) < tol)) || hit(st.ells, e => ellPts(e).some((q, i, a) => i && distSeg(p, toS(a[i - 1]), toS(q)) < tol));
+    const p = [x, y];
+    const hit = (key, f) => { const arr = st[key], i = arr.findIndex(f); if (i >= 0) { if (!d.pushed) { push(); d.pushed = true; } const [it] = arr.splice(i, 1); if (key === 'segs') st.syms = st.syms.filter(s => s.seg !== segKey(it)); return true; } };
+    hit('syms', sy => { const a = symAt(sy); return a && Math.hypot(...toS(a.p).map((v, i) => v - p[i])) < 14; })
+      || hit('segs', s => distSeg(p, toS(s.a), toS(s.b)) < 12)
+      || hit('boxes', b => { const pts = boxPts(b), n = pts.length / 2; return nearPoly(p, pts.slice(0, n), true) || nearPoly(p, pts.slice(n), true); })
+      || hit('plates', b => nearPoly(p, platePts(b), true))
+      || hit('cyls', c => nearPoly(p, ellPts(c), false) || nearPoly(p, ellPts({ c: add2(c.c, cylAxis(c.plane), c.H / st.grid), r: c.r, plane: c.plane }), false))
+      || hit('strokes', s => nearPoly(p, s, false)) || hit('ells', e => nearPoly(p, ellPts(e), false));
   }
-  function ellPts(e) { const [un, vn] = TP.PLANES[e.plane]; const u = TP.ISO_AXES.find(a => a.n === un).s, v = TP.ISO_AXES.find(a => a.n === vn).s; const out = []; for (let i = 0; i <= 48; i++) { const t = i / 48 * Math.PI * 2; out.push([e.c[0] + e.r * (Math.cos(t) * u[0] + Math.sin(t) * v[0]), e.c[1] + e.r * (Math.cos(t) * u[1] + Math.sin(t) * v[1])]); } return out; }
   function info(t) {
     if (t) { $('#isoinfo').textContent = t; return; }
     const tot = st.segs.reduce((s, g) => s + segInfo(g.a, g.b, g.plane).L, 0);
-    $('#isoinfo').textContent = `${st.segs.length} trechos · ${fmt(tot / 1000, 2)} m · grade ${st.grid} mm · ${DIM[st.dn].nps}`;
+    const extra = [st.syms.length && `${st.syms.length} símbolos`, st.boxes.length && `${st.boxes.length} caixas`, st.plates.length && `${st.plates.length} chapas`, st.cyls.length && `${st.cyls.length} cilindros`].filter(Boolean).join(' · ');
+    $('#isoinfo').textContent = `${st.segs.length} trechos · ${fmt(tot / 1000, 2)} m${extra ? ' · ' + extra : ''} · grade ${st.grid} mm · ${DIM[st.dn].nps}`;
+  }
+  const poly = (pts, fill, stroke, lw = 1.5) => { ctx.beginPath(); pts.forEach((p, i) => { const q = toS(p); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.closePath(); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); } };
+  const line = (pts, stroke, lw = 1.5, dash) => { ctx.beginPath(); pts.forEach((p, i) => { const q = toS(p); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.setLineDash(dash || []); ctx.stroke(); ctx.setLineDash([]); };
+  function drawBox(b, prev) {
+    const pts = boxPts(b), n = pts.length / 2, base = pts.slice(0, n), top = pts.slice(n);
+    const fillS = prev ? 'rgba(245,158,11,.10)' : 'rgba(148,163,184,.16)', ed = prev ? '#fbbf24' : '#cbd5e1';
+    for (let i = 0; i < n; i++) { const j = (i + 1) % n; poly([base[i], base[j], top[j], top[i]], fillS, null); }
+    poly(top, prev ? 'rgba(245,158,11,.18)' : 'rgba(203,213,225,.22)', ed, 1.6);
+    poly(base, null, ed, 1); for (let i = 0; i < n; i++) line([base[i], top[i]], ed, 1.2);
+    const c = toS(top[0]); ctx.fillStyle = '#e5e7eb'; ctx.font = '600 11px IBM Plex Mono, monospace'; ctx.textAlign = 'left';
+    ctx.fillText(`${fmt(Math.abs(b.da) * st.grid)}×${fmt(Math.abs(b.db) * st.grid)}×${fmt(b.H)}${b.shape === 'rect' && b.hollow ? ` · ${b.t}mm` : ' · maciça'}`, c[0] + 6, c[1] - 6);
+  }
+  function drawPlate(p, prev) {
+    const pts = platePts(p), wall = p.mat === 'wall';
+    poly(pts, prev ? 'rgba(245,158,11,.2)' : wall ? 'rgba(180,100,60,.35)' : 'rgba(96,165,250,.28)', prev ? '#fbbf24' : wall ? '#d6a17f' : '#93c5fd', 1.6);
+    if (!prev) { ctx.strokeStyle = wall ? 'rgba(214,161,127,.5)' : 'rgba(147,197,253,.35)'; ctx.lineWidth = 1; const [a, b, c, d] = pts.map(toS); for (let i = 1; i < 6; i++) { const f = i / 6; ctx.beginPath(); ctx.moveTo(a[0] + (d[0] - a[0]) * f, a[1] + (d[1] - a[1]) * f); ctx.lineTo(b[0] + (c[0] - b[0]) * f, b[1] + (c[1] - b[1]) * f); ctx.stroke(); } }
+    const c = toS(pts[2]); ctx.fillStyle = '#e5e7eb'; ctx.font = '600 11px IBM Plex Mono, monospace'; ctx.fillText(`${wall ? 'Parede' : 'Chapa ' + p.t + 'mm'} ${fmt(Math.abs(p.du) * st.grid)}×${fmt(Math.abs(p.dv) * st.grid)}`, c[0] + 6, c[1] - 6);
+  }
+  function drawCyl(c, prev) {
+    const ax = cylAxis(c.plane), h = c.H / st.grid, b = ellPts(c), t = ellPts({ c: add2(c.c, ax, h), r: c.r, plane: c.plane });
+    const col = prev ? '#fbbf24' : '#cbd5e1', perp = [-ax[1], ax[0]];
+    const proj = b.map(p => (p[0] - c.c[0]) * perp[0] + (p[1] - c.c[1]) * perp[1]);
+    const i0 = proj.indexOf(Math.min(...proj)), i1 = proj.indexOf(Math.max(...proj));
+    poly([b[i0], b[i1], t[i1], t[i0]], prev ? 'rgba(245,158,11,.10)' : 'rgba(148,163,184,.14)', null);
+    poly(t, prev ? 'rgba(245,158,11,.16)' : 'rgba(203,213,225,.2)', col, 1.6); line(b, col, 1.2, [5, 4]);
+    line([b[i0], t[i0]], col, 1.6); line([b[i1], t[i1]], col, 1.6);
+    const q = toS(t[0]); ctx.fillStyle = '#e5e7eb'; ctx.font = '600 11px IBM Plex Mono, monospace'; ctx.fillText(`Ø${fmt(2 * c.r * st.grid)}×${fmt(c.H)}${c.hollow ? ` · ${c.t}mm` : ' · maciço'}`, q[0] + 6, q[1] - 6);
+  }
+  function drawSym(sy) {
+    const a = symAt(sy); if (!a) return;
+    const p = toS(a.p), d = a.dir, n = [-d[1], d[0]], s = Math.max(7, Math.min(16, st.view.k * 0.35));
+    const P = (u, v) => [p[0] + d[0] * u * s + n[0] * v * s, p[1] + d[1] * u * s + n[1] * v * s];
+    ctx.save(); ctx.lineWidth = 2; ctx.strokeStyle = '#fef3c7'; ctx.fillStyle = '#0d0f12';
+    const tri = (pts, fill) => { ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(...q) : ctx.moveTo(...q)); ctx.closePath(); ctx.fillStyle = fill || '#0d0f12'; ctx.fill(); ctx.stroke(); };
+    const flange = u => { ctx.beginPath(); ctx.moveTo(...P(u, -0.9)); ctx.lineTo(...P(u, 0.9)); ctx.stroke(); };
+    if (sy.kind === 'flanges') { flange(-0.25); flange(0.25); }
+    else if (sy.kind === 'strainer') { flange(-1.1); flange(1.1); ctx.beginPath(); ctx.moveTo(...P(-0.3, 0)); ctx.lineTo(...P(0.5, -1.1)); ctx.stroke(); }
+    else {
+      flange(-1.1); flange(1.1);
+      tri([P(-1, -0.7), P(-1, 0.7), P(0, 0)], sy.kind === 'check' ? '#fef3c7' : null); tri([P(1, -0.7), P(1, 0.7), P(0, 0)]);
+      if (sy.kind === 'ball') { ctx.beginPath(); ctx.arc(p[0], p[1], s * 0.35, 0, 7); ctx.fillStyle = '#fef3c7'; ctx.fill(); }
+      if (sy.kind === 'gate' || sy.kind === 'globe') { ctx.beginPath(); ctx.moveTo(...p); ctx.lineTo(p[0], p[1] - s * 1.5); ctx.moveTo(p[0] - s * 0.7, p[1] - s * 1.5); ctx.lineTo(p[0] + s * 0.7, p[1] - s * 1.5); ctx.stroke(); }
+      if (sy.kind === 'globe') { ctx.beginPath(); ctx.arc(p[0], p[1], s * 0.3, 0, 7); ctx.fillStyle = '#fef3c7'; ctx.fill(); }
+      if (sy.kind === 'butterfly') { ctx.beginPath(); ctx.moveTo(...P(0, -0.9)); ctx.lineTo(...P(0, 0.9)); ctx.stroke(); }
+    }
+    ctx.restore();
   }
   function draw() {
     if (!ctx || !W) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.fillStyle = '#0d0f12'; ctx.fillRect(0, 0, W, H);
-    // grade isométrica
     const corners = [toW(0, 0), toW(W, 0), toW(0, H), toW(W, H)].map(p => TP.screenToLattice(p[0], p[1]));
     const as = corners.map(c => c[0]), bs = corners.map(c => c[1]);
     const a0 = Math.floor(Math.min(...as)) - 1, a1 = Math.ceil(Math.max(...as)) + 1, b0 = Math.floor(Math.min(...bs)) - 1, b1 = Math.ceil(Math.max(...bs)) + 1;
     const step = st.view.k < 10 ? 5 : st.view.k < 18 ? 2 : 1;
-    const line = (p, q, c) => { const s = toS(p), t = toS(q); ctx.strokeStyle = c; ctx.beginPath(); ctx.moveTo(s[0], s[1]); ctx.lineTo(t[0], t[1]); ctx.stroke(); };
+    const gl = (p, q, c) => { const s = toS(p), t = toS(q); ctx.strokeStyle = c; ctx.beginPath(); ctx.moveTo(s[0], s[1]); ctx.lineTo(t[0], t[1]); ctx.stroke(); };
     ctx.lineWidth = 1;
     if ((a1 - a0) * (b1 - b0) / (step * step) < 60000) {
-      for (let b = Math.ceil(b0 / step) * step; b <= b1; b += step) line(TP.latticeToScreen(a0, b), TP.latticeToScreen(a1, b), b % 10 === 0 ? '#2b313b' : '#1a1e25');
-      for (let a = Math.ceil(a0 / step) * step; a <= a1; a += step) line(TP.latticeToScreen(a, b0), TP.latticeToScreen(a, b1), a % 10 === 0 ? '#2b313b' : '#1a1e25');
+      for (let b = Math.ceil(b0 / step) * step; b <= b1; b += step) gl(TP.latticeToScreen(a0, b), TP.latticeToScreen(a1, b), b % 10 === 0 ? '#2b313b' : '#1a1e25');
+      for (let a = Math.ceil(a0 / step) * step; a <= a1; a += step) gl(TP.latticeToScreen(a, b0), TP.latticeToScreen(a, b1), a % 10 === 0 ? '#2b313b' : '#1a1e25');
       const x0 = toW(0, 0)[0] / C30, x1 = toW(W, 0)[0] / C30;
       for (let m = Math.floor(x0 / step) * step; m <= x1; m += step) { const x = m * C30 * st.view.k + st.view.x; ctx.strokeStyle = m % 10 === 0 ? '#2b313b' : '#1a1e25'; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
     }
-    // eixos de referência
     const o = toS([0, 0]);
-    [['E', '#ef4444'], ['N', '#3b82f6'], ['Cima', '#22c55e']].forEach(([n, c]) => { const ax = TP.ISO_AXES.find(a => a.n === n); ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(o[0] + ax.s[0] * 40, o[1] + ax.s[1] * 40); ctx.stroke(); ctx.fillStyle = c; ctx.font = '11px IBM Plex Mono, monospace'; ctx.fillText(n, o[0] + ax.s[0] * 46 - 4, o[1] + ax.s[1] * 46 + 4); });
-    // rabiscos e elipses
+    [['E', '#ef4444'], ['N', '#3b82f6'], ['Cima', '#22c55e']].forEach(([n, c]) => { const ax = AX(n); ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(o[0] + ax[0] * 40, o[1] + ax[1] * 40); ctx.stroke(); ctx.fillStyle = c; ctx.font = '11px IBM Plex Mono, monospace'; ctx.fillText(n, o[0] + ax[0] * 46 - 4, o[1] + ax[1] * 46 + 4); });
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    st.plates.forEach(p => drawPlate(p)); st.boxes.forEach(b => drawBox(b)); st.cyls.forEach(c => drawCyl(c));
+    if (drag && drag.tool === 'box' && drag.du && drag.dv) drawBox({ a: drag.a, da: drag.du, db: drag.dv, shape: st.bShape, H: st.bH, hollow: st.bHollow, t: st.bT }, true);
+    if (drag && drag.tool === 'plate' && drag.du && drag.dv) drawPlate({ a: drag.a, du: drag.du, dv: drag.dv, plane: st.plane, mat: st.pMat, t: st.pT }, true);
+    if (drag && drag.tool === 'cyl' && drag.r) drawCyl({ c: drag.c, r: drag.r, plane: st.plane, H: st.cH, hollow: st.cHollow, t: st.cT }, true);
     ctx.strokeStyle = '#9aa3ad'; ctx.lineWidth = 1.6;
-    for (const s of st.strokes.concat(drag && drag.tool === 'free' ? [drag.pts] : [])) { ctx.beginPath(); s.forEach((p, i) => { const q = toS(p); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.stroke(); }
-    for (const e of st.ells.concat(drag && drag.tool === 'ell' && drag.r ? [{ c: drag.c, r: drag.r, plane: st.plane }] : [])) { ctx.beginPath(); ellPts(e).forEach((p, i) => { const q = toS(p); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.stroke(); }
-    // trechos de tubulação
+    for (const s of st.strokes.concat(drag && drag.tool === 'free' ? [drag.pts] : [])) line(s, '#9aa3ad', 1.6);
+    for (const e of st.ells.concat(drag && drag.tool === 'ell' && drag.r ? [{ c: drag.c, r: drag.r, plane: st.plane }] : [])) line(ellPts(e), '#9aa3ad', 1.6);
     const segs = st.segs.concat(preview ? [Object.assign({ prev: true, plane: st.skew ? st.plane : 'EN' }, preview)] : []);
     for (const s of segs) {
       const a = toS(s.a), b = toS(s.b);
@@ -2286,31 +2522,80 @@ const ISO = (() => {
       const inf = segInfo(s.a, s.b, s.plane); if (inf.L < 1) continue;
       let ang = Math.atan2(b[1] - a[1], b[0] - a[0]); if (ang > Math.PI / 2) ang -= Math.PI; if (ang < -Math.PI / 2) ang += Math.PI;
       ctx.save(); ctx.translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2); ctx.rotate(ang); ctx.fillStyle = '#e5e7eb'; ctx.font = '600 11px IBM Plex Mono, monospace'; ctx.textAlign = 'center';
-      ctx.fillText(`${fmt(inf.L)}${inf.axis === 'skew' ? ' ∠' : ''}`, 0, -8); ctx.restore();
+      ctx.fillText(`${fmt(inf.L)}${inf.axis === 'skew' ? ' ∠' : ''}`, 0, -10); ctx.restore();
     }
     ctx.fillStyle = '#f59e0b';
     for (const s of st.segs) for (const p of [s.a, s.b]) { const q = toS(p); ctx.beginPath(); ctx.arc(q[0], q[1], 3.5, 0, 7); ctx.fill(); }
-    if (cursor && (st.tool === 'line' || st.tool === 'ell')) { const q = toS(cursor); ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(q[0], q[1], 6, 0, 7); ctx.stroke(); }
+    st.syms.forEach(drawSym);
+    if (cursor && ['line', 'ell', 'cyl', 'box', 'plate'].includes(st.tool)) { const q = toS(cursor); ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(q[0], q[1], 6, 0, 7); ctx.stroke(); }
   }
+  // ---------- conversão para 3D ----------
   function convert() {
-    if (!st.segs.length) { toast('Desenhe trechos com a ferramenta Linha primeiro.', 'er'); return; }
-    let res;
+    if (!st.segs.length && !st.boxes.length && !st.plates.length && !st.cyls.length) { toast('Desenhe trechos, caixas, chapas ou cilindros primeiro.', 'er'); return; }
+    let res = { created: [], warnings: [] }, counts = {};
     mutate(() => {
-      const conv = TP.isoTo3D(st.segs, st.grid);
-      const b = bbox();
-      const origin = b ? new V3(b.mx.x + 1500, 0, 0) : new V3();
-      res = TP.buildFromIso(pr, conv, { dn: st.dn, cls: S.cls, origin });
+      const g = st.grid, b0 = bbox(), origin = b0 ? new V3(b0.mx.x + 1500, 0, 0) : new V3();
+      const conv = st.segs.length ? TP.isoTo3D(st.segs, g) : { points: [], edges: [], verts: [], warnings: [] };
+      const rootIdx = conv.points.findIndex(p => p && p.len() === 0);
+      const root = rootIdx >= 0 ? conv.verts[rootIdx] : [0, 0];
+      const vkey = p => p.map(x => (Math.round(x * 1000) / 1000 + 0).toFixed(3)).join(',');
+      const vmap = new Map(); conv.verts.forEach((v, i) => conv.points[i] && vmap.set(vkey(v), conv.points[i]));
+      // ponto de tela -> 3D (usa o vértice da tubulação se coincidir; senão plano horizontal na elevação dada)
+      const to3 = (p, elev) => { const hit = vmap.get(vkey(p)); if (hit) return hit.add(origin); const [a, b] = TP.screenToLattice(p[0] - root[0], p[1] - root[1]); return origin.add(new V3(a * g, elev || 0, -b * g)); };
+      if (st.segs.length) { const r = TP.buildFromIso(pr, conv, { dn: st.dn, cls: S.cls, origin }); res.created.push(...r.created); res.warnings.push(...r.warnings); }
+      // símbolos
+      for (const sy of st.syms) {
+        const a = symAt(sy); if (!a) continue;
+        const A = to3(a.s.a), B = to3(a.s.b), pt = A.lerp(B, sy.k / a.L);
+        const pipe = [...pr.pieces.values()].find(p => p.type === 'pipe' && (() => { const w = TP.worldPorts(p), d = w.P2.pos.sub(w.P1.pos), L = d.len(), t = pt.sub(w.P1.pos).dot(d) / (L * L); return t > 0 && t < 1 && w.P1.pos.add(d.scale(t)).dist(pt) < 1; })());
+        if (!pipe) { res.warnings.push(`${SYMS[sy.kind]} ficou sobre uma curva ou tê — mova o símbolo para um trecho reto.`); continue; }
+        const r = TP.insertInline(pr, pipe.id, pt.dist(TP.worldPort(pipe, 'P1').pos), sy.kind);
+        if (r.ok) { counts[SYMS[sy.kind]] = (counts[SYMS[sy.kind]] || 0) + 1; res.created.push(...r.made); } else res.warnings.push(r.msg);
+      }
+      // caixas
+      for (const b of st.boxes) {
+        const P0 = to3(b.a, b.elev), L = Math.abs(b.da) * g, Wd = Math.abs(b.db) * g;
+        const pc = pr.create('steelbox', { shape: b.shape, L, W: Wd, H: b.H, hollow: b.hollow, t: b.t, lid: b.lid });
+        pc.pos = new V3(P0.x + Math.min(0, b.da) * g, P0.y, P0.z - Math.max(0, b.db) * g);
+        res.created.push(pc); counts['Caixa'] = (counts['Caixa'] || 0) + 1;
+      }
+      // chapas / paredes
+      for (const p of st.plates) {
+        const P0 = to3(p.a, p.elev), [un, vn] = TP.PLANES[p.plane], L = Math.abs(p.du) * g, Wd = Math.abs(p.dv) * g;
+        const uMin = Math.min(0, p.du) * g, vMin = Math.min(0, p.dv) * g;
+        if (p.mat === 'wall' && p.plane !== 'EN') {
+          const pc = pr.create('wall', { L, H: Wd, t: 140, kind: 'bloco' });
+          if (p.plane === 'EU') pc.pos = new V3(P0.x + uMin, P0.y + vMin, P0.z);
+          else { pc.pos = new V3(P0.x, P0.y + vMin, P0.z - uMin); pc.q = Q.axisAngle(TP.UP, Math.PI / 2); }
+          res.created.push(pc); counts['Parede'] = (counts['Parede'] || 0) + 1; continue;
+        }
+        const pc = pr.create('plate', { L, W: Wd, t: p.t });
+        if (p.plane === 'EN') { pc.pos = new V3(P0.x + uMin, P0.y, P0.z - (Math.min(0, p.dv) * g + Wd)); }
+        else if (p.plane === 'EU') { pc.q = Q.fromBasis(new V3(1, 0, 0), new V3(0, 0, -1), new V3(0, 1, 0)); pc.pos = new V3(P0.x + uMin, P0.y + vMin, P0.z); }
+        else { pc.q = Q.fromBasis(new V3(0, 0, -1), new V3(-1, 0, 0), new V3(0, 1, 0)); pc.pos = new V3(P0.x, P0.y + vMin, P0.z - uMin); }
+        if (p.mat === 'wall') res.warnings.push('Parede só pode ser vertical — no plano horizontal virou chapa de aço.');
+        res.created.push(pc); counts['Chapa'] = (counts['Chapa'] || 0) + 1;
+      }
+      // cilindros
+      for (const c of st.cyls) {
+        const P0 = to3(c.c, c.elev);
+        const pc = pr.create('cylinder', { D: 2 * c.r * g, H: c.H, hollow: c.hollow, t: c.t, caps: c.caps });
+        pc.pos = P0; pc.q = c.plane === 'EN' ? new Q() : Q.fromUnitVectors(TP.UP, c.plane === 'EU' ? new V3(0, 0, -1) : new V3(1, 0, 0));
+        res.created.push(pc); counts['Cilindro'] = (counts['Cilindro'] || 0) + 1;
+      }
       if (!res.created.length) return false;
       S.sel = null; S.active = null;
     });
-    if (!res || !res.created.length) { toast('Nada foi gerado.', 'er'); return; }
-    const n = { pipe: 0, elbow: 0, tee: 0 }; res.created.forEach(p => n[p.type]++);
-    toast(`Convertido: ${n.pipe} tubos, ${n.elbow} curvas, ${n.tee} tês — todos acoplados.`, 'ok');
-    res.warnings.forEach(w => toast(w, 'er'));
+    if (!res.created.length) { toast('Nada foi gerado.', 'er'); res.warnings.forEach(w => toast(w, 'er')); return; }
+    const n = { pipe: 0, elbow: 0, tee: 0 }; res.created.forEach(p => { if (p.type in n) n[p.type]++; });
+    const parts = [n.pipe && `${n.pipe} tubos`, n.elbow && `${n.elbow} curvas`, n.tee && `${n.tee} tês`, ...Object.entries(counts).map(([k, v]) => `${v} ${k.toLowerCase()}${v > 1 ? 's' : ''}`)].filter(Boolean);
+    toast('Convertido: ' + parts.join(', ') + '.', 'ok');
+    [...new Set(res.warnings)].forEach(w => toast(w, 'er'));
     setTab('3d'); setTimeout(() => R.fit(), 60);
   }
   return { init, draw, resize: () => inited && resize(), info };
 })();
+
 
 /* ======================= PRANCHA ======================= */
 let dlNs = null;
