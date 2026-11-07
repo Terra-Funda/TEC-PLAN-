@@ -800,7 +800,206 @@ const ESTRUT = {
 for (const k in ESTRUT) ESTRUT[k].weight = civW(ESTRUT[k]);
 Object.assign(TYPES, ESTRUT);
 const fieldsOf = pc => { const f = TYPES[pc.type].fields; return typeof f === 'function' ? f(pc) : (f || []); };
-const TYPE_PREF_UP = { valve: 1, strainer: 1, sightglass: 1, psv: 1, pgauge: 1, tgauge: 1, reducer: 1, tee: 0, elbow: 0 };
+
+/* ---------------- Eletromecânico (EL) ---------------- */
+const ELP = (id, pos, dir) => ({ id, pos, dir, end: 'EL', dn: 0, od: 0 });
+const MOTOR = { 1: [140, 230], 3: [170, 280], 5: [200, 330], 10: [250, 410], 25: [330, 530], 50: [400, 660], 100: [480, 820] };
+const arcPts = (R, t) => new V3(R * Math.sin(t), 0, R - R * Math.cos(t));
+function trayPrims(p, path) { // path: lista de {c, len, rot(Q)} segmentos retos
+  const out = [], Hh = p.Hh, W = p.W;
+  for (const sg of path) {
+    const rq = sg.rq, off = v => sg.c.add(rq ? rq.rot(v) : v);
+    out.push(box(off(new V3(0, Hh / 2, W / 2)), [sg.len, Hh, 3], { mat: 'galv', rq, edges: true }), box(off(new V3(0, Hh / 2, -W / 2)), [sg.len, Hh, 3], { mat: 'galv', rq, edges: true }));
+    if (p.sub === 'eletrocalha') out.push(box(off(new V3(0, 1.5, 0)), [sg.len, 3, W], { mat: 'galv', rq }));
+    else { const n = Math.max(1, Math.round(sg.len / 300)); for (let i = 0; i < n; i++) out.push(box(off(new V3(-sg.len / 2 + (i + 0.5) * sg.len / n, 10, 0)), [22, 20, W], { mat: 'galv', rq })); }
+  }
+  return out;
+}
+const TRAY_W = [100, 150, 200, 300, 400, 500, 600], TRAY_H = [50, 75, 100];
+const ELT = {
+  tray: {
+    name: 'Leito / eletrocalha', prefix: 'LT', spool: false, es: true,
+    defaults: { dn: 0, sub: 'leito', W: 300, Hh: 100, len: 3000 },
+    fields: [['sub', 'Tipo', ['leito', 'eletrocalha'], k => k === 'leito' ? 'Leito para cabos' : 'Eletrocalha perfurada'], ['W', 'Largura (mm)', TRAY_W], ['Hh', 'Altura da aba (mm)', TRAY_H], ['len', 'Comprimento (mm)']],
+    desc: p => `${p.sub === 'leito' ? 'Leito para cabos' : 'Eletrocalha perfurada'} ${p.W}×${p.Hh} mm, L = ${p.len} mm`,
+    std: () => 'NBR IEC 61537', mat: () => 'Aço galvanizado a fogo',
+    ports: p => [ELP('A', new V3(0, 0, 0), AX.neg()), ELP('B', new V3(p.len, 0, 0), AX)],
+    prims: p => trayPrims(p, [{ c: new V3(p.len / 2, 0, 0), len: p.len }]),
+    bomLines: p => [{ desc: `${p.sub === 'leito' ? 'Leito para cabos' : 'Eletrocalha perfurada'} ${p.W}×${p.Hh} mm galvanizado`, unit: 'm', qty: p.len / 1000, std: 'NBR IEC 61537', mat: 'Aço galvanizado', w: p.len / 1000 * (2 + p.W / 100 * 1.4) }],
+    keys: civKeys,
+  },
+  traybend: {
+    name: 'Curva de leito', prefix: 'LC', spool: false, es: true,
+    defaults: { dn: 0, sub: 'leito', W: 300, Hh: 100, R0: 300 },
+    fields: [['sub', 'Tipo', ['leito', 'eletrocalha'], k => k === 'leito' ? 'Leito para cabos' : 'Eletrocalha perfurada'], ['W', 'Largura (mm)', TRAY_W], ['Hh', 'Altura da aba (mm)', TRAY_H], ['R0', 'Raio interno (mm)']],
+    desc: p => `Curva horizontal 90° p/ ${p.sub === 'leito' ? 'leito' : 'eletrocalha'} ${p.W}×${p.Hh} mm`,
+    std: () => 'NBR IEC 61537', mat: () => 'Aço galvanizado a fogo',
+    ports(p) { const R = p.R0 + p.W / 2; return [ELP('A', new V3(0, 0, 0), AX.neg()), ELP('B', new V3(R, 0, R), AZ)]; },
+    prims(p) {
+      const R = p.R0 + p.W / 2, n = 8, path = [];
+      for (let i = 0; i < n; i++) { const t0 = i / n * Math.PI / 2, t1 = (i + 1) / n * Math.PI / 2, tm = (t0 + t1) / 2; path.push({ c: arcPts(R, tm), len: arcPts(R, t0).dist(arcPts(R, t1)) * (1 + p.W / (2 * R)), rq: Q.axisAngle(UP, -tm) }); }
+      return trayPrims(p, path);
+    },
+    bomLines: p => [{ desc: `Curva horizontal 90° ${p.sub === 'leito' ? 'leito' : 'eletrocalha'} ${p.W}×${p.Hh} mm`, unit: 'un', qty: 1, std: 'NBR IEC 61537', mat: 'Aço galvanizado', w: 4 + p.W / 100 }],
+    keys: civKeys,
+  },
+  panel: {
+    name: 'Painel elétrico', prefix: 'QD', spool: false, es: true,
+    defaults: { dn: 0, sub: 'QDF', W: 800, H: 2000, D: 500 },
+    fields: [['sub', 'Tipo', ['QGBT', 'CCM', 'QDF', 'QDL'], k => ({ QGBT: 'Quadro geral (QGBT)', CCM: 'Centro de controle de motores', QDF: 'Quadro de força', QDL: 'Quadro de luz' })[k]], ['W', 'Largura (mm)'], ['H', 'Altura (mm)'], ['D', 'Profundidade (mm)']],
+    desc: p => `Painel ${p.sub} ${p.W}×${p.H}×${p.D} mm, IP54`,
+    std: () => 'NBR IEC 61439', mat: () => 'Chapa de aço pintada RAL 7035',
+    ports: p => [ELP('TOP', new V3(0, p.H, 0), UP)],
+    prims: p => [box(new V3(0, 50, 0), [p.W, 100, p.D], { mat: 'motor' }), box(new V3(0, 100 + (p.H - 100) / 2, 0), [p.W, p.H - 100, p.D], { mat: 'panel', edges: true }),
+      box(new V3(0, 100 + (p.H - 100) / 2, p.D / 2 + 2), [p.W - 30, p.H - 130, 4], { mat: 'panel', edges: true }), box(new V3(p.W / 2 - 60, p.H * 0.55, p.D / 2 + 14), [18, 140, 20], { accent: true, clash: false }),
+      box(new V3(-p.W / 4, p.H * 0.78, p.D / 2 + 6), [p.W * 0.3, p.H * 0.08, 6], { accent: true, clash: false })],
+    bomLines: p => [{ desc: `Painel elétrico ${p.sub} ${p.W}×${p.H}×${p.D} mm`, unit: 'un', qty: 1, std: 'NBR IEC 61439', mat: 'Aço pintado RAL 7035', w: (p.W * p.H * 2 + p.W * p.D * 2 + p.H * p.D * 2) * 2 * 7.85e-6 }],
+    keys: civKeys,
+  },
+  motor: {
+    name: 'Motor elétrico', prefix: 'M', spool: false, struct: true,
+    defaults: { dn: 0, cv: 10 },
+    fields: [['cv', 'Potência (cv)', Object.keys(MOTOR).map(Number)]],
+    desc: p => `Motor de indução trifásico ${p.cv} cv, IP55, 4 polos`,
+    std: () => 'NBR 17094', mat: () => 'Carcaça ferro fundido',
+    ports: () => [],
+    geo: p => { const [D, L] = MOTOR[p.cv] || MOTOR[10]; return { D, L, hc: D * 0.62 }; },
+    prims(p) {
+      const { D, L, hc } = this.geo(p);
+      return [cyl(new V3(0, hc, 0), new V3(L, hc, 0), D / 2, null, { mat: 'motor' }), cyl(new V3(-D * 0.25, hc, 0), new V3(0, hc, 0), D * 0.44, null, { mat: 'motor' }),
+        cyl(new V3(L, hc, 0), new V3(L + D * 0.45, hc, 0), D * 0.11, null, { accent: true, clash: false }), box(new V3(L * 0.5, D * 0.06, 0), [L * 0.8, D * 0.12, D * 1.05], { mat: 'motor' }),
+        box(new V3(L * 0.45, hc + D * 0.55, 0), [D * 0.45, D * 0.25, D * 0.45], { mat: 'motor', edges: true })];
+    },
+    bomLines: p => [{ desc: `Motor elétrico trifásico ${p.cv} cv 4 polos IP55`, unit: 'un', qty: 1, std: 'NBR 17094', mat: 'Ferro fundido', w: 12 + p.cv * 7 }],
+    keys: civKeys,
+  },
+  pump: {
+    name: 'Bomba centrífuga', prefix: 'B', spool: false,
+    defaults: { dn: 100, dn2: 80, cv: 25, cls: 150 },
+    fields: [['dn', 'Sucção (DN)', DNS.filter(d => d >= 25)], ['dn2', 'Recalque (DN)', DNS.filter(d => d >= 20)], ['cv', 'Potência do motor (cv)', Object.keys(MOTOR).map(Number)]],
+    desc: p => `Bomba centrífuga ${DIM[p.dn].nps}×${DIM[p.dn2 || nextDown(p.dn)].nps} c/ motor ${p.cv} cv sobre base`,
+    std: () => 'ISO 2858 / API 610', mat: () => 'Carcaça ferro fundido / rotor bronze',
+    geo(p) { const od = odOf(p.dn), d2 = p.dn2 || nextDown(p.dn), od2 = odOf(d2), s = od * 0.8 + 60, Rv = od * 1.4 + 70, w = od * 0.9 + 50, h = Rv + od2 * 0.6 + 80, [D, L] = MOTOR[p.cv] || MOTOR[25]; return { od, d2, od2, s, Rv, w, h, D, L }; },
+    ports(p) { const g = this.geo(p); return [P('P1', new V3(0, 0, 0), AX.neg(), 'FL', p.dn), P('P2', new V3(g.s + g.w / 2, g.h, 0), UP, 'FL', g.d2)]; },
+    prims(p) {
+      const g = this.geo(p), f1 = flg(p.dn, p.cls || 150), f2 = flg(g.d2, p.cls || 150), cx = g.s + g.w / 2, by = -Math.max(g.Rv, g.D * 0.62) - 40;
+      const bx0 = g.s + g.w + 60, mx = bx0 + 250;
+      return [cyl(new V3(0, 0, 0), new V3(f1.ft, 0, 0), f1.fod / 2), cyl(new V3(f1.ft, 0, 0), new V3(g.s, 0, 0), g.od / 2 * 1.1, g.od / 2 * 1.3),
+        cyl(new V3(g.s, 0, 0), new V3(g.s + g.w, 0, 0), g.Rv, null, { mat: 'motor' }), cyl(new V3(cx, g.Rv * 0.5, 0), new V3(cx, g.h - f2.ft, 0), g.od2 / 2 * 1.15, g.od2 / 2, { mat: 'motor' }),
+        cyl(new V3(cx, g.h - f2.ft, 0), new V3(cx, g.h, 0), f2.fod / 2), cyl(new V3(g.s + g.w, 0, 0), new V3(bx0, 0, 0), g.Rv * 0.35, null, { mat: 'motor', clash: false }),
+        cyl(new V3(bx0, 0, 0), new V3(mx, 0, 0), g.Rv * 0.12, null, { accent: true, clash: false }),
+        cyl(new V3(mx, 0, 0), new V3(mx + g.L, 0, 0), g.D / 2, null, { mat: 'motor' }), cyl(new V3(mx + g.L, 0, 0), new V3(mx + g.L + g.D * 0.25, 0, 0), g.D * 0.44, null, { mat: 'motor' }),
+        box(new V3((mx + g.L) / 2, by - 40, 0), [mx + g.L + 200, 80, Math.max(g.D, g.Rv * 2) + 200], { mat: 'motor', edges: true })];
+    },
+    weight: p => 60 + p.cv * 9 + odOf(p.dn) * 0.5,
+    keys: (p, w) => ({ pts: [w.P1], key: [w.P1, w.P2] }),
+  },
+};
+ELT.pump.bomLines = undefined;
+for (const k of ['tray', 'traybend', 'panel', 'motor']) ELT[k].weight = civW(ELT[k]);
+Object.assign(TYPES, ELT);
+
+/* ---------------- HVAC / Dutos (HV) ---------------- */
+const hvCode = (sub, W, H, D) => sub === 'round' ? D : W * 1000 + H;
+const HVP = (id, pos, dir, od) => ({ id, pos, dir, end: 'HV', dn: 0, od });
+const GAUGE = s => s <= 750 ? { n: '#26', t: 0.5, kg: 4.3 } : s <= 1500 ? { n: '#24', t: 0.65, kg: 5.5 } : { n: '#22', t: 0.8, kg: 6.7 };
+const ductSize = p => p.sub === 'round' ? `Ø${p.D}` : `${p.W}×${p.H}`;
+const ductPer = p => p.sub === 'round' ? Math.PI * p.D : 2 * (p.W + p.H);
+const ductMax = p => p.sub === 'round' ? p.D : Math.max(p.W, p.H);
+function sheetLines(p, area) { const g = GAUGE(ductMax(p)); return { desc: `Chapa de aço galvanizado ${g.n} (${g.t} mm)`, unit: 'm²', qty: area, std: 'NBR 16401 / SMACNA', mat: 'Aço galvanizado Z275', w: area * g.kg }; }
+const HV_FIELDS = (extra) => p => [['sub', 'Seção', ['rect', 'round'], k => k === 'rect' ? 'Retangular' : 'Circular'], ...(p.sub === 'round' ? [['D', 'Diâmetro (mm)']] : [['W', 'Largura (mm)'], ['H', 'Altura (mm)']]), ...extra];
+function ductEnds(p, x0, x1) { // colarinhos/flanges
+  const f = 30, out = [];
+  for (const x of [x0, x1]) out.push(p.sub === 'round' ? cyl(new V3(x - 10, 0, 0), new V3(x + 10, 0, 0), p.D / 2 + f / 2, null, { mat: 'galvd', clash: false }) : box(new V3(x, 0, 0), [20, p.H + f, p.W + f], { mat: 'galvd', clash: false }));
+  return out;
+}
+const HVT = {
+  duct: {
+    name: 'Duto', prefix: 'DT', spool: false, es: true,
+    defaults: { dn: 0, sub: 'rect', W: 600, H: 400, D: 400, len: 1500 },
+    fields: HV_FIELDS([['len', 'Comprimento (mm)']]),
+    desc: p => `Duto ${p.sub === 'round' ? 'circular' : 'retangular'} ${ductSize(p)} mm, L = ${p.len} mm`,
+    std: () => 'NBR 16401 / SMACNA', mat: () => 'Aço galvanizado',
+    ports: p => { const c = hvCode(p.sub, p.W, p.H, p.D); return [HVP('A', new V3(0, 0, 0), AX.neg(), c), HVP('B', new V3(p.len, 0, 0), AX, c)]; },
+    prims: p => [p.sub === 'round' ? cyl(new V3(0, 0, 0), new V3(p.len, 0, 0), p.D / 2, null, { mat: 'galv' }) : box(new V3(p.len / 2, 0, 0), [p.len, p.H, p.W], { mat: 'galv', edges: true }), ...ductEnds(p, 0, p.len)],
+    bomLines: p => [{ desc: `Duto ${p.sub === 'round' ? 'circular' : 'retangular'} ${ductSize(p)} mm`, unit: 'm', qty: p.len / 1000, std: 'NBR 16401', mat: 'Aço galvanizado', w: 0 }, sheetLines(p, ductPer(p) * p.len / 1e6)],
+    keys: civKeys,
+  },
+  hvelbow: {
+    name: 'Curva de duto', prefix: 'DC', spool: false, es: true,
+    defaults: { dn: 0, sub: 'rect', W: 600, H: 400, D: 400, angle: 90 },
+    fields: HV_FIELDS([['angle', 'Ângulo (°)', [30, 45, 60, 90]]]),
+    desc: p => `Curva de duto ${p.angle}° ${p.sub === 'round' ? 'circular' : 'retangular'} ${ductSize(p)} mm`,
+    std: () => 'NBR 16401 / SMACNA', mat: () => 'Aço galvanizado',
+    geo: p => { const R = (p.sub === 'round' ? p.D : p.W) * 1.0, t = p.angle * D2R; return { R, t }; },
+    ports(p) { const { R, t } = this.geo(p), c = hvCode(p.sub, p.W, p.H, p.D); return [HVP('P1', new V3(0, 0, 0), AX.neg(), c), HVP('P2', new V3(R * Math.sin(t), R * (1 - Math.cos(t)), 0), new V3(Math.cos(t), Math.sin(t), 0), c)]; },
+    prims(p) {
+      const { R, t } = this.geo(p);
+      if (p.sub === 'round') return [arc(new V3(0, R, 0), R, p.D / 2, UP.neg(), AX, t, { mat: 'galv' })];
+      const n = Math.max(4, Math.round(p.angle / 10)), out = [];
+      const P = a => new V3(R * Math.sin(a), R * (1 - Math.cos(a)), 0);
+      for (let i = 0; i < n; i++) { const a0 = i / n * t, a1 = (i + 1) / n * t, am = (a0 + a1) / 2; out.push(box(P(am), [P(a0).dist(P(a1)) * (1 + p.W / (2 * R)) + 2, p.W, p.H], { mat: 'galv', rq: Q.axisAngle(AZ, am) })); }
+      return out;
+    },
+    bomLines(p) { const { R, t } = this.geo(p); return [{ desc: `Curva de duto ${p.angle}° ${ductSize(p)} mm`, unit: 'un', qty: 1, std: 'SMACNA', mat: 'Aço galvanizado', w: 0 }, sheetLines(p, ductPer(p) * R * t / 1e6 * 1.15)]; },
+    keys: civKeys,
+  },
+  transition: {
+    name: 'Transição de duto', prefix: 'DR', spool: false, es: true,
+    defaults: { dn: 0, sub: 'rect', W: 600, H: 400, D: 400, sub2: 'rect', W2: 400, H2: 300, D2: 300, len: 500 },
+    fields: p => [['sub', 'Entrada', ['rect', 'round'], k => k === 'rect' ? 'Retangular' : 'Circular'], ...(p.sub === 'round' ? [['D', 'Ø entrada (mm)']] : [['W', 'Largura entrada (mm)'], ['H', 'Altura entrada (mm)']]),
+      ['sub2', 'Saída', ['rect', 'round'], k => k === 'rect' ? 'Retangular' : 'Circular'], ...(p.sub2 === 'round' ? [['D2', 'Ø saída (mm)']] : [['W2', 'Largura saída (mm)'], ['H2', 'Altura saída (mm)']]), ['len', 'Comprimento (mm)']],
+    desc: p => `Transição ${ductSize(p)} → ${p.sub2 === 'round' ? 'Ø' + p.D2 : p.W2 + '×' + p.H2} mm, L = ${p.len}`,
+    std: () => 'SMACNA', mat: () => 'Aço galvanizado',
+    ports: p => [HVP('A', new V3(0, 0, 0), AX.neg(), hvCode(p.sub, p.W, p.H, p.D)), HVP('B', new V3(p.len, 0, 0), AX, hvCode(p.sub2, p.W2, p.H2, p.D2))],
+    prims(p) {
+      const r1 = p.sub === 'round', r2 = p.sub2 === 'round';
+      if (r1 && r2) return [cyl(new V3(0, 0, 0), new V3(p.len, 0, 0), p.D / 2, p.D2 / 2, { mat: 'galv' })];
+      const a = r1 ? [p.D * 0.9, p.D * 0.9] : [p.W, p.H], b = r2 ? [p.D2 * 0.9, p.D2 * 0.9] : [p.W2, p.H2], end = r2 ? p.len - 80 : p.len, out = [{ k: 'loft', L: r1 ? end - 80 : end, x0: r1 ? 80 : 0, a, b, mat: 'galv', edges: true }];
+      if (r1) out.push(cyl(new V3(0, 0, 0), new V3(80, 0, 0), p.D / 2, null, { mat: 'galv' }));
+      if (r2) out.push(cyl(new V3(end, 0, 0), new V3(p.len, 0, 0), p.D2 / 2, null, { mat: 'galv' }));
+      return out;
+    },
+    bomLines: p => [{ desc: `Transição ${ductSize(p)} → ${p.sub2 === 'round' ? 'Ø' + p.D2 : p.W2 + '×' + p.H2} mm`, unit: 'un', qty: 1, std: 'SMACNA', mat: 'Aço galvanizado', w: 0 }, sheetLines(p, (ductPer(p) + (p.sub2 === 'round' ? Math.PI * p.D2 : 2 * (p.W2 + p.H2))) / 2 * p.len / 1e6)],
+    keys: civKeys,
+  },
+  damper: {
+    name: 'Damper', prefix: 'DP', spool: false, es: true,
+    defaults: { dn: 0, sub: 'rect', W: 600, H: 400, D: 400, act: 1 },
+    fields: HV_FIELDS([['act', 'Acionamento', [0, 1], k => k ? 'Atuador elétrico' : 'Manual']]),
+    desc: p => `Damper de regulagem ${ductSize(p)} mm, ${p.act ? 'atuador elétrico' : 'acionamento manual'}`,
+    std: () => 'AMCA 500-D', mat: () => 'Aço galvanizado',
+    ports: p => { const c = hvCode(p.sub, p.W, p.H, p.D); return [HVP('A', new V3(0, 0, 0), AX.neg(), c), HVP('B', new V3(250, 0, 0), AX, c)]; },
+    prims(p) {
+      const side = p.sub === 'round' ? p.D / 2 : p.W / 2;
+      return [p.sub === 'round' ? cyl(new V3(0, 0, 0), new V3(250, 0, 0), p.D / 2, null, { mat: 'galvd' }) : box(new V3(125, 0, 0), [250, p.H, p.W], { mat: 'galvd', edges: true }), ...ductEnds(p, 0, 250),
+        cyl(new V3(125, 0, -side), new V3(125, 0, side + 60), 8, null, { accent: true, clash: false }),
+        p.act ? box(new V3(125, 0, side + 110), [140, 160, 90], { accent: true, clash: false }) : box(new V3(125, 40, side + 70), [30, 120, 10], { accent: true, clash: false })];
+    },
+    bomLines: p => [{ desc: `Damper de regulagem ${ductSize(p)} mm${p.act ? ' c/ atuador elétrico' : ''}`, unit: 'un', qty: 1, std: 'AMCA 500-D', mat: 'Aço galvanizado', w: 8 + ductPer(p) / 200 }],
+    keys: civKeys,
+  },
+  diffuser: {
+    name: 'Difusor', prefix: 'DF', spool: false, es: true,
+    defaults: { dn: 0, F: 600, N: 300 },
+    fields: [['F', 'Face (mm)', [450, 600, 625]], ['N', 'Pescoço (mm)', [150, 200, 250, 300, 350]]],
+    desc: p => `Difusor quadrado de teto ${p.F}×${p.F} mm, pescoço ${p.N}×${p.N}`,
+    std: () => 'ASHRAE 70', mat: () => 'Alumínio anodizado',
+    ports: p => [HVP('P1', new V3(0, 260, 0), UP, hvCode('rect', p.N, p.N))],
+    prims(p) {
+      const out = [box(new V3(0, 15, 0), [p.F, 30, p.F], { mat: 'panel', edges: true }), box(new V3(0, 30 + 115, 0), [p.N, 230, p.N], { mat: 'galv', edges: true })];
+      for (let i = 1; i <= 3; i++) { const s = p.F * (1 - i * 0.22); out.push(box(new V3(0, -2, 0), [s, 4, s], { mat: i % 2 ? 'motor' : 'panel', clash: false })); }
+      return out;
+    },
+    bomLines: p => [{ desc: `Difusor de insuflamento ${p.F}×${p.F} mm (pescoço ${p.N})`, unit: 'un', qty: 1, std: 'ASHRAE 70', mat: 'Alumínio', w: 3 + p.F / 200 }],
+    keys: civKeys,
+  },
+};
+for (const k in HVT) HVT[k].weight = civW(HVT[k]);
+Object.assign(TYPES, HVT);
+const DISC = t => (TYPES[t].civil ? 'CL' : ['profile', 'baseplate', 'gusset'].includes(t) ? 'ES' : ['tray', 'traybend', 'panel', 'motor', 'pump'].includes(t) ? 'EL' : ['duct', 'hvelbow', 'transition', 'damper', 'diffuser'].includes(t) ? 'HV' : 'TB');
+const PIPING = new Set(['pipe', 'custom', 'elbow', 'tee', 'reducer', 'flange', 'valve', 'strainer', 'expjoint', 'sightglass', 'psv', 'pgauge', 'tgauge', 'pump']);
+const TYPE_PREF_UP = { hvelbow: 0, pump: 1, valve: 1, strainer: 1, sightglass: 1, psv: 1, pgauge: 1, tgauge: 1, reducer: 1, tee: 0, elbow: 0 };
 
 /* ---------------- Peças e portas no mundo ---------------- */
 function localPorts(pc) { return TYPES[pc.type].ports(pc); }
@@ -857,7 +1056,9 @@ class Project {
 
 /* ---------------- Compatibilidade e acoplamento ---------------- */
 function compatible(pa, pb, A, B) {
-  if (pa.end === 'CV' || pb.end === 'CV' || pa.end === 'ES' || pb.end === 'ES') return pa.end === pb.end ? { ok: true } : { ok: false, why: pa.end === 'ES' || pb.end === 'ES' ? 'estrutura × outra disciplina' : 'peça civil × tubulação' };
+  if ((pa.end === 'HV' || pb.end === 'HV') && pa.end !== pb.end) return { ok: false, why: 'duto × outra disciplina' };
+  if (pa.end === 'HV') return Math.abs(pa.od - pb.od) < 0.6 ? { ok: true } : { ok: false, why: 'seções de duto diferentes' };
+  if (pa.end === 'CV' || pb.end === 'CV' || pa.end === 'ES' || pb.end === 'ES' || pa.end === 'EL' || pb.end === 'EL') return pa.end === pb.end ? { ok: true } : { ok: false, why: pa.end === 'ES' || pb.end === 'ES' ? 'estrutura × outra disciplina' : 'peça civil × tubulação' };
   if (Math.abs(pa.od - pb.od) > 0.6) return { ok: false, why: `diâmetros diferentes (Ø${r1(pa.od)} × Ø${r1(pb.od)})` };
   if (pa.end === 'FL' && pb.end === 'FL' && A && B && (A.cls || 150) !== (B.cls || 150)) return { ok: false, why: 'classes de pressão diferentes' };
   const fl = [pa.end, pb.end].filter(e => e === 'FL').length;
@@ -865,7 +1066,7 @@ function compatible(pa, pb, A, B) {
   return { ok: true };
 }
 function jointType(ea, eb) {
-  if (ea === 'CV' || eb === 'CV' || ea === 'ES' || eb === 'ES') return 'civil';
+  if (['CV', 'ES', 'EL', 'HV'].includes(ea) || ['CV', 'ES', 'EL', 'HV'].includes(eb)) return 'civil';
   if (ea === 'FL' && eb === 'FL') return 'bolted';
   if (ea === 'TH' || eb === 'TH') return 'threaded';
   return 'weld';
@@ -980,7 +1181,7 @@ function autoConnect(pr, tol = 0.6) {
   for (let i = 0; i < open.length; i++) for (let j = i + 1; j < open.length; j++) {
     const a = open[i], b = open[j];
     if (a.pc === b.pc || a.pc.conn[a.p.id] || b.pc.conn[b.p.id]) continue;
-    if (a.p.end === 'ES' && b.p.end === 'ES' && a.p.pos.dist(b.p.pos) <= tol) { pr.link(a.pc, a.p.id, b.pc, b.p.id); n++; continue; }
+    if (a.p.end === b.p.end && (a.p.end === 'ES' || a.p.end === 'EL') && a.p.pos.dist(b.p.pos) <= tol) { pr.link(a.pc, a.p.id, b.pc, b.p.id); n++; continue; }
     if (a.p.pos.dist(b.p.pos) <= tol && a.p.dir.dot(b.p.dir) < -0.999 && compatible(a.p, b.p, a.pc, b.pc).ok) { pr.link(a.pc, a.p.id, b.pc, b.p.id); n++; }
   }
   return n;
@@ -1327,7 +1528,7 @@ function testNotes(pr) {
 }
 
 const fmtQty = g => (g.unit === 'pç' || g.unit === 'un') ? String(Math.round(g.qty)) : (Math.round(g.qty * 100) / 100).toFixed(2) + ' ' + g.unit;
-const TP = { PROFILES, profSec, fieldsOf, INLINE, inlineLen, insertInline, WALL_K, ROOF_K, V3, Q, UP, AX, AZ, D2R, DNS, DIM, CLASSES, FLANGE_STDS, flg, TYPES, VALVE_SUBS, Project, localPorts, worldPorts, worldPort, worldPt,
+const TP = { DISC, PIPING, PROFILES, profSec, fieldsOf, INLINE, inlineLen, insertInline, WALL_K, ROOF_K, V3, Q, UP, AX, AZ, D2R, DNS, DIM, CLASSES, FLANGE_STDS, flg, TYPES, VALVE_SUBS, Project, localPorts, worldPorts, worldPort, worldPt,
   compatible, jointType, snapPose, component, branch, applyRigid, pivotPort, rotateBranch, roll, tilt, orient, moveGroup, updateParams, autoConnect, acoplar,
   segSegDist, capsules, detectClashes, ISO_AXES, PLANES, latticeToScreen, screenToLattice, snapLattice, classifyIso, isoDelta, isoTo3D, buildFromIso,
   joints, analyze, bom, fmtQty, pcf, testNotes, nextDown, nextUp, odOf, r1, C30, S30 };
@@ -1361,6 +1562,7 @@ function geomOf(pc) { // primitivas em coordenadas do mundo
     } else if (p.k === 'sph') out.push({ k: 'circ', c: worldPt(pc, p.c), r: p.r });
     else if (p.k === 'section') { const s = p.sec, pts = []; for (const x of [0, p.L]) for (const a of [-1, 1]) for (const b of [-1, 1]) pts.push(worldPt(pc, new V3(x, a * s.d / 2, b * s.bf / 2))); out.push({ k: 'hull', pts }); }
     else if (p.k === 'gusset') { const pts = []; for (const z of [-p.t / 2, p.t / 2]) for (const [x, y] of [[0, 0], [p.a, 0], [0, p.b]]) pts.push(worldPt(pc, new V3(x, y, z))); out.push({ k: 'hull', pts }); }
+    else if (p.k === 'loft') { const pts = []; for (const [x, [w, h]] of [[p.x0, p.a], [p.x0 + p.L, p.b]]) for (const a of [-1, 1]) for (const b of [-1, 1]) pts.push(worldPt(pc, new V3(x, a * h / 2, b * w / 2))); out.push({ k: 'hull', pts }); }
     else if (p.k === 'lathe') out.push({ k: 'seg', a: worldPt(pc, new V3(0, 0, 0)), b: worldPt(pc, new V3(0, p.h, 0)), r: p.ro, rmax: p.ro, center: true });
     else if (p.k === 'prism') { const pts = []; for (const y of [p.y0, p.y1]) for (const [x, z] of p.pts) pts.push(worldPt(pc, new V3(x, y, z))); out.push({ k: 'hull', pts }); }
     else if (p.mat && (p.k === 'box' || p.k === 'cbox')) {
@@ -1568,9 +1770,10 @@ function sheetSVG(pr, opts = {}) {
   }
   // Notas
   const tn = T.testNotes(pr);
-  const hasPipe = pcs.some(p => !TYPES[p.type].civil), hasCiv = pcs.some(p => TYPES[p.type].civil);
+  const hasPipe = pcs.some(p => T.PIPING.has(p.type)), hasCiv = pcs.some(p => TYPES[p.type].civil), dset = new Set(pcs.map(p => T.DISC(p.type)));
   const civNotes = ['NOTAS:', '1. Projeto e execução conforme NBR 6118 (concreto) e NBR 6122 (fundações).', '2. Cobrimento: 30 mm pilares e vigas, 40 mm fundações (CAA II).', '3. Aço CA-50 (NBR 7480) — quantitativo estimado por taxa de armadura.', '4. Alvenaria de vedação conforme NBR 15575, argamassa 1:2:8.', '5. Cotas em mm. Conferir com o projeto estrutural antes de executar.'];
-  const notes = !hasPipe ? civNotes : [
+  const extraNotes = [dset.has('ES') && 'Estruturas: NBR 8800, solda E70XX, pintura de fundo epóxi.', dset.has('EL') && 'Elétrica: NBR 5410; leitos e eletrocalhas NBR IEC 61537.', dset.has('HV') && 'Dutos: NBR 16401 / SMACNA, chapa galvanizada Z275.'].filter(Boolean);
+  const notes = !hasPipe ? (hasCiv ? civNotes : ['NOTAS:', '1. Cotas em mm.', ...extraNotes.map((n, i) => `${i + 2}. ${n}`)]).concat(hasCiv ? extraNotes.map((n, i) => `${i + 6}. ${n}`) : []) : [
     'NOTAS:',
     '1. Fabricação, montagem e inspeção conforme ASME B31.3 — serviço normal.',
     `2. Pressão de projeto: ${tn.P} bar(g). Teste hidrostático: ${tn.Pt.toFixed(1)} bar(g) (1,5×P).`,
@@ -1578,7 +1781,7 @@ function sheetSVG(pr, opts = {}) {
     '3. END: soldas de topo — VS 100% + RX/US 5% aleatório; filete — VS + LP.',
     '4. Cotas em mm, de centro a centro e de face a face de flange.',
     '5. Soldas: ● oficina (SW)  ○ campo (FW). Spools quebrados em juntas flangeadas.',
-    ...(hasCiv ? ['6. Elementos civis: NBR 6118 / NBR 6122 / NBR 15575.'] : []),
+    ...[hasCiv && 'Elementos civis: NBR 6118 / NBR 6122 / NBR 15575.', ...extraNotes].filter(Boolean).map((n, i) => `${i + 6}. ${n}`),
   ];
   notes.forEach((n, i) => out.push(txt(x0c + 1.5, yNotes + 4 * k + i * 3.6 * k, n, i === 0 ? 2.1 : 1.75, { bold: i === 0 })));
   // Carimbo
@@ -1734,20 +1937,31 @@ function resolveParams(type, params, dn) {
 function insertCivil(type, params) {
   mutate(() => {
     const act = S.active && pr.get(S.active.id) && !pr.get(S.active.id).conn[S.active.port] ? S.active : null;
-    const pc = pr.create(type, Object.assign({}, params));
+    const inh = {};
+    if (act) {
+      const t0 = pr.get(act.id), T0 = TYPES[t0.type];
+      if (['duct', 'hvelbow', 'damper', 'transition'].includes(type) && ['duct', 'hvelbow', 'damper', 'transition', 'diffuser'].includes(t0.type)) {
+        const z = t0.type === 'transition' && act.port === 'B' ? { sub: t0.sub2, W: t0.W2, H: t0.H2, D: t0.D2 } : t0.type === 'diffuser' ? { sub: 'rect', W: t0.N, H: t0.N } : { sub: t0.sub, W: t0.W, H: t0.H, D: t0.D };
+        Object.assign(inh, z); if (type === 'transition') { inh.sub2 = z.sub; inh.W2 = Math.round(z.W * 0.75 / 50) * 50 || z.W; inh.H2 = z.H; inh.D2 = Math.round((z.D || 400) * 0.75 / 50) * 50; }
+      }
+      if (['tray', 'traybend'].includes(type) && ['tray', 'traybend'].includes(t0.type)) Object.assign(inh, { W: t0.W, Hh: t0.Hh, sub: params.sub || t0.sub });
+    }
+    const pc = pr.create(type, Object.assign({}, params, inh));
     let placed = false;
     if (act) {
       const tgt = pr.get(act.id), tp = TP.worldPort(tgt, act.port);
       if (tp.end === 'CV' || tp.end === 'ES') {
         const lp = TP.localPorts(pc).filter(p => p.end === tp.end);
-        const mp = tp.dir.y > 0.9 ? lp.find(p => p.dir.y < -0.9) : tp.dir.y < -0.9 ? lp.find(p => p.dir.y > 0.9) : lp.find(p => p.dir.x < -0.9 && Math.abs(p.dir.y) < 0.1);
+        let mp = tp.dir.y > 0.9 ? lp.find(p => p.dir.y < -0.9) : tp.dir.y < -0.9 ? lp.find(p => p.dir.y > 0.9) : lp.find(p => p.dir.x < -0.9 && Math.abs(p.dir.y) < 0.1);
+        if (!mp && tp.end !== 'CV') mp = lp[0];
+        if (mp && !TP.compatible(mp, tp, pc, tgt).ok) { toast('Tamanho diferente da porta ativa: ' + TP.compatible(mp, tp, pc, tgt).why, 'er'); mp = null; }
         if (mp) { attach(pc, mp.id, tgt, act.port); TP.autoConnect(pr); placed = true; }
         else { pc.pos = tp.pos; placed = true; }
       }
     }
     if (!placed) { const b = bbox(); if (b && pr.pieces.size > 1) pc.pos = new V3(b.mx.x + 1500, 0, 0); }
     S.sel = pc.id;
-    const pref = { footing: 'TOP', column: 'TOPO', beam: 'B', wall: 'P2', profile: 'B', baseplate: 'TOP' }[type];
+    const pref = { footing: 'TOP', column: 'TOPO', beam: 'B', wall: 'P2', profile: 'B', baseplate: 'TOP', tray: 'B', traybend: 'B', panel: 'TOP', duct: 'B', hvelbow: 'P2', transition: 'B', damper: 'B', diffuser: 'P1' }[type];
     S.active = pref && !pc.conn[pref] ? { id: pc.id, port: pref } : null;
   });
 }
@@ -1840,6 +2054,10 @@ const R = (() => {
     fiber: { draw: (g, n, b) => { noise(g, n, 1200, '#9aa0a3', 30, b); for (let x = 0; x < n; x++) { const v = Math.sin(x / n * Math.PI * 2 * 6); g.fillStyle = b ? `rgb(${128 + v * 110 | 0},${128 + v * 110 | 0},${128 + v * 110 | 0})` : `rgba(${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${Math.abs(v) * 0.18})`; g.fillRect(x, 0, 1, n); } }, u: 1100, v: 1100, rough: 0.85, metal: 0 },
     metal: { draw: (g, n, b) => { g.fillStyle = b ? '#808080' : '#c7ccd1'; g.fillRect(0, 0, n, n); for (let x = 0; x < n; x += n / 4) { g.fillStyle = b ? '#f0f0f0' : 'rgba(255,255,255,.25)'; g.fillRect(x, 0, n / 16, n); g.fillStyle = b ? '#404040' : 'rgba(0,0,0,.15)'; g.fillRect(x + n / 16, 0, 3, n); } }, u: 1000, v: 1000, rough: 0.35, metal: 0.7 },
     rebar: { color: 0x5b4636, rough: 0.6, metal: 0.6 },
+    galv: { draw: (g, n, b) => { g.fillStyle = b ? '#808080' : '#b9c0c6'; g.fillRect(0, 0, n, n); for (let i = 0; i < 260; i++) { const v = rnd() - 0.5; g.fillStyle = `rgba(${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${b ? 0.1 : 0.09})`; g.beginPath(); g.moveTo(rnd() * n, rnd() * n); for (let k = 0; k < 5; k++) g.lineTo(rnd() * n, rnd() * n); g.fill(); } }, u: 800, v: 800, rough: 0.4, metal: 0.75 },
+    galvd: { color: 0x8d969e, rough: 0.45, metal: 0.7 },
+    panel: { color: 0xd4d5cc, rough: 0.55, metal: 0.15 },
+    motor: { color: 0x34536f, rough: 0.5, metal: 0.35 },
     steel: { draw: (g, n, b) => { g.fillStyle = b ? '#808080' : '#8b939c'; g.fillRect(0, 0, n, n); for (let i = 0; i < 900; i++) { const v = (rnd() - 0.5); g.fillStyle = b ? `rgba(${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},.08)` : `rgba(${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},.06)`; g.fillRect(0, rnd() * n, n, 1); } }, u: 1000, v: 1000, rough: 0.45, metal: 0.65 },
   };
   function civMat(key, ru, rv) {
@@ -1914,6 +2132,13 @@ const R = (() => {
     } else if (p.k === 'gusset') {
       const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.lineTo(p.a, 0); sh.lineTo(0, p.b); sh.closePath();
       g = new THREE.ExtrudeGeometry(sh, { depth: p.t, bevelEnabled: false }); g.translate(0, 0, -p.t / 2); m = new THREE.Mesh(g, mat);
+    } else if (p.k === 'loft') {
+      const [aw, ah] = p.a, [bw, bh] = p.b, x0 = p.x0 || 0, x1 = x0 + p.L;
+      const A = [[x0, -ah / 2, -aw / 2], [x0, -ah / 2, aw / 2], [x0, ah / 2, aw / 2], [x0, ah / 2, -aw / 2]], B = [[x1, -bh / 2, -bw / 2], [x1, -bh / 2, bw / 2], [x1, bh / 2, bw / 2], [x1, bh / 2, -bw / 2]];
+      const tri = []; for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; tri.push(A[i], B[j], A[j], A[i], B[i], B[j]); }
+      g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(tri.flat(), 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(tri.flatMap(q => [q[0], q[1] + q[2]]), 2)); g.computeVertexNormals();
+      mat.side = THREE.DoubleSide; m = new THREE.Mesh(g, mat);
     } else if (p.k === 'lathe') {
       const pts = p.ri > 0 ? [[p.ri, 0], [p.ro, 0], [p.ro, p.h], [p.ri, p.h], [p.ri, 0]] : [[0, 0], [p.ro, 0], [p.ro, p.h], [0, p.h]];
       g = new THREE.LatheGeometry(pts.map(q => new THREE.Vector2(q[0], q[1])), 40); m = new THREE.Mesh(g, mat);
@@ -2179,7 +2404,7 @@ function onPortTap(m) {
   const w = TP.worldPort(pc, m.port);
   if (DIM[w.dn] && pc.type !== 'pgauge' && pc.type !== 'tgauge') S.dn = w.dn;
   refresh();
-  toast(`Continuando a partir de ${pc.tag} · ${m.port} (${DIM[w.dn]?.nps || ''})`, 'ok');
+  toast(`Continuando a partir de ${pc.tag} · ${m.port}${DIM[w.dn] ? ` (${DIM[w.dn].nps})` : ''}`, 'ok');
   if (innerWidth < 768) openDrawer('left');
 }
 function onPieceTap(id) { S.sel = id; refresh(); if (id && innerWidth < 768) openDrawer('right'); }
@@ -2195,7 +2420,11 @@ const ICON = {
   glass: '<path d="M2 9h22M2 17h22"/><circle cx="13" cy="13" r="4"/>', pg: '<circle cx="13" cy="10" r="7"/><path d="M13 17v7M13 10l4-3"/>', tg: '<circle cx="13" cy="9" r="6"/><path d="M13 15v9M10 9h6"/>',
   custom: '<path d="M4 4h18v18H4zM4 13h18M13 4v18"/>',
   pI: '<path d="M5 4h16M5 22h16M13 4v18"/>', pH: '<path d="M5 4v18M21 4v18M5 13h16"/>', pU: '<path d="M19 4H7v18h12"/>', pL: '<path d="M7 4v18h14"/>', pO: '<circle cx="13" cy="13" r="8"/><circle cx="13" cy="13" r="5"/>', pR: '<path d="M5 6h16v14H5zM8 9h10v8H8z"/>',
-  base: '<path d="M3 18h20v3H3zM9 18V5h8v13M6 21v3M20 21v3"/>', gus: '<path d="M5 4v18h16zM5 4"/>',
+  base: '<path d="M3 18h20v3H3zM9 18V5h8v13M6 21v3M20 21v3"/>',
+  tray: '<path d="M3 8v10h20V8M3 13h20M8 13v5M13 13v5M18 13v5"/>', trayb: '<path d="M3 6v6a10 10 0 0 0 10 10h6M8 6v6a5 5 0 0 0 5 5h6"/>', panel: '<path d="M6 3h14v20H6zM13 3v20M16 12v3"/>',
+  motor: '<path d="M4 8h14v10H4zM18 12h5M2 9v8M7 18v3h8v-3"/>', pump: '<circle cx="10" cy="14" r="6"/><path d="M10 8V3h5M16 14h7M2 14h2"/>',
+  duct: '<path d="M2 8h22v10H2zM6 8v10M20 8v10"/>', ductr: '<ellipse cx="5" cy="13" rx="3" ry="6"/><path d="M5 7h17M5 19h17"/>', ductb: '<path d="M2 6h8a12 12 0 0 1 12 12v5M2 14h8a4 4 0 0 1 4 4v5"/>',
+  trans: '<path d="M2 5v16l10-4h10V9H12z"/>', damper: '<path d="M3 6h20v14H3zM7 17l12-8"/><circle cx="13" cy="13" r="1.5"/>', diff: '<path d="M2 18h22M5 15h16M8 12h10M11 4v8h4V4"/>', gus: '<path d="M5 4v18h16zM5 4"/>',
   footing: '<path d="M3 22h20v-4H3zM6 18l4-5h6l4 5M11 13V6h4v7"/>', column: '<path d="M10 2h6v22h-6zM8 24h10"/>', beam: '<path d="M2 10h22v6H2zM4 16v6M22 16v6"/>',
   slab: '<path d="M2 12l11-5 11 5-11 5zM2 12v3l11 5 11-5v-3"/>', wallB: '<path d="M3 5h20v16H3zM3 10h20M3 15h20M10 5v5M16 10v5M10 15v6"/>', wallT: '<path d="M3 5h20v16H3zM3 9h20M3 13h20M3 17h20M8 5v4M14 9v4M8 13v4M14 17v4M19 5v4"/>',
   roof: '<path d="M2 15L13 5l11 10M5 13v9h16v-9"/>',
@@ -2208,6 +2437,10 @@ const CAT = [
   { g: 'Acessórios e instrumentos', mod: 'TB', items: [['strainer', {}, 'Filtro Y', 'strainer'], ['expjoint', {}, 'Junta expansão', 'exp'], ['sightglass', {}, 'Visor de fluxo', 'glass'], ['pgauge', {}, 'Manômetro', 'pg'], ['tgauge', {}, 'Termômetro', 'tg']] },
   { g: 'Estruturas metálicas', mod: 'ES', items: [['baseplate', {}, 'Chapa de base', 'base'], ['profile', { fam: 'W', size: 'W200x15' }, 'Perfil I (W)', 'pI'], ['profile', { fam: 'H', size: 'W200x46,1' }, 'Perfil H', 'pH'],
     ['profile', { fam: 'U', size: 'U 6"' }, 'Perfil U', 'pU'], ['profile', { fam: 'L', size: 'L 3"x1/4"' }, 'Cantoneira L', 'pL'], ['profile', { fam: 'CHS', size: 'Ø114,3x4,5' }, 'Tubo circular', 'pO'], ['profile', { fam: 'RHS', size: '100x100x5' }, 'Tubo retangular', 'pR'], ['gusset', {}, 'Enrijecedor', 'gus']] },
+  { g: 'Eletromecânico', mod: 'EL', items: [['panel', {}, 'Painel elétrico', 'panel'], ['tray', { sub: 'leito' }, 'Leito de cabos', 'tray'], ['tray', { sub: 'eletrocalha' }, 'Eletrocalha', 'tray'],
+    ['traybend', {}, 'Curva de leito', 'trayb'], ['motor', {}, 'Motor elétrico', 'motor'], ['pump', {}, 'Bomba centrífuga', 'pump']] },
+  { g: 'HVAC / Dutos', mod: 'HV', items: [['duct', { sub: 'rect' }, 'Duto retangular', 'duct'], ['duct', { sub: 'round' }, 'Duto circular', 'ductr'], ['hvelbow', {}, 'Curva de duto', 'ductb'],
+    ['transition', {}, 'Transição', 'trans'], ['damper', {}, 'Damper', 'damper'], ['diffuser', {}, 'Difusor de teto', 'diff']] },
   { g: 'Construção civil', mod: 'CL', items: [['footing', {}, 'Bloco de fundação', 'footing'], ['column', {}, 'Pilar', 'column'], ['beam', {}, 'Viga', 'beam'], ['slab', {}, 'Laje', 'slab'],
     ['wall', { kind: 'bloco' }, 'Parede bloco concreto', 'wallB'], ['wall', { kind: 'ceramico' }, 'Parede bloco cerâmico', 'wallB'], ['wall', { kind: 'tijolo' }, 'Parede tijolo maciço', 'wallT'],
     ['roof', { kind: 'ceramica' }, 'Telhado cerâmico', 'roof'], ['roof', { kind: 'fibrocimento' }, 'Telhado fibrocimento', 'roof'], ['roof', { kind: 'metalica' }, 'Telhado metálico', 'roof']] },
@@ -2237,7 +2470,7 @@ function renderLeft() {
     </div>`}</div>`;
   const pcs = [...pr.pieces.values()], clashIds = new Set(S.clashes.flatMap(c => [c.a, c.b]));
   h += `<div class="sec">${colH('Modelo', 'Modelo', `<span class="chip">${pcs.length} peças</span>`)}${isCol('Modelo') ? '' : `<div class="tree">${pcs.map(p => `<button data-sel="${p.id}" class="${p.id === S.sel ? 'on' : ''}"><span>${esc(p.tag)}</span><span class="${clashIds.has(p.id) ? 'er' : 'mut'}">${clashIds.has(p.id) ? '⚠ ' : ''}${TYPES[p.type].name}${DIM[p.dn] && p.type !== 'custom' ? ' ' + DIM[p.dn].nps : ''}</span></button>`).join('') || '<span class="mut">Vazio</span>'}</div>`}</div>
-    ${(() => { const o = (USER.modules || []).filter(m => !['TB', 'CL', 'ES'].includes(m)); return o.length ? `<div class="sec"><h3>Outras disciplinas do seu pacote</h3><div class="mut">${o.map(m => esc(USER.MODULES[m] || m)).join(', ')} — em desenvolvimento, chegam nas próximas versões.</div></div>` : ''; })()}`;
+    ${(() => { const o = (USER.modules || []).filter(m => !['TB', 'CL', 'ES', 'EL', 'HV'].includes(m)); return o.length ? `<div class="sec"><h3>Outras disciplinas do seu pacote</h3><div class="mut">${o.map(m => esc(USER.MODULES[m] || m)).join(', ')} — em desenvolvimento, chegam nas próximas versões.</div></div>` : ''; })()}`;
   const L = $('#left'); const st = L.scrollTop; L.innerHTML = h; L.scrollTop = st;
   if ($('#cDn')) { $('#cDn').onchange = e => { S.dn = +e.target.value; };
   $('#cCls').onchange = e => { S.cls = +e.target.value; };
@@ -2302,7 +2535,7 @@ function renderRight() {
   if (pc.type === 'valve') par += `<label class="f">Tipo<select class="in" id="pSub">${Object.entries(VALVE_SUBS).map(([k, l]) => `<option value="${k}" ${pc.sub === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
   const ports = !Object.keys(pc.conn).length ? '<div class="mut">Peça sem portas de conexão — posicione com o gizmo ou os botões de mover.</div>' : Object.keys(pc.conn).map(k => {
     const c = pc.conn[k], o = c && pr.get(c.id), isAct = S.active && S.active.id === pc.id && S.active.port === k;
-    return `<div class="pt"><span><b class="mono">${k}</b> <span class="mut">${w[k].end === 'CV' ? (w[k].dir.y > 0.9 ? 'apoio superior' : w[k].dir.y < -0.9 ? 'apoio inferior' : 'ligação lateral') : (DIM[w[k].dn]?.nps || 'Ø' + TP.r1(w[k].od)) + ' · ' + { BW: 'solda topo', SW: 'solda encaixe', FL: 'flange', TH: 'rosca' }[w[k].end]}</span><br>${o ? `<span class="chip ok">→ ${esc(o.tag)} ${c.port}</span>` : '<span class="chip am">livre</span>'}</span>
+    return `<div class="pt"><span><b class="mono">${k}</b> <span class="mut">${['CV', 'ES', 'EL', 'HV'].includes(w[k].end) ? (w[k].dir.y > 0.9 ? 'apoio superior' : w[k].dir.y < -0.9 ? 'apoio inferior' : 'ligação lateral') : (DIM[w[k].dn]?.nps || 'Ø' + TP.r1(w[k].od)) + ' · ' + { BW: 'solda topo', SW: 'solda encaixe', FL: 'flange', TH: 'rosca' }[w[k].end]}</span><br>${o ? `<span class="chip ok">→ ${esc(o.tag)} ${c.port}</span>` : '<span class="chip am">livre</span>'}</span>
       ${o ? `<button class="ib sm" data-unl="${k}">soltar</button>` : `<button class="ib sm ${isAct ? 'on' : ''}" data-act="${k}">${isAct ? 'ativa' : 'continuar aqui'}</button>`}</div>`;
   }).join('');
   const pv = piv && w[piv] ? w[piv].pos : pc.pos;
@@ -2358,7 +2591,7 @@ function renderRight() {
   $('#aDup').onclick = () => mutate(() => { const o = pr.get(id); const { id: _i, tag: _t, conn: _c, ...rest } = o; const c = pr.create(o.type, Object.assign(rest, { pos: o.pos.add(new V3(0, 0, 500)), q: o.q })); S.sel = c.id; });
   $('#aDel').onclick = deleteSel;
 }
-function structCenter(pc) { const p = pc; if (pc.type === 'cylinder') return new V3(0, p.H / 2, 0); if (pc.type === 'plate') return new V3(p.L / 2, p.t / 2, p.W / 2); return new V3(p.L / 2, p.H / 2, p.W / 2); }
+function structCenter(pc) { const p = pc; if (pc.type === 'motor') { const g = TYPES.motor.geo(p); return new V3(g.L / 2, g.hc, 0); } if (pc.type === 'cylinder') return new V3(0, p.H / 2, 0); if (pc.type === 'plate') return new V3(p.L / 2, p.t / 2, p.W / 2); return new V3(p.L / 2, p.H / 2, p.W / 2); }
 function flip(id) {
   const pc = pr.get(id), ks = Object.keys(pc.conn), con = ks.filter(k => pc.conn[k]);
   if (con.length > 1) { toast('Inverter só funciona em peças com uma ligação (ponta de linha).', 'er'); return false; }
@@ -2778,16 +3011,16 @@ function renderBom() {
   const per = 10, pages = Math.max(1, Math.ceil(an.welds.length / per)); S.weldPage = Math.min(S.weldPage, pages - 1);
   const wp = an.welds.slice(S.weldPage * per, S.weldPage * per + per);
   const tn = TP.testNotes(pr);
-  const hasPipe = [...pr.pieces.values()].some(p => !TYPES[p.type].civil);
+  const hasPipe = [...pr.pieces.values()].some(p => TP.PIPING.has(p.type)), hasCivP = [...pr.pieces.values()].some(p => TYPES[p.type].civil);
   const sumU = (re, unit) => items.filter(g => g.unit === unit && re.test(g.desc)).reduce((a, g) => a + g.qty, 0);
   const civCards = `<div class="card"><div class="v">${fmt(sumU(/^Concreto/, 'm³'), 2)}</div><div class="l">Concreto (m³)</div></div><div class="card"><div class="v">${fmt(sumU(/^Aço/, 'kg'), 0)}</div><div class="l">Aço CA-50 (kg)</div></div><div class="card"><div class="v">${fmt(sumU(/^Forma/, 'm²'), 1)}</div><div class="l">Forma (m²)</div></div><div class="card"><div class="v">${fmt(sumU(/^Alvenaria/, 'm²'), 1)}</div><div class="l">Alvenaria (m²)</div></div>`;
   $('#bomw').innerHTML = !hasPipe ? `
-  <div class="cards"><div class="card"><div class="v">${pr.pieces.size}</div><div class="l">Elementos</div></div>${civCards}<div class="card"><div class="v">${fmt(totW / 1000, 1)}</div><div class="l">Peso total (t)</div></div></div>
+  <div class="cards"><div class="card"><div class="v">${pr.pieces.size}</div><div class="l">Elementos</div></div>${hasCivP ? civCards : ''}<div class="card"><div class="v">${fmt(totW / 1000, 1)}</div><div class="l">Peso total (t)</div></div></div>
   <h2>Lista de materiais <button class="ib sm" id="bCsv">Copiar CSV</button><button class="ib sm" id="bCsvD">Baixar CSV</button></h2>
   <div class="tw"><table class="t"><thead><tr><th>It</th><th>Descrição</th><th>Norma</th><th>Material</th><th>Qtd</th><th>Peso total (kg)</th><th>Elementos</th></tr></thead><tbody>
   ${items.map(g => `<tr><td class="n">${g.item}</td><td>${esc(g.desc)}</td><td>${esc(g.std)}</td><td>${esc(g.mat)}</td><td class="n">${(g.unit === 'pç' || g.unit === 'un') ? fmt(g.qty) + ' un' : fmt(g.qty, 2) + ' ' + g.unit}</td><td class="n">${g.w ? fmt(g.w, 1) : '—'}</td><td class="mono" style="font-size:11px;color:var(--mu)">${esc(g.tags.join(', '))}</td></tr>`).join('') || '<tr><td colspan="7" class="mut">Sem itens</td></tr>'}
   </tbody></table></div>
-  <div class="mut" style="margin:-8px 0 16px;font-size:12px">Aço estimado por taxa de armadura (fundação 80, pilar 120, viga 110, laje 70 kg/m³). Blocos e telhas com 5% de perda.</div>
+  <div class="mut" style="margin:-8px 0 16px;font-size:12px;${hasCivP ? '' : 'display:none'}">Aço estimado por taxa de armadura (fundação 80, pilar 120, viga 110, laje 70 kg/m³). Blocos e telhas com 5% de perda.</div>
   <h2>Exportações</h2>
   <div class="btns" style="max-width:720px;margin-bottom:8px"><button class="ib" id="eJsC">Copiar projeto (.json)</button><button class="ib" id="eJsD">Baixar projeto (.json)</button><label class="ib" style="position:relative">Importar projeto<input type="file" accept=".json,application/json" id="eImp" style="position:absolute;inset:0;opacity:0"></label></div>
   <textarea class="code" readonly id="pcfTxt" style="display:none"></textarea>` : `
@@ -2913,8 +3146,31 @@ function demoSteel(off) {
   TP.autoConnect(pr, 2);
   for (const c of cols) { const g = add('gusset', { a: 300, b: 300, t: 9.5 }); const top = TP.worldPort(c, 'B').pos; g.pos = top.add(new V3(c === cols[0] ? 100 : -100, -480, 0)); g.q = c === cols[0] ? new Q() : Q.axisAngle(TP.UP, Math.PI); }
 }
+function demoEl(off) {
+  const add = (t, p) => pr.create(t, p || {});
+  const pn = add('panel', { sub: 'CCM' }); pn.pos = off;
+  const up = add('tray', { len: 1200 }); attach(up, 'A', pn, 'TOP');
+  const tb = add('traybend'); attach(tb, 'A', up, 'B'); TP.roll(pr, tb.id, 90);
+  const run = add('tray', { len: 3000 }); attach(run, 'A', tb, 'B');
+  const pu = add('pump', { dn: 100, dn2: 80, cv: 25 }); pu.pos = off.add(new V3(1500, 0, 2500));
+  const mt = add('motor', { cv: 10 }); mt.pos = off.add(new V3(1500, 0, 4200));
+  TP.autoConnect(pr);
+}
+function demoHv(off) {
+  const add = (t, p) => pr.create(t, p || {});
+  const d1 = add('duct', { len: 2000 }); d1.pos = off.add(new V3(0, 3200, 0));
+  const dp = add('damper'); attach(dp, 'A', d1, 'B');
+  const d2 = add('duct', { len: 1500 }); attach(d2, 'A', dp, 'B');
+  const el = add('hvelbow'); attach(el, 'P1', d2, 'B');
+  const tr = add('transition', { W2: 400, H2: 300 }); attach(tr, 'A', el, 'P2');
+  const d3 = add('duct', { W: 400, H: 300, len: 1800 }); attach(d3, 'A', tr, 'B');
+  for (const [d, x] of [[d1, 1000], [d3, 1200]]) { const df = add('diffuser', { F: 600, N: 250 }); const c = TP.worldPt(d, new V3(x, -(d.H / 2), 0)); df.pos = c.add(new V3(0, -260 - 300, 0)); }
+  TP.autoConnect(pr);
+}
 function demoFor() {
   if (has('TB')) demo();
+  if (has('EL')) { const b = bbox(); demoEl(b ? new V3(b.mx.x + 2500, 0, 0) : new V3()); if (!has('TB') && !has('CL') && !has('ES')) pr.meta.title = 'Exemplo: sala elétrica e bombas'; }
+  if (has('HV')) { const b = bbox(); demoHv(b ? new V3(b.mx.x + 2500, 0, 0) : new V3()); if (!has('TB') && !has('CL') && !has('ES') && !has('EL')) pr.meta.title = 'Exemplo: rede de dutos'; }
   if (has('ES')) { const b = bbox(); demoSteel(b ? new V3(b.mn.x, 0, b.mn.z - 4000) : new V3()); if (!has('TB')) pr.meta.title = 'Exemplo: pórtico metálico'; }
   if (has('CL')) { const b = bbox(); demoCivil(b ? new V3(b.mn.x, 0, b.mx.z + 3000) : new V3()); pr.meta.title = has('TB') ? 'Exemplo: tubulação + estrutura' : 'Exemplo: estrutura em concreto'; }
 }
@@ -3002,7 +3258,7 @@ window.TPApp = {
   start(user, cloud) {
     USER = user; CLOUD = cloud || null; KEY = 'tecplan.project.v1:' + String(user.email || '').toLowerCase();
     if (typeof THREE === 'undefined') { document.body.innerHTML = '<div style="padding:40px;color:#ddd;font-family:sans-serif">Não foi possível carregar o motor 3D (Three.js). Verifique a conexão e recarregue.</div>'; return; }
-    if (!has('TB') && !has('CL') && !has('ES')) { modulesOnly(); return; }
+    if (!['TB', 'CL', 'ES', 'EL', 'HV'].some(has)) { modulesOnly(); return; }
     if (!has('TB')) S.clashOn = false;
     init();
   }
