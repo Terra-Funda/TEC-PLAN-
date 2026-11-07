@@ -1264,8 +1264,63 @@ const S = { sel: null, active: null, tab: '3d', dn: 100, cls: 150, pipeLen: 1000
 let KEY = 'tecplan.project.v1';
 let USER = { modules: ['TB','CL','EL','ES','HV'], MODULES: {} };
 const has = m => (USER.modules || []).includes(m);
-function save() { store.set(KEY, pr.toJSON()); }
-function load() { const o = store.get(KEY, null); pr = TP.Project.fromJSON(o); return !!o; }
+/* ---------- persistência: cache no aparelho + nuvem por usuário ---------- */
+let CLOUD = null;
+const uid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+const ck = id => 'tecplan.p:' + String(USER.email || '').toLowerCase() + ':' + id;
+const lastK = () => 'tecplan.last:' + String(USER.email || '').toLowerCase();
+function save() { const js = pr.toJSON(); js.savedAt = Date.now(); store.set(ck(S.pid), js); store.set(lastK(), S.pid); queueCloud(); }
+let cloudT = null, cloudBusy = false, cloudAgain = false;
+function queueCloud() { if (!CLOUD) return; S.cloud = 'pend'; renderStatus(); clearTimeout(cloudT); cloudT = setTimeout(flushCloud, 1500); }
+async function flushCloud() {
+  if (!CLOUD || !S.pid) return; clearTimeout(cloudT);
+  if (cloudBusy) { cloudAgain = true; return; }
+  cloudBusy = true; S.cloud = 'saving'; renderStatus();
+  try { await CLOUD.saveProject({ id: S.pid, name: pr.meta.title || 'Sem título', data: pr.toJSON() }); S.cloud = 'ok'; }
+  catch (e) { console.warn(e); S.cloud = 'off'; }
+  cloudBusy = false; renderStatus();
+  if (cloudAgain) { cloudAgain = false; flushCloud(); }
+}
+function localProjects() {
+  const pre = 'tecplan.p:' + String(USER.email || '').toLowerCase() + ':', out = [];
+  try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith(pre)) { const o = store.get(k, null); if (o) out.push({ id: k.slice(pre.length), name: o.meta?.title || 'Sem título', updated_at: new Date(o.savedAt || 0).toISOString(), local: true }); } } } catch { }
+  return out;
+}
+async function openProject(id, opts = {}) {
+  const local = store.get(ck(id), null); let remote = null;
+  if (CLOUD) { try { remote = await CLOUD.getProject(id); S.cloud = 'ok'; } catch (e) { S.cloud = 'off'; } }
+  let data = local, push = false;
+  if (remote && (!local || Date.parse(remote.updated_at) > (local.savedAt || 0) + 1000)) data = remote.data;
+  else if (local && (!remote || (local.savedAt || 0) > Date.parse(remote.updated_at) + 1000)) push = true;
+  if (!data) { toast('Projeto não encontrado.', 'er'); return false; }
+  pr = TP.Project.fromJSON(data); S.pid = id; S.sel = null; S.active = null; S.hist = []; S.fut = [];
+  const js = pr.toJSON(); js.savedAt = remote && data === remote.data ? Date.parse(remote.updated_at) : (local?.savedAt || Date.now());
+  store.set(ck(id), js); store.set(lastK(), id);
+  if (push) queueCloud();
+  refresh(); setTimeout(() => R.fit(), 30);
+  if (!opts.quiet) toast(`Projeto "${pr.meta.title || 'Sem título'}" aberto.`, 'ok');
+  return true;
+}
+async function newProject(title, data) {
+  await flushCloud();
+  pr = data ? TP.Project.fromJSON(data) : new TP.Project();
+  if (title) pr.meta.title = title;
+  S.pid = uid(); S.sel = null; S.active = null; S.hist = []; S.fut = [];
+  save(); flushCloud(); refresh(); setTimeout(() => R.fit(), 30);
+}
+async function bootProjects() {
+  let list = [];
+  if (CLOUD) { try { list = await CLOUD.listProjects(); S.cloud = 'ok'; } catch (e) { console.warn(e); S.cloud = 'off'; } }
+  const last = store.get(lastK(), null);
+  if (last && (list.some(p => p.id === last) || store.get(ck(last), null))) { if (await openProject(last, { quiet: true })) return; }
+  if (list.length) { if (await openProject(list[0].id, { quiet: true })) return; }
+  const loc = localProjects(); if (loc.length) { if (await openProject(loc[0].id, { quiet: true })) return; }
+  const legacy = store.get('tecplan.project.v1:' + String(USER.email || '').toLowerCase(), null);
+  pr = legacy ? TP.Project.fromJSON(legacy) : new TP.Project();
+  if (!legacy) demo();
+  S.pid = uid(); save(); flushCloud(); refresh(); setTimeout(() => R.fit(), 50);
+  if (!legacy) toast('Projeto de exemplo criado. Toque numa peça ou numa esfera âmbar para começar.');
+}
 function snapshot() { return JSON.stringify(pr.toJSON()); }
 function restore(js) { pr = TP.Project.fromJSON(JSON.parse(js)); if (S.sel && !pr.get(S.sel)) S.sel = null; if (S.active && !pr.get(S.active.id)) S.active = null; }
 function mutate(fn) {
@@ -1711,7 +1766,7 @@ function renderStatus() {
   const h = S.hover, n = pr.pieces.size;
   $('#status').innerHTML = `<span>${h ? `E ${fmt(h.x)} · N ${fmt(-h.z)} · EL 0` : 'E — · N — · EL —'}</span><span>${n} peças</span>
     <span class="${S.clashes.length ? 'er' : ''}">${S.clashOn ? (S.clashes.length ? `⚠ ${S.clashes.length} interferência(s)` : '✓ sem interferências') : 'clash desligado'}</span>
-    ${S.mis.length ? `<span class="am">∠ ${S.mis.length} junta(s) em ângulo</span>` : ''}<span style="margin-left:auto">mm · ${pr.meta.fstd}</span>`;
+    ${S.mis.length ? `<span class="am">∠ ${S.mis.length} junta(s) em ângulo</span>` : ''}<span style="margin-left:auto">${esc(pr.meta.title || 'Sem título')}</span><span class="${S.cloud === 'off' ? 'er' : S.cloud === 'ok' ? '' : 'am'}" title="Salvamento">${CLOUD ? ({ ok: '☁ salvo na nuvem', pend: '☁ alterações pendentes', saving: '☁ salvando…', off: '⚠ sem conexão — salvo no aparelho' }[S.cloud] || '☁') + (CLOUD.demo ? ' (demo)' : '') : '💾 salvo no aparelho'}</span>`;
 }
 
 /* ======================= ISOMÉTRICO ======================= */
@@ -2023,8 +2078,7 @@ function demo() {
 }
 
 function init() {
-  const had = load();
-  if (!had) { demo(); save(); }
+  pr = new TP.Project();
   R.init($('#v3d'));
   document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => setTab(b.dataset.t));
   document.querySelectorAll('[data-cam]').forEach(b => b.onclick = () => R.view(b.dataset.cam));
@@ -2032,7 +2086,9 @@ function init() {
   $('#bPorts').onclick = e => { S.ports = !S.ports; e.currentTarget.classList.toggle('on', S.ports); R.sync(); };
   $('#bClash').onclick = e => { S.clashOn = !S.clashOn; e.currentTarget.classList.toggle('on', S.clashOn); refresh(); };
   $('#bUndo').onclick = undo; $('#bRedo').onclick = redo;
-  $('#bNew').onclick = () => { if ($('#bNew').dataset.c) { delete $('#bNew').dataset.c; $('#bNew').textContent = 'Novo'; mutate(() => { pr.pieces.clear(); pr.seq = {}; pr.fieldWelds = {}; S.sel = null; S.active = null; }); toast('Projeto novo (↶ desfaz).'); } else { $('#bNew').dataset.c = 1; $('#bNew').textContent = 'Confirmar?'; setTimeout(() => { delete $('#bNew').dataset.c; $('#bNew').textContent = 'Novo'; }, 3000); } };
+  $('#bNew').textContent = 'Projetos'; $('#bNew').classList.remove('hdr-extra'); $('#bNew').onclick = projectsModal;
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushCloud(); });
+  window.addEventListener('pagehide', () => flushCloud());
   $('#bLeft').onclick = () => $('#left').classList.contains('open') ? closeDrawers() : openDrawer('left');
   $('#bRight').onclick = () => $('#right').classList.contains('open') ? closeDrawers() : openDrawer('right');
   $('#back').onclick = closeDrawers;
@@ -2045,8 +2101,49 @@ function init() {
   });
   window.addEventListener('resize', () => { if (S.tab === 'sheet') renderSheet(); });
   refresh();
-  setTimeout(() => R.fit(), 50);
-  if (!had) toast('Projeto de exemplo carregado. Toque numa peça ou numa esfera âmbar para começar.');
+  bootProjects();
+}
+async function projectsModal() {
+  await flushCloud();
+  const m = document.createElement('div'); m.className = 'modal';
+  m.innerHTML = '<div class="box"><div class="mut">Carregando projetos…</div></div>'; document.body.appendChild(m);
+  m.onclick = e => { if (e.target === m || e.target.dataset.x !== undefined) m.remove(); };
+  let cloud = [], err = false;
+  if (CLOUD) { try { cloud = await CLOUD.listProjects(); } catch { err = true; } }
+  const map = new Map(); cloud.forEach(p => map.set(p.id, Object.assign({ cloud: true }, p)));
+  localProjects().forEach(p => { const c = map.get(p.id); if (c) c.local = true; else map.set(p.id, p); });
+  const list = [...map.values()].sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)));
+  const when = s => { const d = new Date(s); return isNaN(d) ? '—' : d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }); };
+  m.innerHTML = `<div class="box" style="width:min(640px,100%)"><div class="row" style="justify-content:space-between;margin-bottom:6px"><h3 style="margin:0">Meus projetos</h3><button class="ib sm" data-x>Fechar</button></div>
+    <div class="mut" style="margin-bottom:12px;font-size:12px">${CLOUD ? (CLOUD.demo ? 'Modo demonstração: a "nuvem" fica neste navegador.' : 'Seus projetos ficam na sua conta e abrem em qualquer aparelho. Só você tem acesso a eles.') : ''}${err ? ' <span class="chip er">sem conexão com a nuvem</span>' : ''}</div>
+    <div class="row" style="margin-bottom:12px"><input class="in" id="pjName" placeholder="Nome do novo projeto" style="flex:1"><button class="ib am" id="pjNew">+ Novo</button></div>
+    <div style="display:flex;flex-direction:column;gap:6px">${list.map(p => `<div class="lc" style="margin:0;padding:10px 12px;${p.id === S.pid ? 'border-color:var(--am)' : ''}">
+      <div class="hd"><div style="min-width:0"><b>${esc(p.id === S.pid ? (pr.meta.title || 'Sem título') : p.name)}</b>${p.id === S.pid ? ' <span class="chip am">aberto</span>' : ''}<div class="mut" style="font-size:11.5px">${when(p.updated_at)} · ${p.cloud ? '☁ nuvem' : '💾 só neste aparelho'}</div></div>
+      <div class="row">${p.id === S.pid ? '' : `<button class="ib sm am" data-po="${p.id}">Abrir</button>`}<button class="ib sm" data-pd="${p.id}">Duplicar</button><button class="ib sm" data-px="${p.id}" style="color:var(--er)">Excluir</button></div></div></div>`).join('') || '<div class="mut">Nenhum projeto ainda.</div>'}</div>
+    <div class="row" style="margin-top:14px"><label class="f" style="flex:1">Renomear o projeto aberto<input class="in" id="pjRen" value="${esc(pr.meta.title || '')}"></label></div></div>`;
+  m.querySelector('#pjNew').onclick = async () => { const n = m.querySelector('#pjName').value.trim() || 'Novo projeto'; m.remove(); await newProject(n); toast(`Projeto "${n}" criado.`, 'ok'); };
+  m.querySelector('#pjRen').onchange = e => { const v = e.target.value.trim(); if (v) mutate(() => { pr.meta.title = v; }); };
+  m.querySelectorAll('[data-po]').forEach(b => b.onclick = async () => { m.remove(); await openProject(b.dataset.po); });
+  m.querySelectorAll('[data-pd]').forEach(b => b.onclick = async () => {
+    const id = b.dataset.pd; let data = id === S.pid ? pr.toJSON() : store.get(ck(id), null);
+    if (!data && CLOUD) { try { data = (await CLOUD.getProject(id))?.data; } catch { } }
+    if (!data) { toast('Não foi possível copiar.', 'er'); return; }
+    const t = (data.meta?.title || 'Projeto') + ' (cópia)'; m.remove(); await newProject(t, data); pr.meta.title = t; save(); toast(`"${t}" criado.`, 'ok');
+  });
+  m.querySelectorAll('[data-px]').forEach(b => b.onclick = () => {
+    const id = b.dataset.px, it = list.find(p => p.id === id);
+    const box = document.createElement('div'); box.className = 'modal';
+    box.innerHTML = `<div class="box"><h3 style="margin:0 0 8px">Excluir "${esc(it.name)}"?</h3><div class="mut" style="margin-bottom:14px">O projeto será apagado da nuvem e deste aparelho. Não dá para desfazer.</div><div class="btns"><button class="ib" data-c>Cancelar</button><button class="ib am" data-ok>Excluir</button></div></div>`;
+    document.body.appendChild(box); box.querySelector('[data-c]').onclick = () => box.remove();
+    box.querySelector('[data-ok]').onclick = async () => {
+      box.remove();
+      try { if (CLOUD && it.cloud) await CLOUD.deleteProject(id); } catch (e) { toast('Erro ao excluir na nuvem: ' + e.message, 'er'); return; }
+      try { localStorage.removeItem(ck(id)); } catch { }
+      m.remove();
+      if (id === S.pid) { const rest = list.filter(p => p.id !== id); if (rest.length) await openProject(rest[0].id); else await newProject('Novo projeto'); }
+      toast('Projeto excluído.', 'ok'); if (id !== S.pid) projectsModal();
+    };
+  });
 }
 function modulesOnly() {
   $('#tabs').style.display = 'none'; $('#bUndo').style.display = 'none'; $('#bRedo').style.display = 'none'; $('#bNew').style.display = 'none';
@@ -2056,8 +2153,8 @@ function modulesOnly() {
   $('#center').innerHTML = `<div class="mods"><div style="max-width:620px;text-align:center"><h2 style="justify-content:center">Seu pacote: ${esc(USER.package || '')}</h2><div class="mut" style="margin-bottom:18px">Os módulos abaixo estão liberados para você. Assim que cada um for lançado, ele aparece aqui automaticamente.</div><div class="cards">${mods}</div></div></div>`;
 }
 window.TPApp = {
-  start(user) {
-    USER = user; KEY = 'tecplan.project.v1:' + String(user.email || '').toLowerCase();
+  start(user, cloud) {
+    USER = user; CLOUD = cloud || null; KEY = 'tecplan.project.v1:' + String(user.email || '').toLowerCase();
     if (typeof THREE === 'undefined') { document.body.innerHTML = '<div style="padding:40px;color:#ddd;font-family:sans-serif">Não foi possível carregar o motor 3D (Three.js). Verifique a conexão e recarregue.</div>'; return; }
     if (!has('TB')) { modulesOnly(); return; }
     init();
@@ -2152,6 +2249,10 @@ const Demo = (() => {
       put(db);
     },
     async deleteGrant(email, actor) { const g = db.grants.find(x => x.email === email); if (!canEdit(actor, g) || actor.role !== 'admin') throw new Error('Somente o administrador remove acessos'); db.grants = db.grants.filter(x => x.email !== email); delete db.pw[email]; put(db); },
+    async listProjects() { const e = me()?.email; return Object.values((db.projects || {})[e] || {}).map(({ id, name, updated_at }) => ({ id, name, updated_at })).sort((a, b) => b.updated_at.localeCompare(a.updated_at)); },
+    async getProject(id) { const e = me()?.email; return ((db.projects || {})[e] || {})[id] || null; },
+    async saveProject(p) { const e = me()?.email; if (!e) throw new Error('sem sessão'); db.projects = db.projects || {}; db.projects[e] = db.projects[e] || {}; const r = { id: p.id, name: p.name, data: p.data, updated_at: new Date().toISOString() }; db.projects[e][p.id] = r; put(db); return { id: r.id, updated_at: r.updated_at }; },
+    async deleteProject(id) { const e = me()?.email; if (db.projects && db.projects[e]) delete db.projects[e][id]; put(db); },
     resetDemo() { try { localStorage.removeItem(K); localStorage.removeItem(KS); } catch { } },
   };
 })();
@@ -2180,6 +2281,10 @@ function SupabaseBackend(sb) {
     async listGrants() { const { data, error } = await sb.from('access_grants').select('*').order('created_at'); if (error) throw error; return data; },
     async saveGrant(g) { g.email = low(g.email); const { error } = await sb.from('access_grants').upsert(g, { onConflict: 'email' }); if (error) throw new Error(error.message); },
     async deleteGrant(email) { const { error } = await sb.from('access_grants').delete().eq('email', email); if (error) throw new Error(error.message); },
+    async listProjects() { const { data, error } = await sb.from('projects').select('id,name,updated_at').order('updated_at', { ascending: false }); if (error) throw error; return data; },
+    async getProject(id) { const { data, error } = await sb.from('projects').select('*').eq('id', id).maybeSingle(); if (error) throw error; return data; },
+    async saveProject(p) { const { data, error } = await sb.from('projects').upsert({ id: p.id, name: p.name, data: p.data }, { onConflict: 'id' }).select('id,updated_at').single(); if (error) throw new Error(error.message); return data; },
+    async deleteProject(id) { const { error } = await sb.from('projects').delete().eq('id', id); if (error) throw new Error(error.message); },
     async setPassword(pw) { const { error } = await sb.auth.updateUser({ password: pw }); if (error) throw error; },
     sb,
   };
@@ -2394,7 +2499,7 @@ function enter(g) {
   if (!isValid(g)) { showGate(g); return; }
   ME = g;
   $('#gate') && $('#gate').remove();
-  window.TPApp.start({ email: g.email, name: g.name, role: g.role, modules: g.role === 'admin' ? ALL : (g.modules || []), package: g.package || packageName(g.modules || []), expires_at: g.expires_at, MODULES });
+  window.TPApp.start({ email: g.email, name: g.name, role: g.role, modules: g.role === 'admin' ? ALL : (g.modules || []), package: g.package || packageName(g.modules || []), expires_at: g.expires_at, MODULES }, B);
   headerExtras();
   const d = daysLeft(g); if (g.role === 'client' && d !== null && d <= 5) toast(`Seu acesso vence em ${d} dia(s). Fale com a gente para renovar.`, 'er');
 }
