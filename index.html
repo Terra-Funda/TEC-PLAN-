@@ -1,0 +1,2516 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>TEC PLAN — Projeto de Tubulação Industrial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d0f12;--p1:#16191f;--p2:#1c2028;--p3:#232833;--ln:#2a2f39;--tx:#d9dde4;--mu:#8b929e;--am:#f59e0b;--am2:#fbbf24;--ok:#22c55e;--er:#ef4444;--mono:'IBM Plex Mono',Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:13px/1.4 'IBM Plex Sans',system-ui,sans-serif;overflow:hidden;-webkit-tap-highlight-color:transparent}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+#app{display:grid;grid-template-rows:46px 1fr 26px;height:100%;height:100dvh}
+header{display:flex;align-items:center;gap:10px;padding:0 10px;background:var(--p1);border-bottom:1px solid var(--ln);min-width:0}
+.logo{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:.14em;font-size:14px;white-space:nowrap;user-select:none}
+.logo b{color:var(--am)}
+.tabs{display:flex;gap:2px;margin-left:8px;overflow-x:auto;scrollbar-width:none}
+.tabs button{background:none;border:0;padding:7px 12px;border-radius:6px;color:var(--mu);font-weight:500;white-space:nowrap}
+.tabs .sm{display:none}
+.tabs button.on{background:var(--p3);color:var(--am)}
+.hsp{flex:1}
+.ib{background:var(--p2);border:1px solid var(--ln);border-radius:6px;height:30px;min-width:30px;padding:0 8px;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.ib:hover{border-color:#3a404c}
+.ib:disabled{opacity:.4}
+.ib.am{background:var(--am);color:#111;border-color:var(--am);font-weight:600}
+.ib.sm{height:26px;font-size:12px;padding:0 7px}
+.mob{display:none}
+main{position:relative;display:grid;grid-template-columns:260px 1fr 290px;min-height:0}
+main.full{grid-template-columns:1fr}
+main.full aside{display:none}
+aside{background:var(--p1);overflow-y:auto;min-height:0;scrollbar-width:thin;scrollbar-color:#333 transparent}
+aside#left{border-right:1px solid var(--ln)}
+aside#right{border-left:1px solid var(--ln)}
+.sec{border-bottom:1px solid var(--ln);padding:10px 12px}
+.sec h3{margin:0 0 8px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mu);font-weight:600;display:flex;align-items:center;justify-content:space-between}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.cat{display:flex;flex-direction:column;align-items:center;gap:3px;background:var(--p2);border:1px solid var(--ln);border-radius:6px;padding:7px 4px;font-size:11px;text-align:center;line-height:1.15}
+.cat:hover{border-color:var(--am)}
+.cat svg{width:26px;height:26px;stroke:var(--am);fill:none;stroke-width:1.6}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mu)}
+.in{background:var(--bg);border:1px solid var(--ln);border-radius:5px;padding:5px 7px;height:30px;width:100%;color:var(--tx)}
+.in:focus{outline:1px solid var(--am);border-color:var(--am)}
+.row{display:flex;gap:6px;align-items:center}
+.tree{display:flex;flex-direction:column;gap:2px;max-height:260px;overflow:auto}
+.tree button{display:flex;justify-content:space-between;background:none;border:0;padding:4px 6px;border-radius:4px;text-align:left;font-family:var(--mono);font-size:12px;color:var(--tx)}
+.tree button:hover{background:var(--p2)}
+.tree button.on{background:#3a2a07;color:var(--am2)}
+.tree .er{color:var(--er)}
+.mut{color:var(--mu);font-size:12px}
+.mono{font-family:var(--mono)}
+.chip{display:inline-block;padding:1px 6px;border-radius:10px;background:var(--p3);font-size:11px;color:var(--mu)}
+.chip.am{background:#3a2a07;color:var(--am2)}.chip.ok{background:#0e2f1a;color:#5ee28f}.chip.er{background:#3b1010;color:#ff8a8a}
+#center{position:relative;min-width:0;min-height:0;background:var(--bg)}
+.view{position:absolute;inset:0;display:none}
+.view.on{display:block}
+#v3d canvas,#viso canvas{display:block;width:100%;height:100%;touch-action:none}
+.ovl{position:absolute;display:flex;gap:4px;flex-wrap:wrap;z-index:2}
+.ovl.tl{top:8px;left:8px}.ovl.tr{top:8px;right:8px}.ovl.bl{bottom:8px;left:8px}
+.ovl .ib{background:rgba(22,25,31,.92);backdrop-filter:blur(4px)}
+.ib.on{border-color:var(--am);color:var(--am)}
+.hint{position:absolute;bottom:8px;right:8px;font-size:11px;color:var(--mu);background:rgba(13,15,18,.8);padding:4px 8px;border-radius:5px;max-width:60%;pointer-events:none}
+footer{display:flex;align-items:center;gap:14px;padding:0 10px;background:var(--p1);border-top:1px solid var(--ln);font-family:var(--mono);font-size:11px;color:var(--mu);white-space:nowrap;overflow:hidden}
+footer .er{color:var(--er)}footer .am{color:var(--am)}
+#isobar{position:absolute;top:0;left:0;right:0;display:flex;gap:6px;align-items:center;padding:8px;background:rgba(22,25,31,.95);border-bottom:1px solid var(--ln);overflow-x:auto;z-index:3;scrollbar-width:none}
+#isobar>*{flex:none}
+#isobar .sep{width:1px;height:22px;background:var(--ln);flex:none}
+#isobar select,#isobar input{height:28px;padding:2px 6px;width:auto}
+#viso canvas{position:absolute;top:0;left:0}
+#isoinfo{position:absolute;left:8px;bottom:8px;font-family:var(--mono);font-size:12px;background:rgba(13,15,18,.85);padding:5px 9px;border-radius:5px;border:1px solid var(--ln);pointer-events:none}
+#vsheet,#vbom{overflow:auto}
+#sheetbar{position:sticky;top:0;display:flex;gap:6px;align-items:center;padding:8px;background:var(--p1);border-bottom:1px solid var(--ln);z-index:2;flex-wrap:wrap}
+#sheetwrap{padding:16px;display:flex;justify-content:center}
+#sheetwrap svg{background:#fff;box-shadow:0 4px 30px rgba(0,0,0,.5);height:auto}
+#carimbo{display:none;padding:10px;background:var(--p1);border-bottom:1px solid var(--ln)}
+#carimbo.on{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.bomw{padding:16px;max-width:1200px;margin:0 auto}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:16px}
+.card{background:var(--p1);border:1px solid var(--ln);border-radius:8px;padding:10px 12px}
+.card .v{font-family:var(--mono);font-size:20px;color:var(--am2);font-weight:600}
+.card .l{font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em}
+table.t{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:6px}
+table.t th{text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mu);padding:6px;border-bottom:1px solid var(--ln);background:var(--p1);position:sticky;top:0}
+table.t td{padding:5px 6px;border-bottom:1px solid #1d2129;vertical-align:top}
+table.t td.n{font-family:var(--mono);text-align:right;white-space:nowrap}
+.tw{overflow-x:auto;border:1px solid var(--ln);border-radius:8px;margin-bottom:18px}
+h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--mu);margin:18px 0 8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+textarea.code{width:100%;height:220px;background:var(--bg);color:#c8d0dc;border:1px solid var(--ln);border-radius:6px;font:11px/1.4 var(--mono);padding:8px}
+#toast{position:fixed;left:50%;bottom:40px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:50;pointer-events:none;width:min(92vw,460px)}
+.toast{background:#1f242d;border:1px solid var(--ln);border-left:3px solid var(--am);padding:8px 12px;border-radius:6px;box-shadow:0 6px 24px rgba(0,0,0,.4);font-size:12.5px;animation:tin .2s}
+.toast.er{border-left-color:var(--er)}.toast.ok{border-left-color:var(--ok)}
+@keyframes tin{from{opacity:0;transform:translateY(6px)}}
+.btns{display:flex;flex-wrap:wrap;gap:5px}
+.btns .ib{flex:1 1 auto}
+.ports .pt{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:5px 0;border-bottom:1px dashed var(--ln);font-size:12px}
+.ports .pt:last-child{border:0}
+details summary{cursor:pointer;list-style:none}
+details summary::-webkit-details-marker{display:none}
+.back{display:none}
+@media (max-width:767px){
+  .mob{display:inline-flex}
+  .logo span.full{display:none}
+  main,main.full{grid-template-columns:1fr}
+  aside{position:absolute;top:0;bottom:0;width:min(86vw,320px);z-index:20;transition:transform .22s ease;box-shadow:0 0 40px rgba(0,0,0,.6)}
+  aside#left{left:0;transform:translateX(-102%)}
+  aside#right{right:0;transform:translateX(102%)}
+  aside.open{transform:none!important}
+  .back.on{display:block;position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:15}
+  .hdr-extra{display:none}
+  .tabs button{padding:7px 8px}
+  .tabs .lg{display:none}.tabs .sm{display:inline}
+  #bRedo{display:none}
+  .hint{display:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <button class="ib mob" id="bLeft" title="Catálogo">☰</button>
+    <div class="logo" id="logo">
+      <svg width="24" height="24" viewBox="0 0 24 24"><rect x="1" y="1" width="22" height="22" rx="4" fill="#f59e0b"/><path d="M5 8h14M12 8v11M5 15h4" stroke="#111" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>
+      <span class="full">TEC <b>PLAN</b></span>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button data-t="3d" class="on">3D</button>
+      <button data-t="iso"><span class="lg">Isométrico</span><span class="sm">Iso</span></button>
+      <button data-t="sheet">Prancha</button>
+      <button data-t="bom">BOM</button>
+    </nav>
+    <div class="hsp"></div>
+    <button class="ib" id="bUndo" title="Desfazer (Ctrl+Z)">↶</button>
+    <button class="ib" id="bRedo" title="Refazer (Ctrl+Y)">↷</button>
+    <button class="ib hdr-extra" id="bNew" title="Novo projeto">Novo</button>
+    <button class="ib mob" id="bRight" title="Propriedades">⚙</button>
+  </header>
+  <main id="main">
+    <aside id="left"></aside>
+    <section id="center">
+      <div class="view on" id="v3d">
+        <div class="ovl tl">
+          <button class="ib sm" data-cam="iso">Iso</button><button class="ib sm" data-cam="top">Topo</button><button class="ib sm" data-cam="front">Frente</button><button class="ib sm" data-cam="side">Lado</button><button class="ib sm" id="bFit">Enquadrar</button>
+        </div>
+        <div class="ovl tr"><button class="ib sm on" id="bPorts">Portas</button><button class="ib sm on" id="bClash">Clash</button></div>
+        <div class="hint" id="hint3d">Arraste: girar · 2 dedos/botão direito: mover · roda/pinça: zoom · toque numa esfera âmbar para continuar a linha dali</div>
+      </div>
+      <div class="view" id="viso">
+        <div id="isobar"></div>
+        <canvas id="isoc"></canvas>
+        <div id="isoinfo">—</div>
+      </div>
+      <div class="view" id="vsheet">
+        <div id="sheetbar"></div>
+        <div id="carimbo"></div>
+        <div id="sheetwrap"></div>
+      </div>
+      <div class="view" id="vbom"><div class="bomw" id="bomw"></div></div>
+    </section>
+    <aside id="right"></aside>
+    <div class="back" id="back"></div>
+  </main>
+  <footer id="status"></footer>
+</div>
+<div id="toast"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+/* =====================================================================
+ * TEC PLAN — núcleo (sem dependência de Three.js)
+ * Coordenadas internas: X = Leste, Y = Elevação (cima), Z = Sul (−Norte)
+ * Unidades: mm
+ * ===================================================================== */
+
+/* ---------------- Matemática ---------------- */
+class V3 {
+  constructor(x = 0, y = 0, z = 0) { this.x = x; this.y = y; this.z = z; }
+  static of(a) { return new V3(a[0], a[1], a[2]); }
+  arr() { return [this.x, this.y, this.z]; }
+  clone() { return new V3(this.x, this.y, this.z); }
+  add(v) { return new V3(this.x + v.x, this.y + v.y, this.z + v.z); }
+  sub(v) { return new V3(this.x - v.x, this.y - v.y, this.z - v.z); }
+  scale(s) { return new V3(this.x * s, this.y * s, this.z * s); }
+  dot(v) { return this.x * v.x + this.y * v.y + this.z * v.z; }
+  cross(v) { return new V3(this.y * v.z - this.z * v.y, this.z * v.x - this.x * v.z, this.x * v.y - this.y * v.x); }
+  len() { return Math.hypot(this.x, this.y, this.z); }
+  norm() { const l = this.len() || 1; return this.scale(1 / l); }
+  dist(v) { return this.sub(v).len(); }
+  neg() { return this.scale(-1); }
+  lerp(v, t) { return this.add(v.sub(this).scale(t)); }
+}
+const UP = new V3(0, 1, 0), AX = new V3(1, 0, 0), AZ = new V3(0, 0, 1);
+
+class Q {
+  constructor(x = 0, y = 0, z = 0, w = 1) { this.x = x; this.y = y; this.z = z; this.w = w; }
+  static of(a) { return new Q(a[0], a[1], a[2], a[3]); }
+  arr() { return [this.x, this.y, this.z, this.w]; }
+  static axisAngle(axis, ang) {
+    const a = axis.norm(), s = Math.sin(ang / 2);
+    return new Q(a.x * s, a.y * s, a.z * s, Math.cos(ang / 2));
+  }
+  mul(b) { // this * b  (aplica b primeiro, depois this)
+    const a = this;
+    return new Q(
+      a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+      a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+      a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
+      a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z);
+  }
+  conj() { return new Q(-this.x, -this.y, -this.z, this.w); }
+  normalize() { const l = Math.hypot(this.x, this.y, this.z, this.w) || 1; return new Q(this.x / l, this.y / l, this.z / l, this.w / l); }
+  rot(v) {
+    const { x, y, z, w } = this;
+    const tx = 2 * (y * v.z - z * v.y), ty = 2 * (z * v.x - x * v.z), tz = 2 * (x * v.y - y * v.x);
+    return new V3(v.x + w * tx + (y * tz - z * ty), v.y + w * ty + (z * tx - x * tz), v.z + w * tz + (x * ty - y * tx));
+  }
+  static fromUnitVectors(a, b) {
+    a = a.norm(); b = b.norm();
+    const r = a.dot(b) + 1;
+    if (r < 1e-8) {
+      const ax = Math.abs(a.x) > Math.abs(a.z) ? new V3(-a.y, a.x, 0) : new V3(0, -a.z, a.y);
+      return new Q(ax.x, ax.y, ax.z, 0).normalize();
+    }
+    const c = a.cross(b);
+    return new Q(c.x, c.y, c.z, r).normalize();
+  }
+  // base ortonormal (colunas x,y,z) -> quaternion (algoritmo do three.js)
+  static fromBasis(x, y, z) {
+    const m11 = x.x, m12 = y.x, m13 = z.x, m21 = x.y, m22 = y.y, m23 = z.y, m31 = x.z, m32 = y.z, m33 = z.z;
+    const tr = m11 + m22 + m33; let s;
+    if (tr > 0) { s = 0.5 / Math.sqrt(tr + 1); return new Q((m32 - m23) * s, (m13 - m31) * s, (m21 - m12) * s, 0.25 / s).normalize(); }
+    if (m11 > m22 && m11 > m33) { s = 2 * Math.sqrt(1 + m11 - m22 - m33); return new Q(0.25 * s, (m12 + m21) / s, (m13 + m31) / s, (m32 - m23) / s).normalize(); }
+    if (m22 > m33) { s = 2 * Math.sqrt(1 + m22 - m11 - m33); return new Q((m12 + m21) / s, 0.25 * s, (m23 + m32) / s, (m13 - m31) / s).normalize(); }
+    s = 2 * Math.sqrt(1 + m33 - m11 - m22); return new Q((m13 + m31) / s, (m23 + m32) / s, 0.25 * s, (m21 - m12) / s).normalize();
+  }
+}
+const D2R = Math.PI / 180;
+const r1 = v => Math.round(v * 10) / 10;
+
+/* ---------------- Catálogo dimensional (ASME, valores Cl.150; 300/600 aproximados) ---------------- */
+const DNS = [15, 20, 25, 40, 50, 80, 100, 150, 200, 250, 300];
+const DIM = {
+  15: { nps: '1/2"', inch: 0.5, od: 21.3, wt: 2.77, tee: 25, red: 38, fod: 89, ft: 11.2, wn: 48, so: 16, bc: 60.3, nb: 4, bd: 12.7, gate: 108, globe: 108, bfly: 33 },
+  20: { nps: '3/4"', inch: 0.75, od: 26.7, wt: 2.87, tee: 29, red: 38, fod: 98, ft: 12.7, wn: 52, so: 16, bc: 69.8, nb: 4, bd: 12.7, gate: 117, globe: 117, bfly: 33 },
+  25: { nps: '1"', inch: 1, od: 33.4, wt: 3.38, tee: 38, red: 51, fod: 108, ft: 14.3, wn: 56, so: 17.5, bc: 79.4, nb: 4, bd: 12.7, gate: 127, globe: 127, bfly: 33 },
+  40: { nps: '1.1/2"', inch: 1.5, od: 48.3, wt: 3.68, tee: 57, red: 64, fod: 127, ft: 17.5, wn: 62, so: 21, bc: 98.4, nb: 4, bd: 12.7, gate: 165, globe: 165, bfly: 33 },
+  50: { nps: '2"', inch: 2, od: 60.3, wt: 3.91, tee: 64, red: 76, fod: 152, ft: 19.1, wn: 62, so: 24, bc: 120.7, nb: 4, bd: 15.9, gate: 178, globe: 203, bfly: 43 },
+  80: { nps: '3"', inch: 3, od: 88.9, wt: 5.49, tee: 86, red: 89, fod: 191, ft: 23.9, wn: 68, so: 29, bc: 152.4, nb: 4, bd: 15.9, gate: 203, globe: 241, bfly: 46 },
+  100: { nps: '4"', inch: 4, od: 114.3, wt: 6.02, tee: 105, red: 102, fod: 229, ft: 23.9, wn: 75, so: 30, bc: 190.5, nb: 8, bd: 15.9, gate: 229, globe: 292, bfly: 52 },
+  150: { nps: '6"', inch: 6, od: 168.3, wt: 7.11, tee: 143, red: 140, fod: 279, ft: 25.4, wn: 87, so: 35, bc: 241.3, nb: 8, bd: 19.1, gate: 267, globe: 406, bfly: 56 },
+  200: { nps: '8"', inch: 8, od: 219.1, wt: 8.18, tee: 178, red: 152, fod: 343, ft: 28.6, wn: 100, so: 40, bc: 298.5, nb: 8, bd: 19.1, gate: 292, globe: 495, bfly: 60 },
+  250: { nps: '10"', inch: 10, od: 273.1, wt: 9.27, tee: 216, red: 178, fod: 406, ft: 30.2, wn: 100, so: 41, bc: 362, nb: 12, bd: 22.2, gate: 330, globe: 622, bfly: 68 },
+  300: { nps: '12"', inch: 12, od: 323.9, wt: 9.53, tee: 254, red: 203, fod: 483, ft: 31.8, wn: 113, so: 49, bc: 431.8, nb: 12, bd: 22.2, gate: 356, globe: 698, bfly: 78 },
+};
+const CLASSES = [150, 300, 600];
+const FLANGE_STDS = {
+  'ASME B16.5': { 150: 'Cl.150', 300: 'Cl.300', 600: 'Cl.600' },
+  'EN 1092-1': { 150: 'PN16', 300: 'PN40', 600: 'PN63' },
+  'JIS B2220': { 150: '10K', 300: '20K', 600: '40K' },
+};
+function flg(dn, cls) {
+  const d = DIM[dn], k = { 150: [1, 1, 1], 300: [1.1, 1.35, 1.12], 600: [1.15, 1.7, 1.3] }[cls] || [1, 1, 1];
+  let nb = d.nb;
+  if (cls > 150) nb = dn <= 40 ? 4 : dn <= 100 ? 8 : dn <= 200 ? 12 : 16;
+  return { fod: d.fod * k[0], ft: d.ft * k[1], wn: d.wn * k[2], so: d.so * k[2], bc: d.bc * k[0], nb, bd: d.bd * (cls > 150 ? 1.15 : 1), od: d.od };
+}
+const nextDown = dn => DNS[Math.max(0, DNS.indexOf(dn) - 1)];
+const nextUp = dn => DNS[Math.min(DNS.length - 1, DNS.indexOf(dn) + 1)];
+const odOf = dn => DIM[dn].od;
+const kgm = (od, wt) => (od - wt) * wt * 0.02466;
+const STEEL = 7.85e-6;
+
+/* ---------------- Tipos de peça ---------------- */
+// porta: { id, pos, dir, end: 'BW'|'SW'|'FL'|'TH', od, dn }
+const P = (id, pos, dir, end, dn, od) => ({ id, pos, dir, end, dn, od: od ?? odOf(dn) });
+const cyl = (a, b, r, r2, extra) => Object.assign({ k: 'cyl', a, b, r, r2: r2 ?? r }, extra || {});
+const arc = (c, R, r, u, v, ang, extra) => Object.assign({ k: 'arc', c, R, r, u, v, ang }, extra || {});
+const sph = (c, r, extra) => Object.assign({ k: 'sph', c, r }, extra || {});
+const box = (c, s, extra) => Object.assign({ k: 'box', c, s }, extra || {});
+const ACC = { accent: true, clash: false };
+
+const VALVE_SUBS = { gate: 'Gaveta', ball: 'Esfera', globe: 'Globo', butterfly: 'Borboleta', check: 'Retenção' };
+const VALVE_SKEY = { gate: 'VTFL', ball: 'VBFL', globe: 'VGFL', butterfly: 'VFWF', check: 'CKFL' };
+
+function valveLen(p) {
+  const d = DIM[p.dn];
+  return { gate: d.gate, ball: d.gate, globe: d.globe, check: d.globe, butterfly: d.bfly }[p.sub] * (p.cls > 150 ? 1.25 : 1);
+}
+function endFlanges(L, f, r) {
+  return [cyl(new V3(0, 0, 0), new V3(f.ft, 0, 0), f.fod / 2), cyl(new V3(L - f.ft, 0, 0), new V3(L, 0, 0), f.fod / 2)];
+}
+function handwheel(x, h, f, od) {
+  return [cyl(new V3(x, 0, 0), new V3(x, h, 0), Math.max(5, od * 0.06), null, { clash: false }),
+    arc(new V3(x, h, 0), f.fod * 0.42, Math.max(5, od * 0.045), AX, AZ, Math.PI * 2, ACC),
+    cyl(new V3(x - f.fod * 0.42, h, 0), new V3(x + f.fod * 0.42, h, 0), Math.max(3, od * 0.025), null, ACC)];
+}
+
+const TYPES = {
+  pipe: {
+    name: 'Tubo', prefix: 'TB', spool: true,
+    desc: p => `Tubo reto ${DIM[p.dn].nps} SCH40 sem costura`,
+    std: () => 'ASME B36.10', mat: () => 'ASTM A106 Gr.B',
+    ports: p => [P('P1', new V3(0, 0, 0), AX.neg(), 'BW', p.dn), P('P2', new V3(p.len, 0, 0), AX, 'BW', p.dn)],
+    prims: p => [cyl(new V3(0, 0, 0), new V3(p.len, 0, 0), odOf(p.dn) / 2)],
+    weight: p => kgm(odOf(p.dn), DIM[p.dn].wt) * p.len / 1000,
+    keys: (p, w) => ({ pts: [w.P1, w.P2], key: [] }),
+  },
+  custom: {
+    name: 'Componente', prefix: 'ISO', spool: true,
+    desc: p => `${p.label || 'Componente sob medida'} Ø${r1(p.od)}×${r1(p.wt)}`,
+    std: p => p.std || '—', mat: p => p.material || 'ASTM A106 Gr.B',
+    ports: p => [P('P1', new V3(0, 0, 0), AX.neg(), p.ends || 'BW', p.dn, p.od), P('P2', new V3(p.len, 0, 0), AX, p.ends || 'BW', p.dn, p.od)],
+    prims: p => [cyl(new V3(0, 0, 0), new V3(p.len, 0, 0), p.od / 2)],
+    weight: p => kgm(p.od, p.wt) * p.len / 1000,
+    keys: (p, w) => ({ pts: [w.P1, w.P2], key: [] }),
+  },
+  elbow: {
+    name: 'Curva', prefix: 'CV', spool: true,
+    geo(p) { const R = (p.radius === 'SR' ? 1 : 1.5) * DIM[p.dn].inch * 25.4, t = p.angle * D2R; return { R, t, A: R * Math.tan(t / 2) }; },
+    desc: p => `Curva ${r1(p.angle)}° ${p.radius === 'SR' ? 'raio curto' : 'raio longo'} ${DIM[p.dn].nps} SCH40 BW`,
+    std: () => 'ASME B16.9', mat: () => 'ASTM A234 WPB',
+    ports(p) { const { R, t } = this.geo(p); return [P('P1', new V3(0, 0, 0), AX.neg(), 'BW', p.dn), P('P2', new V3(R * Math.sin(t), R * (1 - Math.cos(t)), 0), new V3(Math.cos(t), Math.sin(t), 0), 'BW', p.dn)]; },
+    vertex(p) { return new V3(this.geo(p).A, 0, 0); },
+    prims(p) { const { R, t } = this.geo(p); return [arc(new V3(0, R, 0), R, odOf(p.dn) / 2, UP.neg(), AX, t)]; },
+    weight(p) { const { R, t } = this.geo(p); return kgm(odOf(p.dn), DIM[p.dn].wt) * R * t / 1000; },
+    keys(p, w, piece) { const V = worldPt(piece, this.vertex(p)); return { pts: [w.P1, V, w.P2], key: [V] }; },
+  },
+  tee: {
+    name: 'Tê', prefix: 'TE', spool: true,
+    desc: p => (p.dn2 && p.dn2 !== p.dn) ? `Tê de redução ${DIM[p.dn].nps}×${DIM[p.dn2].nps} SCH40 BW` : `Tê reto ${DIM[p.dn].nps} SCH40 BW`,
+    std: () => 'ASME B16.9', mat: () => 'ASTM A234 WPB',
+    ports(p) { const C = DIM[p.dn].tee, b = p.dn2 || p.dn; return [P('P1', new V3(0, 0, 0), AX.neg(), 'BW', p.dn), P('P2', new V3(2 * C, 0, 0), AX, 'BW', p.dn), P('P3', new V3(C, C, 0), UP, 'BW', b)]; },
+    center: p => new V3(DIM[p.dn].tee, 0, 0),
+    prims(p) { const C = DIM[p.dn].tee, b = p.dn2 || p.dn; return [cyl(new V3(0, 0, 0), new V3(2 * C, 0, 0), odOf(p.dn) / 2), cyl(new V3(C, 0, 0), new V3(C, C, 0), odOf(b) / 2)]; },
+    weight(p) { const C = DIM[p.dn].tee; return kgm(odOf(p.dn), DIM[p.dn].wt) * 3 * C / 1000 * 1.3; },
+    keys(p, w, piece) { const C = worldPt(piece, this.center(p)); return { pts: [w.P1, C, w.P2], branch: [C, w.P3], key: [C] }; },
+  },
+  reducer: {
+    name: 'Redução', prefix: 'RD', spool: true,
+    geo(p) { const H = DIM[p.dn].red, d2 = p.dn2 || nextDown(p.dn), e = p.ecc ? -(odOf(p.dn) - odOf(d2)) / 2 : 0; return { H, d2, e }; },
+    desc(p) { const { d2 } = this.geo(p); return `Redução ${p.ecc ? 'excêntrica' : 'concêntrica'} ${DIM[p.dn].nps}×${DIM[d2].nps} SCH40 BW`; },
+    std: () => 'ASME B16.9', mat: () => 'ASTM A234 WPB',
+    ports(p) { const { H, d2, e } = this.geo(p); return [P('P1', new V3(0, 0, 0), AX.neg(), 'BW', p.dn), P('P2', new V3(H, e, 0), AX, 'BW', d2)]; },
+    prims(p) { const { H, d2, e } = this.geo(p); return [cyl(new V3(0, 0, 0), new V3(H, e, 0), odOf(p.dn) / 2, odOf(d2) / 2)]; },
+    weight(p) { const { H, d2 } = this.geo(p); return kgm((odOf(p.dn) + odOf(d2)) / 2, DIM[p.dn].wt) * H / 1000 * 1.2; },
+    keys: (p, w) => ({ pts: [w.P1, w.P2], key: [] }),
+  },
+  flange: {
+    name: 'Flange', prefix: 'FL', spool: true,
+    desc: p => `Flange ${{ WN: 'pescoço (Weld Neck)', SO: 'sobreposto (Slip-On)', BL: 'cego' }[p.sub]} ${DIM[p.dn].nps} RF`,
+    std: p => p.fstd || 'ASME B16.5', mat: () => 'ASTM A105',
+    len(p) { const f = flg(p.dn, p.cls); return p.sub === 'WN' ? f.wn : p.sub === 'SO' ? f.so : f.ft; },
+    ports(p) {
+      const L = this.len(p);
+      if (p.sub === 'BL') return [P('P1', new V3(0, 0, 0), AX.neg(), 'FL', p.dn)];
+      return [P('P1', new V3(0, 0, 0), AX.neg(), p.sub === 'SO' ? 'SW' : 'BW', p.dn), P('P2', new V3(L, 0, 0), AX, 'FL', p.dn)];
+    },
+    boltFaces(p) { const f = flg(p.dn, p.cls); return p.sub === 'BL' ? [{ x: 0, s: -1, T: f.ft }] : [{ x: this.len(p), s: 1, T: f.ft }]; },
+    prims(p) {
+      const f = flg(p.dn, p.cls), L = this.len(p), od = odOf(p.dn);
+      if (p.sub === 'BL') return [cyl(new V3(0, 0, 0), new V3(L, 0, 0), f.fod / 2)];
+      const hub = p.sub === 'WN' ? [cyl(new V3(0, 0, 0), new V3(L - f.ft, 0, 0), od / 2, od / 2 * 1.3 + 4)] : [cyl(new V3(0, 0, 0), new V3(L - f.ft, 0, 0), od / 2 + 6)];
+      return [...hub, cyl(new V3(L - f.ft, 0, 0), new V3(L, 0, 0), f.fod / 2)];
+    },
+    weight(p) { const f = flg(p.dn, p.cls), od = odOf(p.dn); const disc = Math.PI * (f.fod ** 2 - (p.sub === 'BL' ? 0 : od ** 2)) / 4 * f.ft * STEEL; return disc * (p.sub === 'WN' ? 1.3 : 1.1); },
+    keys: (p, w) => w.P2 ? ({ pts: [w.P1, w.P2], key: [w.P2] }) : ({ pts: [w.P1], key: [w.P1] }),
+  },
+  valve: {
+    name: 'Válvula', prefix: 'VL', spool: false,
+    desc: p => `Válvula ${VALVE_SUBS[p.sub].toLowerCase()} ${DIM[p.dn].nps} ${p.sub === 'butterfly' ? 'wafer' : 'flangeada RF'}`,
+    std: p => p.sub === 'butterfly' ? 'API 609' : 'ASME B16.10/B16.34', mat: () => 'ASTM A216 WCB',
+    len: p => valveLen(p),
+    ports(p) { const L = this.len(p); return [P('P1', new V3(0, 0, 0), AX.neg(), 'FL', p.dn), P('P2', new V3(L, 0, 0), AX, 'FL', p.dn)]; },
+    boltFaces(p) { if (p.sub === 'butterfly') return []; const f = flg(p.dn, p.cls), L = this.len(p); return [{ x: 0, s: -1, T: f.ft }, { x: L, s: 1, T: f.ft }]; },
+    prims(p) {
+      const f = flg(p.dn, p.cls), L = this.len(p), od = odOf(p.dn), m = L / 2;
+      if (p.sub === 'butterfly') {
+        return [cyl(new V3(0, 0, 0), new V3(L, 0, 0), od / 2 * 1.25), cyl(new V3(m, 0, 0), new V3(m, od * 0.9, 0), od * 0.15, null, { clash: false }),
+          box(new V3(m + f.fod * 0.3, od * 0.9 + 8, 0), [f.fod * 0.7, 10, 18], ACC)];
+      }
+      const pr = endFlanges(L, f);
+      if (p.sub === 'gate') pr.push(cyl(new V3(f.ft, 0, 0), new V3(L - f.ft, 0, 0), od / 2 * 1.25), cyl(new V3(m, 0, 0), new V3(m, od * 1.6 + 40, 0), od * 0.38, od * 0.3, { clash: false }), ...handwheel(m, od * 2.4 + 90, f, od));
+      if (p.sub === 'globe') pr.push(sph(new V3(m, 0, 0), od * 0.85), cyl(new V3(m, 0, 0), new V3(m, od * 1.3 + 30, 0), od * 0.3, null, { clash: false }), ...handwheel(m, od * 1.9 + 70, f, od));
+      if (p.sub === 'ball') pr.push(cyl(new V3(f.ft, 0, 0), new V3(L - f.ft, 0, 0), od / 2 * 1.15), sph(new V3(m, 0, 0), od * 0.78), cyl(new V3(m, 0, 0), new V3(m, od * 0.95 + 15, 0), od * 0.12 + 4, null, { clash: false }),
+        box(new V3(m + f.fod * 0.55, od * 0.95 + 20, 0), [f.fod * 1.3, 10, 22], ACC));
+      if (p.sub === 'check') pr.push(cyl(new V3(f.ft, 0, 0), new V3(L - f.ft, 0, 0), od / 2 * 1.25), cyl(new V3(m, 0, 0), new V3(m + od * 0.2, od * 0.95, 0), od * 0.42, od * 0.36, { clash: false }),
+        cyl(new V3(m + od * 0.2, od * 0.95, 0), new V3(m + od * 0.22, od * 1.05, 0), od * 0.45, null, ACC));
+      return pr;
+    },
+    weight(p) { const f = flg(p.dn, p.cls); const disc = Math.PI * f.fod ** 2 / 4 * f.ft * STEEL; return disc * ({ gate: 4.4, globe: 5.2, ball: 4, butterfly: 1.2, check: 4 }[p.sub]); },
+    keys: (p, w) => ({ pts: [w.P1, w.P2], key: [w.P1, w.P2] }),
+  },
+  strainer: {
+    name: 'Filtro Y', prefix: 'FY', spool: false,
+    desc: p => `Filtro Y ${DIM[p.dn].nps} flangeado RF, tela inox`, std: () => 'ASME B16.34', mat: () => 'ASTM A216 WCB',
+    len: p => DIM[p.dn].globe,
+    ports(p) { const L = this.len(p); return [P('P1', new V3(0, 0, 0), AX.neg(), 'FL', p.dn), P('P2', new V3(L, 0, 0), AX, 'FL', p.dn)]; },
+    boltFaces(p) { const f = flg(p.dn, p.cls), L = this.len(p); return [{ x: 0, s: -1, T: f.ft }, { x: L, s: 1, T: f.ft }]; },
+    prims(p) { const f = flg(p.dn, p.cls), L = this.len(p), od = odOf(p.dn); return [...endFlanges(L, f), cyl(new V3(f.ft, 0, 0), new V3(L - f.ft, 0, 0), od / 2 * 1.2), cyl(new V3(L * 0.4, 0, 0), new V3(L * 0.4 + od * 0.9, -od * 1.2, 0), od * 0.38, null, { clash: false }), cyl(new V3(L * 0.4 + od * 0.9, -od * 1.2, 0), new V3(L * 0.4 + od * 0.98, -od * 1.31, 0), od * 0.45, null, ACC)]; },
+    weight(p) { const f = flg(p.dn, p.cls); return Math.PI * f.fod ** 2 / 4 * f.ft * STEEL * 4.8; },
+    keys: (p, w) => ({ pts: [w.P1, w.P2], key: [w.P1, w.P2] }),
+  },
+  expjoint: {
+    name: 'Junta de expansão', prefix: 'JE', spool: false,
+    desc: p => `Junta de expansão metálica ${DIM[p.dn].nps} flangeada`, std: () => 'EJMA', mat: () => 'Fole AISI 321 / flanges A105',
+    len: p => Math.max(220, odOf(p.dn) * 1.6),
+    ports(p) { const L = this.len(p); return [P('P1', new V3(0, 0, 0), AX.neg(), 'FL', p.dn), P('P2', new V3(L, 0, 0), AX, 'FL', p.dn)]; },
+    boltFaces(p) { const f = flg(p.dn, p.cls), L = this.len(p); return [{ x: 0, s: -1, T: f.ft }, { x: L, s: 1, T: f.ft }]; },
+    prims(p) {
+      const f = flg(p.dn, p.cls), L = this.len(p), od = odOf(p.dn), pr = [...endFlanges(L, f), cyl(new V3(f.ft, 0, 0), new V3(L - f.ft, 0, 0), od / 2)];
+      const n = 6, span = L - 2 * f.ft - od * 0.3;
+      for (let i = 0; i < n; i++) pr.push(arc(new V3(f.ft + od * 0.15 + span * (i + 0.5) / n, 0, 0), od / 2 * 1.08, Math.max(4, od * 0.07), UP, AZ, Math.PI * 2, { clash: false }));
+      return pr;
+    },
+    weight(p) { const f = flg(p.dn, p.cls); return Math.PI * f.fod ** 2 / 4 * f.ft * STEEL * 2.8; },
+    keys: (p, w) => ({ pts: [w.P1, w.P2], key: [w.P1, w.P2] }),
+  },
+  sightglass: {
+    name: 'Visor de fluxo', prefix: 'VF', spool: false,
+    desc: p => `Visor de fluxo ${DIM[p.dn].nps} flangeado`, std: () => 'ASME B16.5 (extr.)', mat: () => 'ASTM A216 WCB / vidro borossilicato',
+    len: p => DIM[p.dn].gate * 0.8,
+    ports(p) { const L = this.len(p); return [P('P1', new V3(0, 0, 0), AX.neg(), 'FL', p.dn), P('P2', new V3(L, 0, 0), AX, 'FL', p.dn)]; },
+    boltFaces(p) { const f = flg(p.dn, p.cls), L = this.len(p); return [{ x: 0, s: -1, T: f.ft }, { x: L, s: 1, T: f.ft }]; },
+    prims(p) { const f = flg(p.dn, p.cls), L = this.len(p), od = odOf(p.dn); return [...endFlanges(L, f), cyl(new V3(f.ft, 0, 0), new V3(L - f.ft, 0, 0), od * 0.62), cyl(new V3(L / 2, 0, -od * 0.66), new V3(L / 2, 0, od * 0.66), od * 0.32, null, ACC)]; },
+    weight(p) { const f = flg(p.dn, p.cls); return Math.PI * f.fod ** 2 / 4 * f.ft * STEEL * 3; },
+    keys: (p, w) => ({ pts: [w.P1, w.P2], key: [w.P1, w.P2] }),
+  },
+  psv: {
+    name: 'Válvula de alívio (PSV)', prefix: 'PSV', spool: false,
+    geo(p) { const od = odOf(p.dn), d2 = p.dn2 || nextUp(p.dn); const c = od * 1.4 + 60; return { od, d2, c, o: odOf(d2) * 1.3 + 60 }; },
+    desc(p) { return `Válvula de segurança/alívio ${DIM[p.dn].nps}×${DIM[this.geo(p).d2].nps} flangeada`; }, std: () => 'API 526', mat: () => 'ASTM A216 WCB',
+    ports(p) { const { d2, c, o } = this.geo(p); return [P('P1', new V3(0, 0, 0), AX.neg(), 'FL', p.dn), P('P2', new V3(c, o, 0), UP, 'FL', d2)]; },
+    boltFaces(p) { const f = flg(p.dn, p.cls); return [{ x: 0, s: -1, T: f.ft }]; },
+    prims(p) {
+      const { od, d2, c, o } = this.geo(p), f = flg(p.dn, p.cls), f2 = flg(d2, 150);
+      return [cyl(new V3(0, 0, 0), new V3(f.ft, 0, 0), f.fod / 2), cyl(new V3(f.ft, 0, 0), new V3(c, 0, 0), od * 0.55), sph(new V3(c, 0, 0), od * 0.85),
+        cyl(new V3(c, 0, 0), new V3(c, o - f2.ft, 0), odOf(d2) * 0.55), cyl(new V3(c, o - f2.ft, 0), new V3(c, o, 0), f2.fod / 2),
+        cyl(new V3(c, 0, 0), new V3(c + od * 3 + 120, 0, 0), od * 0.45, od * 0.3, { clash: false }), cyl(new V3(c + od * 3 + 120, 0, 0), new V3(c + od * 3 + 160, 0, 0), od * 0.33, null, ACC)];
+    },
+    weight(p) { const f = flg(p.dn, p.cls); return Math.PI * f.fod ** 2 / 4 * f.ft * STEEL * 7; },
+    keys(p, w, piece) { const C = worldPt(piece, new V3(this.geo(p).c, 0, 0)); return { pts: [w.P1, C, w.P2], key: [w.P1, w.P2] }; },
+  },
+  pgauge: {
+    name: 'Manômetro', prefix: 'PI', spool: false,
+    desc: p => `Manômetro Ø100 mm conexão ${DIM[p.dn].nps} NPT`, std: () => 'ASME B40.100', mat: () => 'AISI 316',
+    ports: p => [P('P1', new V3(0, 0, 0), AX.neg(), 'TH', p.dn)],
+    prims: p => [cyl(new V3(0, 0, 0), new V3(70, 0, 0), 9), cyl(new V3(120, 0, -18), new V3(120, 0, 18), 52, null, ACC)],
+    weight: () => 0.9, keys: (p, w) => ({ pts: [w.P1], key: [w.P1] }),
+  },
+  tgauge: {
+    name: 'Termômetro', prefix: 'TI', spool: false,
+    desc: p => `Termômetro bimetálico Ø100 mm com poço ${DIM[p.dn].nps}`, std: () => 'ASME B40.200', mat: () => 'AISI 316',
+    ports: p => [P('P1', new V3(0, 0, 0), AX.neg(), 'TH', p.dn)],
+    prims: p => [cyl(new V3(0, 0, 0), new V3(90, 0, 0), 8), cyl(new V3(90, 0, 0), new V3(130, 0, 0), 52, null, ACC)],
+    weight: () => 0.8, keys: (p, w) => ({ pts: [w.P1], key: [w.P1] }),
+  },
+};
+const TYPE_PREF_UP = { valve: 1, strainer: 1, sightglass: 1, psv: 1, pgauge: 1, tgauge: 1, reducer: 1, tee: 0, elbow: 0 };
+
+/* ---------------- Peças e portas no mundo ---------------- */
+function localPorts(pc) { return TYPES[pc.type].ports(pc); }
+function worldPt(pc, v) { return pc.q.rot(v).add(pc.pos); }
+function worldPorts(pc) {
+  const out = {};
+  for (const p of localPorts(pc)) out[p.id] = Object.assign({}, p, { pos: worldPt(pc, p.pos), dir: pc.q.rot(p.dir).norm() });
+  return out;
+}
+function worldPort(pc, id) { return worldPorts(pc)[id]; }
+
+/* ---------------- Projeto ---------------- */
+class Project {
+  constructor() {
+    this.pieces = new Map();
+    this.seq = {};
+    this.meta = { title: 'LINHA DE PROCESSO', line: 'TP-001', sheet: '1/1', designer: '', approver: '', date: new Date().toISOString().slice(0, 10), rev: '0', designP: 10, fstd: 'ASME B16.5', fluid: 'Água industrial' };
+    this.fieldWelds = {};
+    this.nextId = 1;
+  }
+  tag(type) { const pre = TYPES[type].prefix; this.seq[pre] = (this.seq[pre] || 0) + 1; return `${pre}-${String(this.seq[pre]).padStart(3, '0')}`; }
+  create(type, params) {
+    const pc = Object.assign({ id: 'p' + (this.nextId++), type, dn: 100, cls: 150, len: 1000, angle: 90, radius: 'LR', sub: null, pos: new V3(), q: new Q(), conn: {} }, params || {});
+    if (type === 'valve' && !pc.sub) pc.sub = 'gate';
+    if (type === 'flange' && !pc.sub) pc.sub = 'WN';
+    if (type === 'reducer' && !pc.dn2) pc.dn2 = nextDown(pc.dn);
+    if (type === 'psv' && !pc.dn2) pc.dn2 = nextUp(pc.dn);
+    if ((type === 'pgauge' || type === 'tgauge') && !params?.dn) pc.dn = 15;
+    pc.tag = pc.tag || this.tag(type);
+    for (const p of localPorts(pc)) pc.conn[p.id] = null;
+    this.pieces.set(pc.id, pc);
+    return pc;
+  }
+  get(id) { return this.pieces.get(id); }
+  remove(id) {
+    const pc = this.get(id); if (!pc) return;
+    for (const k in pc.conn) { const c = pc.conn[k]; if (c) { const o = this.get(c.id); if (o) o.conn[c.port] = null; } }
+    this.pieces.delete(id);
+  }
+  link(a, ap, b, bp) { a.conn[ap] = { id: b.id, port: bp }; b.conn[bp] = { id: a.id, port: ap }; }
+  unlink(a, ap) { const c = a.conn[ap]; if (c) { const o = this.get(c.id); if (o) o.conn[c.port] = null; } a.conn[ap] = null; }
+  toJSON() {
+    return { v: 1, meta: this.meta, seq: this.seq, nextId: this.nextId, fieldWelds: this.fieldWelds,
+      pieces: [...this.pieces.values()].map(p => Object.assign({}, p, { pos: p.pos.arr(), q: p.q.arr() })) };
+  }
+  static fromJSON(o) {
+    const pr = new Project();
+    if (!o) return pr;
+    Object.assign(pr.meta, o.meta || {}); pr.seq = o.seq || {}; pr.nextId = o.nextId || 1; pr.fieldWelds = o.fieldWelds || {};
+    for (const p of o.pieces || []) { const pc = Object.assign({}, p, { pos: V3.of(p.pos), q: Q.of(p.q) }); pr.pieces.set(pc.id, pc); }
+    return pr;
+  }
+}
+
+/* ---------------- Compatibilidade e acoplamento ---------------- */
+function compatible(pa, pb, A, B) {
+  if (Math.abs(pa.od - pb.od) > 0.6) return { ok: false, why: `diâmetros diferentes (Ø${r1(pa.od)} × Ø${r1(pb.od)})` };
+  if (pa.end === 'FL' && pb.end === 'FL' && A && B && (A.cls || 150) !== (B.cls || 150)) return { ok: false, why: 'classes de pressão diferentes' };
+  const fl = [pa.end, pb.end].filter(e => e === 'FL').length;
+  if (fl === 1) return { ok: false, why: 'face flangeada × ponta para solda' };
+  return { ok: true };
+}
+function jointType(ea, eb) {
+  if (ea === 'FL' && eb === 'FL') return 'bolted';
+  if (ea === 'TH' || eb === 'TH') return 'threaded';
+  return 'weld';
+}
+
+// Pose que coloca a porta `myPort` da peça exatamente sobre a porta do alvo, face a face.
+function snapPose(pc, myPort, tgt, tgtPort, rollDeg = 0) {
+  const t = worldPort(tgt, tgtPort);
+  const lp = localPorts(pc).find(p => p.id === myPort);
+  const m = lp.dir.norm();
+  // eixo local de referência perpendicular à porta
+  let pl = Math.abs(m.dot(UP)) > 0.99 ? AX : UP;
+  pl = pl.sub(m.scale(pl.dot(m))).norm();
+  const L = Q.fromBasis(m.neg(), pl, m.neg().cross(pl));
+  // referência no mundo
+  const d = t.dir.norm();
+  let ref;
+  if (Math.abs(d.dot(UP)) > 0.99) ref = AX.sub(d.scale(AX.dot(d))).norm();
+  else if (TYPE_PREF_UP[pc.type] === 0 && m.dot(AX) < -0.99) ref = UP.cross(d).norm();
+  else ref = UP.sub(d.scale(UP.dot(d))).norm();
+  const W = Q.fromBasis(d, ref, d.cross(ref));
+  let q = W.mul(L.conj());
+  if (rollDeg) q = Q.axisAngle(d, rollDeg * D2R).mul(q);
+  q = q.normalize();
+  const pos = t.pos.sub(q.rot(lp.pos));
+  return { pos, q };
+}
+
+/* ---------------- Grafo / ramos ---------------- */
+function component(pr, id) {
+  const seen = new Set([id]), st = [id];
+  while (st.length) { const pc = pr.get(st.pop()); for (const k in pc.conn) { const c = pc.conn[k]; if (c && !seen.has(c.id)) { seen.add(c.id); st.push(c.id); } } }
+  return seen;
+}
+function branch(pr, startId, blockedId) {
+  const seen = new Set([startId]); if (blockedId) seen.add(blockedId);
+  const st = [startId];
+  while (st.length) { const pc = pr.get(st.pop()); for (const k in pc.conn) { const c = pc.conn[k]; if (c && !seen.has(c.id)) { seen.add(c.id); st.push(c.id); } } }
+  if (blockedId) seen.delete(blockedId);
+  return seen;
+}
+// transformação rígida: p -> newPivot + R(p - oldPivot)
+function applyRigid(pr, ids, oldPivot, newPivot, R) {
+  for (const id of ids) { const pc = pr.get(id); pc.pos = newPivot.add(R.rot(pc.pos.sub(oldPivot))); pc.q = R.mul(pc.q).normalize(); }
+}
+function pivotPort(pc) {
+  for (const k of Object.keys(pc.conn)) if (pc.conn[k]) return k;
+  return Object.keys(pc.conn)[0];
+}
+// Gira a peça + tudo a jusante em torno da FACE da porta-pivô
+function rotateBranch(pr, id, axis, deg, pivotId) {
+  const pc = pr.get(id); const piv = pivotId || pivotPort(pc);
+  const up = pc.conn[piv] ? pc.conn[piv].id : null;
+  const ids = up ? branch(pr, id, up) : component(pr, id);
+  const P0 = worldPort(pc, piv).pos;
+  if (up && ids.has(up)) return { ok: false, msg: 'Malha fechada: giro bloqueado' };
+  applyRigid(pr, ids, P0, P0, Q.axisAngle(axis, deg * D2R));
+  return { ok: true, pivot: piv };
+}
+function flowAxis(pc) { // direção de saída pela porta-pivô
+  const piv = pivotPort(pc), w = worldPort(pc, piv);
+  return { piv, axis: w.dir.neg(), pos: w.pos };
+}
+function roll(pr, id, deg) { const pc = pr.get(id); const { axis } = flowAxis(pc); return rotateBranch(pr, id, axis, deg); }
+function tilt(pr, id, deg, mode) {
+  const pc = pr.get(id); const { axis } = flowAxis(pc);
+  let ax;
+  if (mode === 'h') ax = UP;
+  else { ax = axis.cross(UP); if (ax.len() < 1e-6) ax = AX; }
+  return rotateBranch(pr, id, ax.norm(), deg);
+}
+// Alinha a peça: 'up' (em pé) | 'flat' (deitado)
+function orient(pr, id, mode) {
+  const pc = pr.get(id); const { axis } = flowAxis(pc);
+  let target;
+  if (mode === 'up') target = UP;
+  else { target = new V3(axis.x, 0, axis.z); if (target.len() < 1e-6) target = AX; }
+  const R = Q.fromUnitVectors(axis, target.norm());
+  const piv = pivotPort(pc), upId = pc.conn[piv]?.id;
+  const ids = upId ? branch(pr, id, upId) : component(pr, id);
+  const P0 = worldPort(pc, piv).pos;
+  applyRigid(pr, ids, P0, P0, R);
+}
+function moveGroup(pr, id, delta) { for (const i of component(pr, id)) { const pc = pr.get(i); pc.pos = pc.pos.add(delta); } }
+
+// Altera parâmetros mantendo a porta-pivô fixa e arrastando os ramos das outras portas
+function updateParams(pr, id, mutate) {
+  const pc = pr.get(id);
+  const piv = pivotPort(pc);
+  const before = worldPorts(pc);
+  mutate(pc);
+  // portas que deixaram de existir
+  const lp = localPorts(pc).map(p => p.id);
+  for (const k of Object.keys(pc.conn)) if (!lp.includes(k)) { pr.unlink(pc, k); delete pc.conn[k]; }
+  for (const k of lp) if (!(k in pc.conn)) pc.conn[k] = null;
+  // re-fixa pivô
+  const nowPiv = worldPort(pc, piv);
+  if (nowPiv && before[piv]) pc.pos = pc.pos.add(before[piv].pos.sub(nowPiv.pos));
+  const after = worldPorts(pc);
+  for (const k of lp) {
+    if (k === piv || !pc.conn[k] || !before[k]) continue;
+    const c = pc.conn[k];
+    const R = Q.fromUnitVectors(before[k].dir, after[k].dir);
+    applyRigid(pr, branch(pr, c.id, pc.id), before[k].pos, after[k].pos, R);
+  }
+}
+
+function autoConnect(pr, tol = 0.6) {
+  const open = [];
+  for (const pc of pr.pieces.values()) { const w = worldPorts(pc); for (const k in w) if (!pc.conn[k]) open.push({ pc, p: w[k] }); }
+  let n = 0;
+  for (let i = 0; i < open.length; i++) for (let j = i + 1; j < open.length; j++) {
+    const a = open[i], b = open[j];
+    if (a.pc === b.pc || a.pc.conn[a.p.id] || b.pc.conn[b.p.id]) continue;
+    if (a.p.pos.dist(b.p.pos) <= tol && a.p.dir.dot(b.p.dir) < -0.999 && compatible(a.p, b.p, a.pc, b.pc).ok) { pr.link(a.pc, a.p.id, b.pc, b.p.id); n++; }
+  }
+  return n;
+}
+
+// "Acoplar": encontra a porta livre compatível mais próxima e encaixa o grupo da peça
+function acoplar(pr, id, maxDist = 3000) {
+  const pc = pr.get(id), mine = worldPorts(pc), comp = component(pr, id);
+  let best = null;
+  for (const k in mine) {
+    if (pc.conn[k]) continue;
+    for (const o of pr.pieces.values()) {
+      if (comp.has(o.id)) continue;
+      const w = worldPorts(o);
+      for (const ok in w) {
+        if (o.conn[ok]) continue;
+        const c = compatible(mine[k], w[ok], pc, o);
+        const d = mine[k].pos.dist(w[ok].pos);
+        if (d > maxDist) continue;
+        if (!c.ok) { if (!best || best.bad) best = { bad: c.why, d }; continue; }
+        if (!best || best.bad || d < best.d) best = { k, o, ok, d };
+      }
+    }
+  }
+  if (!best || best.bad) return { ok: false, msg: best ? `Não compatível: ${best.bad}` : 'Nenhuma porta livre por perto' };
+  const pose = snapPose(pc, best.k, best.o, best.ok);
+  const R = pose.q.mul(pc.q.conj()).normalize();
+  const oldP = pc.pos;
+  applyRigid(pr, comp, oldP, pose.pos, R);
+  pr.link(pc, best.k, best.o, best.ok);
+  autoConnect(pr);
+  return { ok: true, msg: `Acoplado em ${best.o.tag} (${best.ok})` };
+}
+
+/* ---------------- Detecção de interferências (cápsulas 3D) ---------------- */
+function segSegDist(p1, q1, p2, q2) {
+  const d1 = q1.sub(p1), d2 = q2.sub(p2), r = p1.sub(p2);
+  const a = d1.dot(d1), e = d2.dot(d2), f = d2.dot(r);
+  let s, t;
+  if (a <= 1e-9 && e <= 1e-9) return p1.dist(p2);
+  if (a <= 1e-9) { s = 0; t = Math.min(1, Math.max(0, f / e)); }
+  else {
+    const c = d1.dot(r);
+    if (e <= 1e-9) { t = 0; s = Math.min(1, Math.max(0, -c / a)); }
+    else {
+      const b = d1.dot(d2), den = a * e - b * b;
+      s = den !== 0 ? Math.min(1, Math.max(0, (b * f - c * e) / den)) : 0;
+      t = (b * s + f) / e;
+      if (t < 0) { t = 0; s = Math.min(1, Math.max(0, -c / a)); }
+      else if (t > 1) { t = 1; s = Math.min(1, Math.max(0, (b - c) / a)); }
+    }
+  }
+  return p1.add(d1.scale(s)).dist(p2.add(d2.scale(t)));
+}
+function capsules(pc) {
+  const out = [];
+  for (const pr of TYPES[pc.type].prims(pc)) {
+    if (pr.clash === false) continue;
+    if (pr.k === 'cyl') {
+      const r = Math.max(pr.r, pr.r2), L = pr.a.dist(pr.b), tr = Math.min(r * 0.5, L * 0.2);
+      const d = pr.b.sub(pr.a).norm();
+      out.push({ a: worldPt(pc, pr.a.add(d.scale(tr))), b: worldPt(pc, pr.b.sub(d.scale(tr))), r });
+    } else if (pr.k === 'arc') {
+      const n = 6, pts = [];
+      for (let i = 0; i <= n; i++) { const t = pr.ang * i / n; pts.push(pr.c.add(pr.u.scale(pr.R * Math.cos(t))).add(pr.v.scale(pr.R * Math.sin(t)))); }
+      for (let i = 0; i < n; i++) {
+        let a = pts[i], b = pts[i + 1];
+        if (i === 0) a = a.lerp(b, 0.5); if (i === n - 1) b = b.lerp(a, 0.5);
+        out.push({ a: worldPt(pc, a), b: worldPt(pc, b), r: pr.r });
+      }
+    } else if (pr.k === 'sph') { const c = worldPt(pc, pr.c); out.push({ a: c, b: c, r: pr.r }); }
+  }
+  return out;
+}
+function detectClashes(pr) {
+  const list = [...pr.pieces.values()];
+  const caps = new Map(), bb = new Map();
+  for (const pc of list) {
+    const cs = capsules(pc); caps.set(pc.id, cs);
+    const mn = new V3(1e12, 1e12, 1e12), mx = new V3(-1e12, -1e12, -1e12);
+    for (const c of cs) for (const p of [c.a, c.b]) { mn.x = Math.min(mn.x, p.x - c.r); mn.y = Math.min(mn.y, p.y - c.r); mn.z = Math.min(mn.z, p.z - c.r); mx.x = Math.max(mx.x, p.x + c.r); mx.y = Math.max(mx.y, p.y + c.r); mx.z = Math.max(mx.z, p.z + c.r); }
+    bb.set(pc.id, [mn, mx]);
+  }
+  const near = id => { // vizinhos até 2 saltos (isenção do grafo mecânico)
+    const s = new Set([id]);
+    const pc = pr.get(id);
+    for (const k in pc.conn) { const c = pc.conn[k]; if (!c) continue; s.add(c.id); const o = pr.get(c.id); if (o) for (const k2 in o.conn) if (o.conn[k2]) s.add(o.conn[k2].id); }
+    return s;
+  };
+  const res = [];
+  for (let i = 0; i < list.length; i++) {
+    const A = list[i], ex = near(A.id), [amn, amx] = bb.get(A.id);
+    for (let j = i + 1; j < list.length; j++) {
+      const B = list[j]; if (ex.has(B.id)) continue;
+      const [bmn, bmx] = bb.get(B.id);
+      if (amx.x < bmn.x || bmx.x < amn.x || amx.y < bmn.y || bmx.y < amn.y || amx.z < bmn.z || bmx.z < amn.z) continue;
+      let worst = null;
+      for (const ca of caps.get(A.id)) for (const cb of caps.get(B.id)) {
+        const d = segSegDist(ca.a, ca.b, cb.a, cb.b), pen = ca.r + cb.r - d;
+        if (pen > 1 && (!worst || pen > worst.pen)) worst = { pen, at: ca.a.lerp(ca.b, 0.5) };
+      }
+      if (worst) res.push({ a: A.id, b: B.id, pen: worst.pen, at: worst.at });
+    }
+  }
+  return res;
+}
+
+/* ---------------- Isométrico 2D -> 3D ---------------- */
+const C30 = Math.cos(Math.PI / 6), S30 = Math.sin(Math.PI / 6);
+// Tela (y para baixo), unidade = 1 célula da grade. Mundo: E=+X, N=−Z, Cima=+Y
+const ISO_AXES = [
+  { n: 'E', s: [C30, S30], w: new V3(1, 0, 0) }, { n: 'O', s: [-C30, -S30], w: new V3(-1, 0, 0) },
+  { n: 'N', s: [C30, -S30], w: new V3(0, 0, -1) }, { n: 'S', s: [-C30, S30], w: new V3(0, 0, 1) },
+  { n: 'Cima', s: [0, -1], w: new V3(0, 1, 0) }, { n: 'Baixo', s: [0, 1], w: new V3(0, -1, 0) },
+];
+const PLANES = { EN: ['E', 'N'], EU: ['E', 'Cima'], NU: ['N', 'Cima'] };
+const axisBy = n => ISO_AXES.find(a => a.n === n);
+// lattice: ponto = a*E + b*N (E e N em unidades de tela)
+function latticeToScreen(a, b) { return [C30 * (a + b), S30 * (a - b)]; }
+function screenToLattice(x, y) { return [(x / C30 + y / S30) / 2, (x / C30 - y / S30) / 2]; }
+function snapLattice(x, y) {
+  const [a, b] = screenToLattice(x, y); let best = null;
+  for (const da of [Math.floor(a), Math.ceil(a)]) for (const db of [Math.floor(b), Math.ceil(b)]) {
+    const [sx, sy] = latticeToScreen(da, db); const d = Math.hypot(sx - x, sy - y);
+    if (!best || d < best.d) best = { d, p: [sx, sy] };
+  }
+  return best.p;
+}
+function classifyIso(dx, dy, tolDeg = 4) {
+  const L = Math.hypot(dx, dy); if (L < 1e-9) return null;
+  let best = null;
+  for (const ax of ISO_AXES) { const k = (dx * ax.s[0] + dy * ax.s[1]) / L; if (!best || k > best.k) best = { k, ax }; }
+  return best.k >= Math.cos(tolDeg * D2R) ? { ax: best.ax, steps: L } : null;
+}
+// delta 3D (mm) de um segmento de tela
+function isoDelta(dx, dy, gridMm, plane) {
+  const c = classifyIso(dx, dy);
+  if (c) return { v: c.ax.w.scale(Math.round(c.steps * gridMm * 10) / 10), axis: c.ax.n };
+  const [un, vn] = PLANES[plane || 'EN'], u = axisBy(un), v = axisBy(vn);
+  const det = u.s[0] * v.s[1] - u.s[1] * v.s[0];
+  const a = (dx * v.s[1] - dy * v.s[0]) / det, b = (u.s[0] * dy - u.s[1] * dx) / det;
+  return { v: u.w.scale(a * gridMm).add(v.w.scale(b * gridMm)), axis: 'skew' };
+}
+// segs: [{a:[x,y], b:[x,y], plane}] em unidades de grade (tela)
+function isoTo3D(segs, gridMm = 100) {
+  const verts = [], rk = x => (Math.round(x * 1000) / 1000 + 0).toFixed(3), key = p => rk(p[0]) + ',' + rk(p[1]);
+  const idx = new Map();
+  const vid = p => { const k = key(p); if (!idx.has(k)) { idx.set(k, verts.length); verts.push(p); } return idx.get(k); };
+  const edges = segs.filter(s => Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1]) > 1e-6).map(s => ({ i: vid(s.a), j: vid(s.b), plane: s.plane }));
+  const adj = verts.map(() => []);
+  edges.forEach((e, k) => { adj[e.i].push({ to: e.j, k, sgn: 1 }); adj[e.j].push({ to: e.i, k, sgn: -1 }); });
+  const pos = verts.map(() => null), warnings = [];
+  let comps = 0;
+  for (let r = 0; r < verts.length; r++) {
+    if (pos[r] || !adj[r].length) continue;
+    pos[r] = new V3(comps * 0, 0, 0); comps++;
+    if (comps > 1) warnings.push('O desenho tem partes separadas; cada parte começa na origem da sua linha.');
+    const q = [r];
+    while (q.length) {
+      const i = q.shift();
+      for (const { to, k } of adj[i]) {
+        const d = isoDelta(verts[to][0] - verts[i][0], verts[to][1] - verts[i][1], gridMm, edges[k].plane);
+        const p = pos[i].add(d.v);
+        if (!pos[to]) { pos[to] = p; q.push(to); }
+        else if (pos[to].dist(p) > 1) warnings.push('Malha fechada com medidas que não fecham — verifique o trecho.');
+      }
+    }
+  }
+  return { points: pos, edges, warnings: [...new Set(warnings)] };
+}
+
+// Gera peças reais (tubos + curvas + tês) a partir dos pontos 3D
+function buildFromIso(pr, conv, opts) {
+  const dn = opts.dn, cls = opts.cls || 150, origin = opts.origin || new V3();
+  const pts = conv.points.map(p => p ? p.add(origin) : null), edges = conv.edges;
+  const created = [], warnings = [...conv.warnings];
+  const trim = new Map(); // `${k}:${v}` -> mm
+  const byV = pts.map(() => []);
+  edges.forEach((e, k) => { byV[e.i].push(k); byV[e.j].push(k); });
+  const other = (k, v) => edges[k].i === v ? edges[k].j : edges[k].i;
+  const dirFrom = (v, k) => pts[other(k, v)].sub(pts[v]).norm();
+  const R = 1.5 * DIM[dn].inch * 25.4, C = DIM[dn].tee;
+  byV.forEach((ks, v) => {
+    if (!pts[v]) return;
+    if (ks.length === 2) {
+      const o0 = dirFrom(v, ks[0]), o1 = dirFrom(v, ks[1]);
+      const dIn = o0.neg(), dOut = o1;
+      const ang = Math.acos(Math.max(-1, Math.min(1, dIn.dot(dOut))));
+      if (ang < 0.5 * D2R) return;
+      if (ang > 179 * D2R) { warnings.push('Retorno de 180° ignorado.'); return; }
+      const A = R * Math.tan(ang / 2);
+      const el = pr.create('elbow', { dn, cls, angle: Math.round(ang / D2R * 100) / 100 });
+      const x = dIn, y = dOut.sub(x.scale(dOut.dot(x))).norm(), z = x.cross(y);
+      el.q = Q.fromBasis(x, y, z);
+      el.pos = pts[v].sub(el.q.rot(new V3(A, 0, 0)));
+      trim.set(ks[0] + ':' + v, A); trim.set(ks[1] + ':' + v, A);
+      created.push(el);
+    } else if (ks.length === 3) {
+      const ds = ks.map(k => dirFrom(v, k));
+      let run = null;
+      for (let a = 0; a < 3; a++) for (let b = a + 1; b < 3; b++) if (ds[a].dot(ds[b]) < -0.999) run = [a, b];
+      const br = run ? [0, 1, 2].find(i => !run.includes(i)) : -1;
+      if (!run || Math.abs(ds[br].dot(ds[run[0]])) > 0.01) { warnings.push('Derivação não perpendicular: tê não gerado nesse ponto.'); return; }
+      const te = pr.create('tee', { dn, cls, dn2: dn });
+      const x = ds[run[1]], y = ds[br], z = x.cross(y);
+      te.q = Q.fromBasis(x, y, z);
+      te.pos = pts[v].sub(te.q.rot(new V3(C, 0, 0)));
+      for (const i of [0, 1, 2]) trim.set(ks[i] + ':' + v, C);
+      created.push(te);
+    } else if (ks.length > 3) warnings.push('Nó com mais de 3 ligações: conexão não gerada.');
+  });
+  edges.forEach((e, k) => {
+    const A = pts[e.i], B = pts[e.j]; if (!A || !B) return;
+    const d = B.sub(A), L0 = d.len(), u = d.norm();
+    const t1 = trim.get(k + ':' + e.i) || 0, t2 = trim.get(k + ':' + e.j) || 0;
+    const L = L0 - t1 - t2;
+    if (L < -0.5) { warnings.push(`Trecho de ${Math.round(L0)} mm é curto demais para as curvas (faltam ${Math.round(-L)} mm).`); return; }
+    if (L < 0.5) return;
+    const tb = pr.create('pipe', { dn, cls, len: Math.round(L * 10) / 10 });
+    const ref = Math.abs(u.dot(UP)) > 0.99 ? AX : UP;
+    const y = ref.sub(u.scale(ref.dot(u))).norm();
+    tb.q = Q.fromBasis(u, y, u.cross(y));
+    tb.pos = A.add(u.scale(t1));
+    created.push(tb);
+  });
+  autoConnect(pr, 1.0);
+  return { created, warnings: [...new Set(warnings)] };
+}
+
+/* ---------------- Juntas, spools e soldas ---------------- */
+function joints(pr) {
+  const out = [], seen = new Set();
+  for (const pc of pr.pieces.values()) {
+    const w = worldPorts(pc);
+    for (const k in pc.conn) {
+      const c = pc.conn[k]; if (!c) continue;
+      const key = [pc.id + ':' + k, c.id + ':' + c.port].sort().join('|');
+      if (seen.has(key)) continue; seen.add(key);
+      const o = pr.get(c.id); if (!o) continue;
+      const wo = worldPort(o, c.port);
+      out.push({ key, a: pc, ap: k, b: o, bp: c.port, type: jointType(w[k].end, wo.end), pos: w[k].pos, dn: w[k].dn, od: w[k].od });
+    }
+  }
+  return out;
+}
+function analyze(pr) {
+  const js = joints(pr);
+  // spools: união por soldas entre peças de spool
+  const parent = new Map(); const f = x => { while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
+  const spoolPieces = [...pr.pieces.values()].filter(p => TYPES[p.type].spool);
+  for (const p of spoolPieces) parent.set(p.id, p.id);
+  for (const j of js) if (j.type === 'weld' && parent.has(j.a.id) && parent.has(j.b.id) && !pr.fieldWelds[j.key]) parent.set(f(j.a.id), f(j.b.id));
+  const groups = new Map();
+  for (const p of spoolPieces) { const r = f(p.id); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(p); }
+  const spools = [...groups.values()].sort((a, b) => (+a[0].id.slice(1)) - (+b[0].id.slice(1))).map((ps, i) => ({ name: 'SP-' + String(i + 1).padStart(2, '0'), pieces: ps }));
+  const spoolOf = new Map(); spools.forEach(s => s.pieces.forEach(p => spoolOf.set(p.id, s.name)));
+  let sw = 0, fw = 0;
+  const welds = js.filter(j => j.type === 'weld').map(j => {
+    const field = !!pr.fieldWelds[j.key];
+    return Object.assign(j, { field, name: field ? 'FW-' + String(++fw).padStart(2, '0') : 'SW-' + String(++sw).padStart(2, '0'), spool: spoolOf.get(j.a.id) || spoolOf.get(j.b.id) || '—', wt: DIM[j.dn]?.wt || 0 });
+  });
+  const bolted = js.filter(j => j.type === 'bolted');
+  return { joints: js, spools, spoolOf, welds, bolted };
+}
+
+/* ---------------- BOM ---------------- */
+function bom(pr, filterIds) {
+  const groups = new Map();
+  const pcs = [...pr.pieces.values()].filter(p => !filterIds || filterIds.has(p.id));
+  const fstd = pr.meta.fstd || 'ASME B16.5';
+  const clsLabel = c => (FLANGE_STDS[fstd] || FLANGE_STDS['ASME B16.5'])[c] || ('Cl.' + c);
+  for (const p of pcs) {
+    const T = TYPES[p.type];
+    const hasFl = ['flange', 'valve', 'strainer', 'expjoint', 'sightglass', 'psv'].includes(p.type);
+    const desc = T.desc(p), std = p.type === 'flange' ? fstd : T.std(p);
+    const k = [desc, std, hasFl ? p.cls : ''].join('|');
+    if (!groups.has(k)) groups.set(k, { desc, dn: p.type === 'custom' ? '—' : p.dn, nps: DIM[p.dn]?.nps || '', cls: hasFl ? clsLabel(p.cls) : '—', std, mat: T.mat(p), qty: 0, unit: p.type === 'pipe' || p.type === 'custom' ? 'm' : 'pç', w: 0, tags: [], type: p.type });
+    const g = groups.get(k);
+    g.qty += g.unit === 'm' ? p.len / 1000 : 1; g.w += T.weight(p); g.tags.push(p.tag);
+  }
+  // estojos e juntas por junta flangeada
+  const an = analyze(pr);
+  for (const j of an.bolted) {
+    if (filterIds && !filterIds.has(j.a.id) && !filterIds.has(j.b.id)) continue;
+    const cls = j.a.cls || 150, f = flg(j.dn, cls);
+    const sl = Math.ceil((2 * f.ft + 3 + 2 * f.bd * 1.1 + 6) / 5) * 5;
+    const kd = `Estojo ${r1(f.bd)}×${sl} mm c/ 2 porcas|${cls}`;
+    if (!groups.has(kd)) groups.set(kd, { desc: `Estojo Ø${r1(f.bd)}×${sl} mm c/ 2 porcas sextavadas`, dn: j.dn, nps: DIM[j.dn].nps, cls: clsLabel(cls), std: 'ASME B18.2', mat: 'A193 B7 / A194 2H', qty: 0, unit: 'pç', w: 0, tags: [], type: 'bolt' });
+    const g = groups.get(kd); g.qty += f.nb; g.w += f.nb * Math.PI * (f.bd / 2) ** 2 * sl * STEEL * 1.4;
+    const kg = `Junta|${j.dn}|${cls}`;
+    if (!groups.has(kg)) groups.set(kg, { desc: `Junta espiralada ${DIM[j.dn].nps} inox 316/grafite c/ anel centralizador`, dn: j.dn, nps: DIM[j.dn].nps, cls: clsLabel(cls), std: 'ASME B16.20', mat: 'AISI 316 + grafite', qty: 0, unit: 'pç', w: 0, tags: [], type: 'gasket' });
+    const gg = groups.get(kg); gg.qty += 1; gg.w += 0.1 + j.dn * 0.004;
+  }
+  const order = ['pipe', 'custom', 'elbow', 'tee', 'reducer', 'flange', 'valve', 'strainer', 'expjoint', 'sightglass', 'psv', 'pgauge', 'tgauge', 'gasket', 'bolt'];
+  return [...groups.values()].sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type) || (+a.dn || 0) - (+b.dn || 0)).map((g, i) => Object.assign(g, { item: i + 1 }));
+}
+
+/* ---------------- PCF ---------------- */
+const pcfPt = (v, dn) => `${(v.x).toFixed(1)} ${(-v.z).toFixed(1)} ${(v.y).toFixed(1)} ${(+dn).toFixed(1)}`;
+function pcf(pr) {
+  const L = [], m = pr.meta;
+  L.push('ISOGEN-FILES ISOGEN.FLS', 'UNITS-BORE MM', 'UNITS-CO-ORDS MM', 'UNITS-WEIGHT KGS', 'UNITS-BOLT-DIA MM', 'UNITS-BOLT-LENGTH MM',
+    `PIPELINE-REFERENCE ${m.line || 'TP-001'}`, `    PROJECT-IDENTIFIER ${(m.title || '').replace(/\s+/g, '_')}`, '    PIPING-SPEC TP-CS150', '');
+  for (const p of pr.pieces.values()) {
+    const w = worldPorts(p), T = TYPES[p.type], ep = id => `    END-POINT ${pcfPt(w[id].pos, w[id].dn)}`;
+    const tail = [`    ITEM-CODE ${p.tag}`, `    ITEM-DESCRIPTION ${T.desc(p)}`, `    WEIGHT ${T.weight(p).toFixed(2)}`];
+    switch (p.type) {
+      case 'pipe': case 'custom': L.push('PIPE', ep('P1'), ep('P2'), ...tail); break;
+      case 'elbow': L.push('ELBOW', ep('P1'), ep('P2'), `    CENTRE-POINT ${pcfPt(worldPt(p, T.vertex(p)), p.dn).split(' ').slice(0, 3).join(' ')}`, '    SKEY ELBW', `    ANGLE ${(p.angle * 100).toFixed(0)}`, ...tail); break;
+      case 'tee': L.push('TEE', ep('P1'), ep('P2'), `    CENTRE-POINT ${pcfPt(worldPt(p, T.center(p)), p.dn).split(' ').slice(0, 3).join(' ')}`, `    BRANCH1-POINT ${pcfPt(w.P3.pos, w.P3.dn)}`, '    SKEY TEBW', ...tail); break;
+      case 'reducer': L.push(p.ecc ? 'REDUCER-ECCENTRIC' : 'REDUCER-CONCENTRIC', ep('P1'), ep('P2'), `    SKEY ${p.ecc ? 'REBW' : 'RCBW'}`, ...tail); break;
+      case 'flange': if (p.sub === 'BL') L.push('FLANGE-BLIND', ep('P1'), '    SKEY FLBL', ...tail); else L.push('FLANGE', ep('P1'), ep('P2'), `    SKEY ${p.sub === 'SO' ? 'FLSO' : 'FLWN'}`, ...tail); break;
+      case 'valve': L.push('VALVE', ep('P1'), ep('P2'), `    SKEY ${VALVE_SKEY[p.sub]}`, ...tail); break;
+      case 'strainer': L.push('FILTER', ep('P1'), ep('P2'), '    SKEY FIFL', ...tail); break;
+      case 'psv': L.push('VALVE-ANGLE', ep('P1'), ep('P2'), `    CENTRE-POINT ${pcfPt(worldPt(p, new V3(T.geo(p).c, 0, 0)), p.dn).split(' ').slice(0, 3).join(' ')}`, '    SKEY RVFL', ...tail); break;
+      case 'expjoint': case 'sightglass': L.push('MISC-COMPONENT', ep('P1'), ep('P2'), `    SKEY ${p.type === 'expjoint' ? 'EXFL' : 'SGFL'}`, ...tail); break;
+      case 'pgauge': case 'tgauge': L.push('INSTRUMENT', ep('P1'), ep('P1'), `    SKEY ${p.type === 'pgauge' ? 'PISC' : 'TISC'}`, ...tail); break;
+    }
+    L.push('');
+  }
+  return L.join('\n');
+}
+
+/* ---------------- Notas normativas ---------------- */
+function testNotes(pr) {
+  const dns = [...new Set([...pr.pieces.values()].map(p => p.dn).filter(d => DIM[d]))];
+  const P = +pr.meta.designP || 0, Pt = 1.5 * P;
+  const S = 138, Sy = 241, CA = 1.5, E = 1;
+  const rows = dns.sort((a, b) => a - b).map(dn => {
+    const d = DIM[dn], t = d.wt * 0.875 - CA;
+    const Pallow = 2 * S * E * Math.max(t, 0) / d.od * 10, Ptlim = 2 * 0.9 * Sy * d.wt * 0.875 / d.od * 10;
+    return { dn, nps: d.nps, t: d.wt, Pallow, Ptlim, ok: P <= Pallow && Pt <= Ptlim };
+  });
+  return { P, Pt, rows };
+}
+
+const TP = { V3, Q, UP, AX, AZ, D2R, DNS, DIM, CLASSES, FLANGE_STDS, flg, TYPES, VALVE_SUBS, Project, localPorts, worldPorts, worldPort, worldPt,
+  compatible, jointType, snapPose, component, branch, applyRigid, pivotPort, rotateBranch, roll, tilt, orient, moveGroup, updateParams, autoConnect, acoplar,
+  segSegDist, capsules, detectClashes, ISO_AXES, PLANES, latticeToScreen, screenToLattice, snapLattice, classifyIso, isoDelta, isoTo3D, buildFromIso,
+  joints, analyze, bom, pcf, testNotes, nextDown, nextUp, odOf, r1, C30, S30 };
+if (typeof module !== 'undefined') module.exports = TP;
+if (typeof window !== 'undefined') window.TP = TP;
+
+</script>
+<script>
+'use strict';
+/* TEC PLAN — gerador de prancha (SVG, mm) em terceiro diedro */
+(function () {
+const T = (typeof module !== 'undefined') ? require('./core.js') : window.TP;
+const { V3, TYPES, worldPt, worldPorts, C30, S30 } = T;
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const PROJ = {
+  front: v => [v.x, -v.y],
+  top: v => [v.x, v.z],
+  side: v => [-v.z, -v.y],
+  iso: v => { const E = v.x, N = -v.z, U = v.y; return [C30 * (E + N), S30 * (E - N) - U]; },
+};
+const SCALES = [1, 2, 2.5, 5, 10, 15, 20, 25, 50, 75, 100, 200];
+
+function geomOf(pc) { // primitivas em coordenadas do mundo
+  const out = [];
+  for (const p of TYPES[pc.type].prims(pc)) {
+    if (p.k === 'cyl') out.push({ k: 'seg', a: worldPt(pc, p.a), b: worldPt(pc, p.b), r: (p.r + p.r2) / 2, rmax: Math.max(p.r, p.r2), center: p.clash !== false && !p.accent });
+    else if (p.k === 'arc') {
+      const n = Math.max(6, Math.ceil(p.ang / (Math.PI / 12))), pts = [];
+      for (let i = 0; i <= n; i++) { const t = p.ang * i / n; pts.push(worldPt(pc, p.c.add(p.u.scale(p.R * Math.cos(t))).add(p.v.scale(p.R * Math.sin(t))))); }
+      out.push({ k: 'poly', pts, r: p.r, center: !p.accent && p.clash !== false });
+    } else if (p.k === 'sph') out.push({ k: 'circ', c: worldPt(pc, p.c), r: p.r });
+  }
+  return out;
+}
+
+// segmentos de cota (centro a centro / face a face)
+function dimSegments(pr, ids) {
+  const nodes = new Map(), segs = [];
+  const nk = v => `${Math.round(v.x * 10)},${Math.round(v.y * 10)},${Math.round(v.z * 10)}`;
+  const node = (v, key) => { const k = nk(v); if (!nodes.has(k)) nodes.set(k, { v, key: false, adj: [] }); const n = nodes.get(k); if (key) n.key = true; return k; };
+  for (const id of ids) {
+    const pc = pr.get(id), w = worldPorts(pc), wp = {}; for (const k in w) wp[k] = w[k].pos;
+    const K = TYPES[pc.type].keys(pc.params || pc, wp, pc);
+    const keyset = new Set((K.key || []).map(nk));
+    for (const k in pc.conn) if (!pc.conn[k] || !ids.has(pc.conn[k].id)) keyset.add(nk(wp[k]));
+    const add = arr => { for (let i = 0; i < arr.length - 1; i++) { const a = node(arr[i], keyset.has(nk(arr[i]))), b = node(arr[i + 1], keyset.has(nk(arr[i + 1]))); if (a === b) continue; segs.push([a, b]); nodes.get(a).adj.push(b); nodes.get(b).adj.push(a); } };
+    for (const v of K.pts) node(v, keyset.has(nk(v)));
+    add(K.pts); if (K.branch) add(K.branch);
+  }
+  const isStop = k => { const n = nodes.get(k); if (n.key || n.adj.length !== 2) return true; const a = nodes.get(n.adj[0]).v.sub(n.v).norm(), b = nodes.get(n.adj[1]).v.sub(n.v).norm(); return a.dot(b) > -0.9999; };
+  const out = [], seen = new Set();
+  for (const [k] of nodes) {
+    if (!isStop(k)) continue;
+    for (const nb of nodes.get(k).adj) {
+      let prev = k, cur = nb;
+      while (!isStop(cur)) { const n = nodes.get(cur); const nx = n.adj[0] === prev ? n.adj[1] : n.adj[0]; prev = cur; cur = nx; }
+      const key = [k, cur].sort().join('|'); if (seen.has(key) || k === cur) continue; seen.add(key);
+      out.push([nodes.get(k).v, nodes.get(cur).v]);
+    }
+  }
+  return out;
+}
+
+function sheetSVG(pr, opts = {}) {
+  const size = opts.size || 'A3';
+  const [W, H] = size === 'A4' ? [297, 210] : [420, 297];
+  const k = H / 297, m = pr.meta;
+  const an = T.analyze(pr);
+  let ids, spoolName = 'LINHA COMPLETA';
+  if (opts.spool && opts.spool !== 'ALL') { const s = an.spools.find(s => s.name === opts.spool); ids = new Set(s ? s.pieces.map(p => p.id) : []); spoolName = opts.spool; }
+  else ids = new Set(pr.pieces.keys());
+  const pcs = [...ids].map(id => pr.get(id));
+  const geo = pcs.map(geomOf).flat();
+  const cw = 135 * k, x0c = W - 10 - cw;
+  const ax0 = 10, ay0 = 10, aw = x0c - 3 - ax0, ah = H - 20;
+  const cellW = aw / 2, cellH = ah / 2;
+  const cells = { top: [ax0, ay0], iso: [ax0 + cellW, ay0], front: [ax0, ay0 + cellH], side: [ax0 + cellW, ay0 + cellH] };
+  const bboxOf = pj => {
+    let x0 = 1e12, y0 = 1e12, x1 = -1e12, y1 = -1e12;
+    const ext = (p, r) => { x0 = Math.min(x0, p[0] - r); y0 = Math.min(y0, p[1] - r); x1 = Math.max(x1, p[0] + r); y1 = Math.max(y1, p[1] + r); };
+    for (const g of geo) { if (g.k === 'seg') { ext(pj(g.a), g.rmax); ext(pj(g.b), g.rmax); } else if (g.k === 'poly') g.pts.forEach(p => ext(pj(p), g.r)); else ext(pj(g.c), g.r); }
+    if (x0 > x1) return [0, 0, 1, 1];
+    return [x0, y0, x1, y1];
+  };
+  const pad = 14 * k;
+  let sOrtho = 1e9;
+  for (const v of ['top', 'front', 'side']) { const b = bboxOf(PROJ[v]); sOrtho = Math.min(sOrtho, (cellW - 2 * pad) / Math.max(1, b[2] - b[0]), (cellH - 2 * pad) / Math.max(1, b[3] - b[1])); }
+  const den = SCALES.find(d => 1 / d <= sOrtho) || Math.ceil(1 / sOrtho);
+  const s = 1 / den;
+  const bi = bboxOf(PROJ.iso); const sIso = Math.min((cellW - 2 * pad) / Math.max(1, bi[2] - bi[0]), (cellH - 2 * pad) / Math.max(1, bi[3] - bi[1]));
+  const dims = dimSegments(pr, ids);
+  const items = T.bom(pr, ids);
+  const itemOf = new Map(); items.forEach(it => it.tags.forEach(t => itemOf.set(t, it.item)));
+  const welds = an.welds.filter(w => ids.has(w.a.id) || ids.has(w.b.id));
+
+  const out = [];
+  out.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}mm" height="${H}mm" font-family="'IBM Plex Mono','Consolas',monospace" fill="none">`);
+  out.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="#fff"/>`);
+  out.push(`<rect x="10" y="10" width="${W - 20}" height="${H - 20}" stroke="#111" stroke-width="0.5"/>`);
+  out.push(`<line x1="${x0c - 1.5}" y1="10" x2="${x0c - 1.5}" y2="${H - 10}" stroke="#111" stroke-width="0.35"/>`);
+  out.push(`<line x1="${ax0}" y1="${ay0 + cellH}" x2="${ax0 + aw}" y2="${ay0 + cellH}" stroke="#bbb" stroke-width="0.2" stroke-dasharray="2 1.5"/>`);
+  out.push(`<line x1="${ax0 + cellW}" y1="${ay0}" x2="${ax0 + cellW}" y2="${ay0 + ah}" stroke="#bbb" stroke-width="0.2" stroke-dasharray="2 1.5"/>`);
+
+  const txt = (x, y, t, sz, o = {}) => `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" font-size="${(sz * k).toFixed(2)}" fill="${o.fill || '#111'}" ${o.anchor ? `text-anchor="${o.anchor}"` : ''} ${o.bold ? 'font-weight="700"' : ''} ${o.rot ? `transform="rotate(${o.rot.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)})"` : ''} stroke="none">${esc(t)}</text>`;
+
+  function drawView(name, label, sc) {
+    const pj = PROJ[name], b = bboxOf(pj), [cx, cy] = cells[name];
+    const ox = cx + cellW / 2 - (b[0] + b[2]) / 2 * sc, oy = cy + cellH / 2 - (b[1] + b[3]) / 2 * sc + 2 * k;
+    const P = v => { const p = pj(v); return [ox + p[0] * sc, oy + p[1] * sc]; };
+    const dark = [], light = [], center = [];
+    for (const g of geo) {
+      if (g.k === 'seg') {
+        const a = P(g.a), bb = P(g.b), L = Math.hypot(bb[0] - a[0], bb[1] - a[1]), w = 2 * g.r * sc;
+        if (L < 0.08 * w) { dark.push(`<circle cx="${a[0].toFixed(2)}" cy="${a[1].toFixed(2)}" r="${(g.rmax * sc).toFixed(2)}" fill="#fff" stroke="#111" stroke-width="0.3"/>`); continue; }
+        dark.push(`<line x1="${a[0].toFixed(2)}" y1="${a[1].toFixed(2)}" x2="${bb[0].toFixed(2)}" y2="${bb[1].toFixed(2)}" stroke="#111" stroke-width="${(w + 0.5).toFixed(2)}"/>`);
+        if (w > 0.7) light.push(`<line x1="${a[0].toFixed(2)}" y1="${a[1].toFixed(2)}" x2="${bb[0].toFixed(2)}" y2="${bb[1].toFixed(2)}" stroke="#fff" stroke-width="${(w - 0.1).toFixed(2)}"/>`);
+        if (g.center && L > 2) center.push(`<line x1="${a[0].toFixed(2)}" y1="${a[1].toFixed(2)}" x2="${bb[0].toFixed(2)}" y2="${bb[1].toFixed(2)}" stroke="#c0392b" stroke-width="0.13" stroke-dasharray="3 0.8 0.6 0.8"/>`);
+      } else if (g.k === 'poly') {
+        const pts = g.pts.map(P).map(p => p.map(v => v.toFixed(2)).join(',')).join(' '), w = 2 * g.r * sc;
+        dark.push(`<polyline points="${pts}" stroke="#111" stroke-width="${(w + 0.5).toFixed(2)}" stroke-linejoin="round"/>`);
+        if (w > 0.7) light.push(`<polyline points="${pts}" stroke="#fff" stroke-width="${(w - 0.1).toFixed(2)}" stroke-linejoin="round"/>`);
+        if (g.center) center.push(`<polyline points="${pts}" stroke="#c0392b" stroke-width="0.13" stroke-dasharray="3 0.8 0.6 0.8"/>`);
+      } else { const c = P(g.c); dark.push(`<circle cx="${c[0].toFixed(2)}" cy="${c[1].toFixed(2)}" r="${(g.r * sc + 0.25).toFixed(2)}" fill="#111"/>`); light.push(`<circle cx="${c[0].toFixed(2)}" cy="${c[1].toFixed(2)}" r="${Math.max(0, g.r * sc - 0.05).toFixed(2)}" fill="#fff"/>`); }
+    }
+    out.push(`<g>${dark.join('')}${light.join('')}${center.join('')}</g>`);
+    // cotas
+    const dimOut = [];
+    for (const [A, B] of dims) {
+      const L3 = A.dist(B); if (L3 < 1) continue;
+      const a = P(A), bb = P(B), dx = bb[0] - a[0], dy = bb[1] - a[1], L2 = Math.hypot(dx, dy);
+      if (name !== 'iso' && L2 < L3 * sc * 0.995) continue;
+      if (L2 < 4 * k) continue;
+      let nx = -dy / L2, ny = dx / L2; if (ny > 0.01 || (Math.abs(ny) <= 0.01 && nx < 0)) { nx = -nx; ny = -ny; }
+      const off = (name === 'iso' ? 5 : 6) * k, p1 = [a[0] + nx * off, a[1] + ny * off], p2 = [bb[0] + nx * off, bb[1] + ny * off];
+      dimOut.push(`<line x1="${(a[0] + nx * 1).toFixed(2)}" y1="${(a[1] + ny * 1).toFixed(2)}" x2="${(p1[0] + nx * 1).toFixed(2)}" y2="${(p1[1] + ny * 1).toFixed(2)}" stroke="#2a5db0" stroke-width="0.13"/>`);
+      dimOut.push(`<line x1="${(bb[0] + nx * 1).toFixed(2)}" y1="${(bb[1] + ny * 1).toFixed(2)}" x2="${(p2[0] + nx * 1).toFixed(2)}" y2="${(p2[1] + ny * 1).toFixed(2)}" stroke="#2a5db0" stroke-width="0.13"/>`);
+      dimOut.push(`<line x1="${p1[0].toFixed(2)}" y1="${p1[1].toFixed(2)}" x2="${p2[0].toFixed(2)}" y2="${p2[1].toFixed(2)}" stroke="#2a5db0" stroke-width="0.18"/>`);
+      const tk = 1.1 * k, ux = dx / L2, uy = dy / L2;
+      for (const p of [p1, p2]) dimOut.push(`<line x1="${(p[0] - (ux + nx) * tk).toFixed(2)}" y1="${(p[1] - (uy + ny) * tk).toFixed(2)}" x2="${(p[0] + (ux + nx) * tk).toFixed(2)}" y2="${(p[1] + (uy + ny) * tk).toFixed(2)}" stroke="#2a5db0" stroke-width="0.25"/>`);
+      let ang = Math.atan2(dy, dx) * 180 / Math.PI; if (ang > 90) ang -= 180; if (ang <= -90) ang += 180;
+      const mx = (p1[0] + p2[0]) / 2 + nx * 1.2 * k, my = (p1[1] + p2[1]) / 2 + ny * 1.2 * k;
+      dimOut.push(txt(mx, my, Math.round(L3), 2.1, { anchor: 'middle', rot: ang, fill: '#2a5db0' }));
+    }
+    out.push(`<g>${dimOut.join('')}</g>`);
+    if (name === 'iso') {
+      const ann = [];
+      for (const w of welds) {
+        const p = P(w.pos);
+        ann.push(`<circle cx="${p[0].toFixed(2)}" cy="${p[1].toFixed(2)}" r="${(0.9 * k).toFixed(2)}" fill="${w.field ? '#fff' : '#111'}" stroke="#111" stroke-width="0.25"/>`);
+        ann.push(`<line x1="${p[0].toFixed(2)}" y1="${p[1].toFixed(2)}" x2="${(p[0] + 3 * k).toFixed(2)}" y2="${(p[1] - 3.5 * k).toFixed(2)}" stroke="#111" stroke-width="0.15"/>`);
+        ann.push(txt(p[0] + 3.3 * k, p[1] - 3.7 * k, w.name, 1.9, { bold: true }));
+      }
+      for (const pc of pcs) {
+        const w = Object.values(worldPorts(pc)); const c = w.reduce((s, p) => s.add(p.pos), new V3()).scale(1 / w.length);
+        const p = P(c), it = itemOf.get(pc.tag); if (!it) continue;
+        const bx = p[0] - 5 * k, by = p[1] + 5 * k;
+        ann.push(`<line x1="${p[0].toFixed(2)}" y1="${p[1].toFixed(2)}" x2="${bx.toFixed(2)}" y2="${by.toFixed(2)}" stroke="#555" stroke-width="0.13"/>`);
+        ann.push(`<circle cx="${bx.toFixed(2)}" cy="${by.toFixed(2)}" r="${(2 * k).toFixed(2)}" fill="#fff" stroke="#111" stroke-width="0.2"/>`);
+        ann.push(txt(bx, by + 0.7 * k, it, 1.9, { anchor: 'middle' }));
+      }
+      for (const sp of an.spools) {
+        if (!sp.pieces.some(p => ids.has(p.id))) continue;
+        const c = sp.pieces.map(p => p.pos).reduce((s, v) => s.add(v), new V3()).scale(1 / sp.pieces.length);
+        const p = P(c);
+        ann.push(`<rect x="${(p[0] - 6 * k).toFixed(2)}" y="${(p[1] - 10.5 * k).toFixed(2)}" width="${(12 * k).toFixed(2)}" height="${(4.2 * k).toFixed(2)}" fill="#fff7e0" stroke="#b7791f" stroke-width="0.25"/>`);
+        ann.push(txt(p[0], p[1] - 7.4 * k, sp.name, 2.2, { anchor: 'middle', bold: true, fill: '#8a5a00' }));
+      }
+      out.push(`<g>${ann.join('')}</g>`);
+    }
+    out.push(txt(cx + 3 * k, cy + cellH - 3 * k, label, 2.4, { bold: true }));
+  }
+  drawView('top', `VISTA SUPERIOR  1:${den}`, s);
+  drawView('front', `VISTA FRONTAL  1:${den}`, s);
+  drawView('side', `VISTA LATERAL DIREITA  1:${den}`, s);
+  drawView('iso', 'ISOMÉTRICO  S/ ESCALA', sIso);
+  // Norte
+  { const [cx, cy] = cells.top; const x = cx + cellW - 8 * k, y = cy + 9 * k; out.push(`<path d="M${x} ${y - 5 * k} L${x - 2 * k} ${y + 2 * k} L${x} ${y + 0.8 * k} L${x + 2 * k} ${y + 2 * k} Z" fill="#111"/>`, txt(x, y - 6 * k, 'N', 2.4, { anchor: 'middle', bold: true })); }
+  // 3º diedro
+  { const x = ax0 + 4 * k, y = ay0 + 5 * k; out.push(txt(x, y, '3º DIEDRO', 2, { bold: true })); }
+
+  // ---- coluna direita: BOM, soldas, notas, carimbo
+  let y = 10;
+  const rowH = 3.5 * k, fs = 1.85;
+  const line = (x1, y1, x2, y2, w = 0.2) => `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="#111" stroke-width="${w}"/>`;
+  const tbH = 50 * k, notesH = 46 * k;
+  const yTB = H - 10 - tbH, yNotes = yTB - notesH;
+  const weldRows = Math.min(welds.length, 8);
+  const weldH = welds.length ? (weldRows + 2) * rowH + (welds.length > weldRows ? rowH : 0) : 0;
+  const bomMaxRows = Math.max(1, Math.floor((yNotes - y - weldH - 2 * rowH - 2) / rowH));
+  // BOM
+  out.push(`<rect x="${x0c}" y="${y}" width="${cw}" height="${rowH}" fill="#111"/>`, txt(x0c + 2, y + rowH * 0.72, 'LISTA DE MATERIAIS', 2, { fill: '#f59e0b', bold: true }));
+  y += rowH;
+  const cols = [[0, 'IT'], [6, 'DESCRIÇÃO'], [cw / k - 37, 'DN'], [cw / k - 27, 'QTD'], [cw / k - 14, 'PESO']].map(([x, t]) => [x0c + x * k + 1, t]);
+  cols.forEach(([x, t]) => out.push(txt(x, y + rowH * 0.72, t, fs, { bold: true })));
+  out.push(line(x0c, y + rowH, x0c + cw, y + rowH, 0.25)); y += rowH;
+  const shown = items.slice(0, bomMaxRows - (items.length > bomMaxRows ? 1 : 0));
+  const maxDesc = Math.floor((cw / k - 38) / (fs * 0.6));
+  for (const it of shown) {
+    const d = it.desc.length > maxDesc ? it.desc.slice(0, maxDesc - 1) + '…' : it.desc;
+    out.push(txt(cols[0][0], y + rowH * 0.72, it.item, fs), txt(cols[1][0], y + rowH * 0.72, d, fs), txt(cols[2][0], y + rowH * 0.72, it.dn, fs),
+      txt(cols[3][0], y + rowH * 0.72, it.unit === 'm' ? it.qty.toFixed(2) + 'm' : it.qty, fs), txt(cols[4][0], y + rowH * 0.72, it.w.toFixed(1), fs));
+    out.push(line(x0c, y + rowH, x0c + cw, y + rowH, 0.08)); y += rowH;
+  }
+  if (items.length > shown.length) { out.push(txt(x0c + 2, y + rowH * 0.72, `… +${items.length - shown.length} itens — ver lista completa (aba BOM)`, fs)); y += rowH; }
+  const totW = items.reduce((a, b) => a + b.w, 0);
+  out.push(txt(x0c + cw - 2, y + rowH * 0.72, `PESO TOTAL ≈ ${totW.toFixed(1)} kg`, fs, { anchor: 'end', bold: true })); y += rowH + 1;
+  // Soldas
+  if (welds.length) {
+    out.push(`<rect x="${x0c}" y="${y}" width="${cw}" height="${rowH}" fill="#111"/>`, txt(x0c + 2, y + rowH * 0.72, 'REGISTRO DE SOLDAGEM', 2, { fill: '#f59e0b', bold: true })); y += rowH;
+    const wc = [[0, 'SOLDA'], [16, 'TIPO'], [32, 'SPOOL'], [50, 'ENTRE'], [cw / k - 22, 'DN×ESP']].map(([x, t]) => [x0c + x * k + 1, t]);
+    wc.forEach(([x, t]) => out.push(txt(x, y + rowH * 0.72, t, fs, { bold: true }))); out.push(line(x0c, y + rowH, x0c + cw, y + rowH, 0.25)); y += rowH;
+    for (const w of welds.slice(0, weldRows)) {
+      out.push(txt(wc[0][0], y + rowH * 0.72, w.name, fs), txt(wc[1][0], y + rowH * 0.72, w.field ? 'CAMPO' : 'OFICINA', fs), txt(wc[2][0], y + rowH * 0.72, w.spool, fs),
+        txt(wc[3][0], y + rowH * 0.72, `${w.a.tag} / ${w.b.tag}`, fs), txt(wc[4][0], y + rowH * 0.72, `${w.dn}×${w.wt}`, fs));
+      out.push(line(x0c, y + rowH, x0c + cw, y + rowH, 0.08)); y += rowH;
+    }
+    if (welds.length > weldRows) { out.push(txt(x0c + 2, y + rowH * 0.72, `… +${welds.length - weldRows} soldas — continua na lista de soldas`, fs)); y += rowH; }
+  }
+  // Notas
+  const tn = T.testNotes(pr);
+  const notes = [
+    'NOTAS:',
+    '1. Fabricação, montagem e inspeção conforme ASME B31.3 — serviço normal.',
+    `2. Pressão de projeto: ${tn.P} bar(g). Teste hidrostático: ${tn.Pt.toFixed(1)} bar(g) (1,5×P).`,
+    ...tn.rows.slice(0, 3).map(r => `   ${r.nps} SCH40: P adm. Barlow ${r.Pallow.toFixed(0)} bar · lim. teste ${r.Ptlim.toFixed(0)} bar — ${r.ok ? 'OK' : 'REVISAR'}`),
+    '3. END: soldas de topo — VS 100% + RX/US 5% aleatório; filete — VS + LP.',
+    '4. Cotas em mm, de centro a centro e de face a face de flange.',
+    '5. Soldas: ● oficina (SW)  ○ campo (FW). Spools quebrados em juntas flangeadas.',
+  ];
+  notes.forEach((n, i) => out.push(txt(x0c + 1.5, yNotes + 4 * k + i * 3.6 * k, n, i === 0 ? 2.1 : 1.75, { bold: i === 0 })));
+  // Carimbo
+  const tb = (x, y2, w, h, lab, val, big) => `<rect x="${x.toFixed(2)}" y="${y2.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" stroke="#111" stroke-width="0.3"/>` + txt(x + 1, y2 + 2.4 * k, lab, 1.5, { fill: '#555' }) + txt(x + 1, y2 + h - 1.6 * k, val, big ? 3 : 2.1, { bold: !!big });
+  const bx = x0c, by = yTB, bw = cw, rh = tbH / 5;
+  out.push(`<rect x="${bx}" y="${by}" width="${bw}" height="${tbH}" stroke="#111" stroke-width="0.6"/>`);
+  out.push(`<rect x="${bx}" y="${by}" width="${bw * 0.34}" height="${rh * 1.4}" fill="#111"/>`, txt(bx + bw * 0.17, by + rh * 0.85, 'TEC PLAN', 3.4, { anchor: 'middle', bold: true, fill: '#f59e0b' }));
+  out.push(tb(bx + bw * 0.34, by, bw * 0.66, rh * 1.4, 'TÍTULO DO PROJETO', (m.title || '').toUpperCase().slice(0, 34), true));
+  out.push(tb(bx, by + rh * 1.4, bw * 0.5, rh, 'LINHA / DESENHO', `${m.line || ''} — ${spoolName}`));
+  out.push(tb(bx + bw * 0.5, by + rh * 1.4, bw * 0.25, rh, 'FOLHA', m.sheet || '1/1'));
+  out.push(tb(bx + bw * 0.75, by + rh * 1.4, bw * 0.25, rh, 'ESCALA', `1:${den}`));
+  out.push(tb(bx, by + rh * 2.4, bw * 0.5, rh, 'PROJETISTA', m.designer || '—'));
+  out.push(tb(bx + bw * 0.5, by + rh * 2.4, bw * 0.25, rh, 'DATA', m.date || ''));
+  out.push(tb(bx + bw * 0.75, by + rh * 2.4, bw * 0.25, rh, 'REV.', m.rev || '0'));
+  out.push(tb(bx, by + rh * 3.4, bw * 0.5, rh * 1.6, 'APROVADOR', m.approver || '—'));
+  out.push(tb(bx + bw * 0.5, by + rh * 3.4, bw * 0.5, rh * 1.6, 'CARIMBO / ASSINATURA', ''));
+  out.push(txt(bx + bw - 1, by + tbH - 1, `${size} · ${m.fluid || ''}`, 1.4, { anchor: 'end', fill: '#777' }));
+  out.push('</svg>');
+  return { svg: out.join(''), scale: den, spools: an.spools.map(s => s.name) };
+}
+
+function isoThumb(pr, W = 320, H = 200) {
+  const geo = [...pr.pieces.values()].map(pc => geomOf(pc).map(g => Object.assign(g, { acc: false }))).flat();
+  const pj = PROJ.iso;
+  let x0 = 1e12, y0 = 1e12, x1 = -1e12, y1 = -1e12;
+  const ext = (p, r) => { x0 = Math.min(x0, p[0] - r); y0 = Math.min(y0, p[1] - r); x1 = Math.max(x1, p[0] + r); y1 = Math.max(y1, p[1] + r); };
+  for (const g of geo) { if (g.k === 'seg') { ext(pj(g.a), g.rmax); ext(pj(g.b), g.rmax); } else if (g.k === 'poly') g.pts.forEach(p => ext(pj(p), g.r)); else ext(pj(g.c), g.r); }
+  const s = Math.min((W - 24) / Math.max(1, x1 - x0), (H - 24) / Math.max(1, y1 - y0));
+  const ox = W / 2 - (x0 + x1) / 2 * s, oy = H / 2 - (y0 + y1) / 2 * s;
+  const P = v => { const p = pj(v); return [(ox + p[0] * s).toFixed(1), (oy + p[1] * s).toFixed(1)]; };
+  const a = [], b = [];
+  for (const g of geo) {
+    if (g.k === 'seg') { const p = P(g.a), q = P(g.b), w = Math.max(1, 2 * g.r * s); a.push(`<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="#f59e0b" stroke-width="${(w + 1.4).toFixed(1)}"/>`); if (w > 1.5) b.push(`<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="#1c2028" stroke-width="${(w - 0.6).toFixed(1)}"/>`); }
+    else if (g.k === 'poly') { const pts = g.pts.map(P).map(p => p.join(',')).join(' '), w = Math.max(1, 2 * g.r * s); a.push(`<polyline points="${pts}" stroke="#f59e0b" stroke-width="${(w + 1.4).toFixed(1)}" stroke-linejoin="round"/>`); if (w > 1.5) b.push(`<polyline points="${pts}" stroke="#1c2028" stroke-width="${(w - 0.6).toFixed(1)}" stroke-linejoin="round"/>`); }
+    else { const c = P(g.c); a.push(`<circle cx="${c[0]}" cy="${c[1]}" r="${(g.r * s + 0.7).toFixed(1)}" fill="#f59e0b"/>`); b.push(`<circle cx="${c[0]}" cy="${c[1]}" r="${Math.max(0, g.r * s - 0.3).toFixed(1)}" fill="#1c2028"/>`); }
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" fill="none" stroke-linecap="butt">${a.join('')}${b.join('')}</svg>`;
+}
+if (typeof module !== 'undefined') module.exports = { sheetSVG, dimSegments, isoThumb };
+else window.TPSheet = { sheetSVG, dimSegments, isoThumb };
+})();
+
+</script>
+<script>
+(function () {
+'use strict';
+const { V3, Q, DIM, DNS, CLASSES, TYPES, VALVE_SUBS, FLANGE_STDS } = TP;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmt = (n, d = 0) => Number(n).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { } },
+};
+function toast(msg, kind = '') {
+  const t = document.createElement('div'); t.className = 'toast ' + kind; t.textContent = msg;
+  $('#toast').appendChild(t); setTimeout(() => t.remove(), kind === 'er' ? 5200 : 3200);
+}
+
+/* ======================= ESTADO ======================= */
+let pr;
+const S = { sel: null, active: null, tab: '3d', dn: 100, cls: 150, pipeLen: 1000, hist: [], fut: [], clashes: [], mis: [], ports: true, clashOn: true, step: 15, move: 100, sheet: { size: 'A3', spool: 'ALL', zoom: 1, carimbo: false }, weldPage: 0, hover: null };
+let KEY = 'tecplan.project.v1';
+let USER = { modules: ['TB','CL','EL','ES','HV'], MODULES: {} };
+const has = m => (USER.modules || []).includes(m);
+function save() { store.set(KEY, pr.toJSON()); }
+function load() { const o = store.get(KEY, null); pr = TP.Project.fromJSON(o); return !!o; }
+function snapshot() { return JSON.stringify(pr.toJSON()); }
+function restore(js) { pr = TP.Project.fromJSON(JSON.parse(js)); if (S.sel && !pr.get(S.sel)) S.sel = null; if (S.active && !pr.get(S.active.id)) S.active = null; }
+function mutate(fn) {
+  const before = snapshot();
+  try {
+    const r = fn();
+    if (r === false) { restore(before); refresh(); return r; }
+    S.hist.push(before); if (S.hist.length > 80) S.hist.shift(); S.fut = [];
+    save(); refresh(); return r;
+  } catch (e) { console.error(e); restore(before); refresh(); toast('Erro: ' + e.message, 'er'); }
+}
+function undo() { if (!S.hist.length) return; S.fut.push(snapshot()); restore(S.hist.pop()); save(); refresh(); }
+function redo() { if (!S.fut.length) return; S.hist.push(snapshot()); restore(S.fut.pop()); save(); refresh(); }
+
+/* ======================= INSERÇÃO E ACOPLAMENTO ======================= */
+const firstFree = (pc, prefer) => { const ks = Object.keys(pc.conn); if (prefer && ks.includes(prefer) && !pc.conn[prefer]) return { id: pc.id, port: prefer }; const k = ks.find(k => !pc.conn[k]); return k ? { id: pc.id, port: k } : null; };
+function attach(pc, mp, tgt, tp, rollDeg) { const pose = TP.snapPose(pc, mp, tgt, tp, rollDeg || 0); pc.pos = pose.pos; pc.q = pose.q; pr.link(pc, mp, tgt, tp); }
+function bbox() {
+  let mn = new V3(1e12, 1e12, 1e12), mx = new V3(-1e12, -1e12, -1e12), any = false;
+  for (const pc of pr.pieces.values()) for (const p of Object.values(TP.worldPorts(pc))) { any = true; mn = new V3(Math.min(mn.x, p.pos.x), Math.min(mn.y, p.pos.y), Math.min(mn.z, p.pos.z)); mx = new V3(Math.max(mx.x, p.pos.x), Math.max(mx.y, p.pos.y), Math.max(mx.z, p.pos.z)); }
+  return any ? { mn, mx } : null;
+}
+const endOk = (a, b) => (a === 'FL' || b === 'FL') ? a === b : true;
+function resolveParams(type, params, dn) {
+  const p = Object.assign({}, params);
+  if (p.dn2 === 'down') p.dn2 = TP.nextDown(dn);
+  if (type === 'pipe' && !p.len) p.len = S.pipeLen;
+  return p;
+}
+function insert(type, params) {
+  mutate(() => {
+    const act = S.active && pr.get(S.active.id) && !pr.get(S.active.id).conn[S.active.port] ? S.active : null;
+    const gauge = type === 'pgauge' || type === 'tgauge';
+    if (!act) {
+      const base = Object.assign({ dn: gauge ? 15 : S.dn, cls: S.cls }, resolveParams(type, params, S.dn));
+      const pc = pr.create(type, base);
+      const b = bbox();
+      if (b && pr.pieces.size > 1) pc.pos = new V3(b.mx.x + 1000, 0, 0);
+      S.sel = pc.id; S.active = firstFree(pc, 'P2') || firstFree(pc);
+      toast(`${pc.tag} inserido. Toque numa esfera âmbar para escolher onde continuar.`);
+      return;
+    }
+    const tgt = pr.get(act.id), tp = TP.worldPort(tgt, act.port);
+    const dn = gauge ? 15 : tp.dn;
+    const base = Object.assign({ dn, cls: tgt.cls || S.cls }, resolveParams(type, params, dn));
+    if (base.dn2 && base.dn2 >= dn && type !== 'psv') base.dn2 = TP.nextDown(dn);
+    const pc = pr.create(type, base);
+    const lp = TP.localPorts(pc);
+    const fits = p => endOk(p.end, tp.end) && (p.end === 'TH' || tp.end === 'TH' || Math.abs(p.od - tp.od) <= 0.6);
+    let mp = lp.find(fits), cT = tgt, cP = act.port;
+    if (!mp && type !== 'flange') {
+      const fl = pr.create('flange', { dn: tp.dn, cls: base.cls, sub: 'WN' });
+      if (tp.end === 'FL') { attach(fl, 'P2', tgt, act.port); cT = fl; cP = 'P1'; }
+      else { attach(fl, 'P1', tgt, act.port); cT = fl; cP = 'P2'; }
+      const tp2 = TP.worldPort(fl, cP);
+      mp = lp.find(p => endOk(p.end, tp2.end) && Math.abs(p.od - tp2.od) <= 0.6);
+      if (mp) toast(`Flange ${fl.tag} inserido automaticamente para a ligação.`);
+    }
+    if (!mp) { toast('Peça incompatível com essa porta.', 'er'); return false; }
+    attach(pc, mp.id, cT, cP);
+    TP.autoConnect(pr);
+    S.sel = pc.id;
+    const others = Object.keys(pc.conn).filter(k => !pc.conn[k]);
+    S.active = others.length ? { id: pc.id, port: others.includes('P2') ? 'P2' : others[0] } : null;
+  });
+}
+function deleteSel() { if (!S.sel) return; const tag = pr.get(S.sel)?.tag; mutate(() => { pr.remove(S.sel); S.sel = null; if (S.active && !pr.get(S.active.id)) S.active = null; }); toast(`${tag} excluído.`); }
+function checkCompat(pc) {
+  const w = TP.worldPorts(pc), broke = [];
+  for (const k in pc.conn) { const c = pc.conn[k]; if (!c) continue; const o = pr.get(c.id); const ow = TP.worldPort(o, c.port); const r = TP.compatible(w[k], ow, pc, o); if (!r.ok) { pr.unlink(pc, k); broke.push(`${o.tag} (${r.why})`); } }
+  if (broke.length) toast('Desconectado por incompatibilidade: ' + broke.join(', '), 'er');
+}
+function setParam(fn) { const id = S.sel; mutate(() => { TP.updateParams(pr, id, fn); checkCompat(pr.get(id)); }); }
+
+/* ======================= RENDER 3D ======================= */
+const R = (() => {
+  let renderer, scene, camera, root, markers = null, studs = null, nuts = null, clashG, el, pend = false;
+  const objs = new Map();
+  const cam = { t: new THREE.Vector3(0, 0, 0), d: 7000, th: Math.PI / 4, ph: Math.PI / 3 };
+  const UPY = new THREE.Vector3(0, 1, 0);
+  const STUD_G = new THREE.CylinderGeometry(1, 1, 1, 6), NUT_G = new THREE.CylinderGeometry(1, 1, 1, 6);
+  const BOLT_M = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.6, roughness: 0.45 });
+  const MARK_G = new THREE.SphereGeometry(1, 14, 10), MARK_M = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, transparent: true, opacity: 0.95 });
+  const CLASH_G = new THREE.SphereGeometry(1, 16, 12), CLASH_M = new THREE.MeshBasicMaterial({ color: 0xff3030, transparent: true, opacity: 0.35, depthTest: false });
+  let markerMap = [];
+  const COLORS = { pipe: 0xa3abb5, elbow: 0xa3abb5, tee: 0xa3abb5, reducer: 0xa3abb5, flange: 0x8c96a2, valve: 0x56677a, strainer: 0x56677a, expjoint: 0x7d8794, sightglass: 0x56677a, psv: 0x8a3b3b, pgauge: 0x7d8794, tgauge: 0x7d8794, custom: 0xb59a6a };
+  const qYX = Q.fromUnitVectors(TP.UP, TP.AX);
+  const v = p => new THREE.Vector3(p.x, p.y, p.z);
+
+  function init(container) {
+    el = container;
+    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.setClearColor(0x0d0f12);
+    container.appendChild(renderer.domElement);
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(42, 1, 10, 1e6);
+    scene.add(new THREE.HemisphereLight(0xe6ecf5, 0x1a1d24, 0.85));
+    const dl = new THREE.DirectionalLight(0xffffff, 0.85); dl.position.set(0.6, 1, 0.45); scene.add(dl);
+    const dl2 = new THREE.DirectionalLight(0xffe6c0, 0.25); dl2.position.set(-0.7, 0.3, -0.6); scene.add(dl2);
+    const grid = new THREE.GridHelper(40000, 40, 0x343a45, 0x1d2129); grid.position.y = -1; scene.add(grid);
+    const ax = new THREE.Group();
+    [[0xef4444, [800, 0, 0]], [0x22c55e, [0, 800, 0]], [0x3b82f6, [0, 0, -800]]].forEach(([c, e]) => { const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(...e)]); ax.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: c }))); });
+    scene.add(ax);
+    root = new THREE.Group(); scene.add(root);
+    clashG = new THREE.Group(); scene.add(clashG);
+    bindInput();
+    new ResizeObserver(resize).observe(container); resize();
+    updateCam();
+  }
+  function resize() { const w = el.clientWidth, h = el.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); render(); }
+  function updateCam() {
+    const s = Math.sin(cam.ph);
+    camera.position.set(cam.t.x + cam.d * s * Math.sin(cam.th), cam.t.y + cam.d * Math.cos(cam.ph), cam.t.z + cam.d * s * Math.cos(cam.th));
+    camera.near = Math.max(1, cam.d / 2000); camera.far = cam.d * 60; camera.updateProjectionMatrix();
+    camera.lookAt(cam.t); render();
+  }
+  function render() { if (pend) return; pend = true; requestAnimationFrame(() => { pend = false; if (renderer) renderer.render(scene, camera); }); }
+
+  function primMesh(p, mat) {
+    let g, m;
+    if (p.k === 'cyl') {
+      const a = v(p.a), d = v(p.b).sub(a), L = d.length(); if (L < 0.01) return null;
+      g = new THREE.CylinderGeometry(p.r2, p.r, L, Math.max(p.r, p.r2) > 70 ? 28 : 18, 1, false);
+      m = new THREE.Mesh(g, mat); m.position.copy(a).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(UPY, d.normalize());
+    } else if (p.k === 'arc') {
+      g = new THREE.TorusGeometry(p.R, p.r, 12, Math.max(8, Math.ceil(p.ang / (Math.PI / 16))), p.ang);
+      m = new THREE.Mesh(g, mat); const u = v(p.u), w = v(p.v); m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(u, w, u.clone().cross(w))); m.position.copy(v(p.c));
+    } else if (p.k === 'sph') { g = new THREE.SphereGeometry(p.r, 18, 12); m = new THREE.Mesh(g, mat); m.position.copy(v(p.c)); }
+    else if (p.k === 'box') { g = new THREE.BoxGeometry(p.s[0], p.s[1], p.s[2]); m = new THREE.Mesh(g, mat); m.position.copy(v(p.c)); }
+    return m;
+  }
+  const pkey = pc => JSON.stringify([pc.type, pc.sub, pc.dn, pc.dn2, pc.cls, pc.len, pc.angle, pc.radius, pc.ecc, pc.od, pc.wt, pc.ends]);
+  function disposeObj(o) { o.group.traverse(c => { if (c.geometry) c.geometry.dispose(); }); o.mats.forEach(m => m.dispose()); root.remove(o.group); }
+  function build(pc) {
+    const steel = new THREE.MeshStandardMaterial({ color: COLORS[pc.type] || 0xa3abb5, metalness: 0.55, roughness: 0.4 });
+    const acc = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.25, roughness: 0.5 });
+    const group = new THREE.Group();
+    for (const p of TYPES[pc.type].prims(pc)) { const m = primMesh(p, p.accent ? acc : steel); if (m) { m.userData.pid = pc.id; group.add(m); } }
+    group.userData.pid = pc.id;
+    return { group, mats: [steel, acc], key: pkey(pc) };
+  }
+  function sync() {
+    for (const [id, o] of objs) if (!pr.get(id)) { disposeObj(o); objs.delete(id); }
+    const clashIds = new Set(S.clashes.flatMap(c => [c.a, c.b]));
+    for (const pc of pr.pieces.values()) {
+      let o = objs.get(pc.id);
+      if (!o || o.key !== pkey(pc)) { if (o) disposeObj(o); o = build(pc); objs.set(pc.id, o); root.add(o.group); }
+      o.group.position.set(pc.pos.x, pc.pos.y, pc.pos.z); o.group.quaternion.set(pc.q.x, pc.q.y, pc.q.z, pc.q.w);
+      const em = pc.id === S.sel ? 0x6a4300 : clashIds.has(pc.id) ? 0x7a0d0d : 0x000000;
+      o.mats[0].emissive.setHex(em);
+    }
+    buildBolts(); buildMarkers(); buildClash(); render();
+  }
+  function buildBolts() {
+    const list = [];
+    for (const pc of pr.pieces.values()) {
+      const T = TYPES[pc.type]; if (!T.boltFaces) continue;
+      const f = TP.flg(pc.dn, pc.cls);
+      for (const fc of T.boltFaces(pc)) for (let i = 0; i < f.nb; i++) {
+        const a = (i + 0.5) * 2 * Math.PI / f.nb, y = f.bc / 2 * Math.cos(a), z = f.bc / 2 * Math.sin(a);
+        const xa = fc.x - fc.s * (fc.T + f.bd * 1.1), xb = fc.x + fc.s * 1.5;
+        list.push({ pc, kind: 's', x: (xa + xb) / 2, y, z, L: Math.abs(xb - xa), r: f.bd / 2 });
+        list.push({ pc, kind: 'n', x: fc.x - fc.s * (fc.T + f.bd * 0.45), y, z, L: f.bd * 0.85, r: f.bd * 0.95 });
+      }
+    }
+    for (const kind of ['s', 'n']) {
+      const items = list.filter(b => b.kind === kind);
+      let im = kind === 's' ? studs : nuts;
+      if (im && (im.userData.cap < items.length || items.length === 0)) { scene.remove(im); im = null; }
+      if (!im && items.length) { im = new THREE.InstancedMesh(kind === 's' ? STUD_G : NUT_G, BOLT_M, Math.max(items.length, 64)); im.userData.cap = Math.max(items.length, 64); scene.add(im); }
+      if (im) {
+        const d = new THREE.Object3D();
+        items.forEach((b, i) => { const w = TP.worldPt(b.pc, new V3(b.x, b.y, b.z)), q = b.pc.q.mul(qYX); d.position.set(w.x, w.y, w.z); d.quaternion.set(q.x, q.y, q.z, q.w); d.scale.set(b.r, b.L, b.r); d.updateMatrix(); im.setMatrixAt(i, d.matrix); });
+        im.count = items.length; im.instanceMatrix.needsUpdate = true;
+      }
+      if (kind === 's') studs = im; else nuts = im;
+    }
+  }
+  function buildMarkers() {
+    if (markers) { scene.remove(markers); markers.dispose && markers.dispose(); markers = null; }
+    markerMap = [];
+    if (!S.ports) return;
+    const items = [];
+    for (const pc of pr.pieces.values()) { const w = TP.worldPorts(pc); for (const k in w) if (!pc.conn[k]) items.push({ pc, k, p: w[k] }); }
+    if (!items.length) return;
+    markers = new THREE.InstancedMesh(MARK_G, MARK_M, items.length); markers.renderOrder = 10;
+    const d = new THREE.Object3D(), col = new THREE.Color();
+    items.forEach((it, i) => {
+      const act = S.active && S.active.id === it.pc.id && S.active.port === it.k;
+      const r = Math.max(18, it.p.od * 0.32) * (act ? 1.35 : 1);
+      d.position.set(it.p.pos.x, it.p.pos.y, it.p.pos.z); d.scale.set(r, r, r); d.updateMatrix(); markers.setMatrixAt(i, d.matrix);
+      markers.setColorAt(i, col.setHex(act ? 0x22c55e : 0xf59e0b));
+      markerMap.push({ id: it.pc.id, port: it.k });
+    });
+    markers.instanceMatrix.needsUpdate = true; if (markers.instanceColor) markers.instanceColor.needsUpdate = true;
+    scene.add(markers);
+  }
+  function buildClash() {
+    while (clashG.children.length) clashG.remove(clashG.children[0]);
+    for (const c of S.clashes) { const m = new THREE.Mesh(CLASH_G, CLASH_M); m.position.set(c.at.x, c.at.y, c.at.z); const r = Math.max(60, c.pen * 1.5); m.scale.set(r, r, r); m.renderOrder = 9; clashG.add(m); }
+  }
+  function fit() {
+    const b = new THREE.Box3().setFromObject(root);
+    if (b.isEmpty()) { cam.t.set(0, 0, 0); cam.d = 6000; updateCam(); return; }
+    const c = b.getCenter(new THREE.Vector3()), s = b.getSize(new THREE.Vector3()).length();
+    cam.t.copy(c); cam.d = Math.max(800, s * 1.25); updateCam();
+  }
+  function view(n) { const a = { iso: [Math.PI / 4, Math.PI / 3.2], top: [0, 0.0001], front: [0, Math.PI / 2], side: [Math.PI / 2, Math.PI / 2] }[n]; cam.th = a[0]; cam.ph = a[1]; updateCam(); }
+  function ndc(e) { const r = el.getBoundingClientRect(); return new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); }
+  function pick(e) {
+    const rc = new THREE.Raycaster(); rc.setFromCamera(ndc(e), camera);
+    if (markers) { const h = rc.intersectObject(markers); if (h.length && h[0].instanceId != null) { const m = markerMap[h[0].instanceId]; onPortTap(m); return; } }
+    const h = rc.intersectObjects(root.children, true);
+    if (h.length) { let o = h[0].object; while (o && !o.userData.pid) o = o.parent; if (o) { onPieceTap(o.userData.pid); return; } }
+    onPieceTap(null);
+  }
+  function groundAt(e) { const rc = new THREE.Raycaster(); rc.setFromCamera(ndc(e), camera); const p = new THREE.Vector3(); return rc.ray.intersectPlane(new THREE.Plane(UPY, 0), p) ? p : null; }
+  function bindInput() {
+    const c = renderer.domElement, P = new Map();
+    let moved = false, start = null, pinch = null, hovReq = false;
+    c.addEventListener('contextmenu', e => e.preventDefault());
+    c.addEventListener('pointerdown', e => { c.setPointerCapture(e.pointerId); P.set(e.pointerId, { x: e.clientX, y: e.clientY, b: e.button, sh: e.shiftKey }); moved = false; start = { x: e.clientX, y: e.clientY, n: P.size }; if (P.size === 2) pinch = null; });
+    c.addEventListener('pointermove', e => {
+      if (!P.has(e.pointerId)) {
+        if (!hovReq) { hovReq = true; requestAnimationFrame(() => { hovReq = false; const g = groundAt(e); S.hover = g; renderStatus(); }); }
+        return;
+      }
+      const p = P.get(e.pointerId), dx = e.clientX - p.x, dy = e.clientY - p.y;
+      if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 6) moved = true;
+      if (P.size === 1) {
+        if (p.b === 2 || p.b === 1 || p.sh) pan(dx, dy);
+        else { cam.th -= dx * 0.008; cam.ph = Math.min(Math.PI - 0.02, Math.max(0.0001, cam.ph - dy * 0.008)); updateCam(); }
+      }
+      p.x = e.clientX; p.y = e.clientY;
+      if (P.size === 2) {
+        const [a, b] = [...P.values()], dist = Math.hypot(a.x - b.x, a.y - b.y), mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        if (pinch) { cam.d = Math.min(5e5, Math.max(60, cam.d * pinch.dist / dist)); pan(mid.x - pinch.mid.x, mid.y - pinch.mid.y); }
+        pinch = { dist, mid }; moved = true;
+      }
+    });
+    const up = e => {
+      const had = P.has(e.pointerId); P.delete(e.pointerId);
+      if (P.size < 2) pinch = null;
+      if (had && !moved && start && start.n === 1 && P.size === 0) pick(e);
+      if (P.size === 0) start = null;
+    };
+    c.addEventListener('pointerup', up); c.addEventListener('pointercancel', e => { P.delete(e.pointerId); pinch = null; });
+    c.addEventListener('wheel', e => { e.preventDefault(); cam.d = Math.min(5e5, Math.max(60, cam.d * Math.exp(e.deltaY * 0.0012))); updateCam(); }, { passive: false });
+  }
+  function pan(dx, dy) {
+    const k = cam.d * 0.0011 * (900 / Math.max(400, el.clientHeight));
+    const m = camera.matrix.elements, right = new THREE.Vector3(m[0], m[1], m[2]), upv = new THREE.Vector3(m[4], m[5], m[6]);
+    cam.t.addScaledVector(right, -dx * k).addScaledVector(upv, dy * k); updateCam();
+  }
+  return { init, sync, fit, view, render, resize };
+})();
+
+function onPortTap(m) {
+  const pc = pr.get(m.id); if (!pc) return;
+  S.active = m; S.sel = m.id;
+  const w = TP.worldPort(pc, m.port);
+  if (DIM[w.dn] && pc.type !== 'pgauge' && pc.type !== 'tgauge') S.dn = w.dn;
+  refresh();
+  toast(`Continuando a partir de ${pc.tag} · ${m.port} (${DIM[w.dn]?.nps || ''})`, 'ok');
+  if (innerWidth < 768) openDrawer('left');
+}
+function onPieceTap(id) { S.sel = id; refresh(); if (id && innerWidth < 768) openDrawer('right'); }
+
+/* ======================= PAINEL ESQUERDO ======================= */
+const ICON = {
+  pipe: '<path d="M2 10h22v6H2z"/>', elbow: '<path d="M2 8h9a9 9 0 0 1 9 9v7M2 15h9a2 2 0 0 1 2 2v7"/>', elbow45: '<path d="M2 9h9l9 9M2 15h7l7 7"/>',
+  tee: '<path d="M2 10h22M2 16h22M10 10V2M16 10V2"/>', reducer: '<path d="M2 6h7l8 4h7M2 20h7l8-4h7"/>', reducerE: '<path d="M2 6h7l8 6h7M2 20h22"/>',
+  flange: '<path d="M8 3v20M12 3v20M2 10h6M2 16h6M12 10h12M12 16h12"/>', blind: '<path d="M10 3v20M14 3v20M2 10h8M2 16h8"/>',
+  valve: '<path d="M3 7v12l20-12v12zM13 13V5M8 4h10"/>', ball: '<path d="M3 7v12l20-12v12z"/><circle cx="13" cy="13" r="3"/><path d="M13 10V5h8"/>',
+  bfly: '<path d="M12 4v18M14 4v18M13 8l-4 10M13 4V1h8"/>', check: '<path d="M3 7v12l20-12v12zM9 8l8 10"/>', psv: '<path d="M5 24V14l8-4v-8M13 10l9 4v10"/><path d="M9 6h8"/>',
+  strainer: '<path d="M2 8h22M2 15h22M10 15l7 8"/>', exp: '<path d="M2 9h4l2 4-2 4M10 9l2 4-2 4M14 9l2 4-2 4M18 9l2 4-2 4h4M2 17h4"/>',
+  glass: '<path d="M2 9h22M2 17h22"/><circle cx="13" cy="13" r="4"/>', pg: '<circle cx="13" cy="10" r="7"/><path d="M13 17v7M13 10l4-3"/>', tg: '<circle cx="13" cy="9" r="6"/><path d="M13 15v9M10 9h6"/>',
+  custom: '<path d="M4 4h18v18H4zM4 13h18M13 4v18"/>',
+};
+const CAT = [
+  { g: 'Tubulação', items: [['pipe', {}, 'Tubo', 'pipe'], ['elbow', { angle: 90 }, 'Curva 90° RL', 'elbow'], ['elbow', { angle: 45 }, 'Curva 45° RL', 'elbow45'], ['elbow', { angle: 90, radius: 'SR' }, 'Curva 90° RC', 'elbow'],
+    ['tee', {}, 'Tê reto', 'tee'], ['tee', { dn2: 'down' }, 'Tê redução', 'tee'], ['reducer', {}, 'Red. concêntr.', 'reducer'], ['reducer', { ecc: true }, 'Red. excêntr.', 'reducerE'],
+    ['flange', { sub: 'WN' }, 'Flange WN', 'flange'], ['flange', { sub: 'SO' }, 'Flange SO', 'flange'], ['flange', { sub: 'BL' }, 'Flange cego', 'blind']] },
+  { g: 'Válvulas', items: [['valve', { sub: 'gate' }, 'Gaveta', 'valve'], ['valve', { sub: 'ball' }, 'Esfera', 'ball'], ['valve', { sub: 'globe' }, 'Globo', 'valve'], ['valve', { sub: 'butterfly' }, 'Borboleta', 'bfly'], ['valve', { sub: 'check' }, 'Retenção', 'check'], ['psv', {}, 'PSV', 'psv']] },
+  { g: 'Acessórios e instrumentos', items: [['strainer', {}, 'Filtro Y', 'strainer'], ['expjoint', {}, 'Junta expansão', 'exp'], ['sightglass', {}, 'Visor de fluxo', 'glass'], ['pgauge', {}, 'Manômetro', 'pg'], ['tgauge', {}, 'Termômetro', 'tg']] },
+];
+const LIBK = 'tecplan.lib.v1';
+function renderLeft() {
+  const lib = store.get(LIBK, []);
+  const act = S.active && pr.get(S.active.id);
+  const opts = (arr, cur, lab) => arr.map(x => `<option value="${x}" ${x == cur ? 'selected' : ''}>${lab ? lab(x) : x}</option>`).join('');
+  let h = `<div class="sec"><h3>Inserir</h3>
+    <div class="grid2"><label class="f">Diâmetro<select class="in" id="cDn">${opts(DNS, S.dn, d => `DN ${d} · ${DIM[d].nps}`)}</select></label>
+    <label class="f">Classe<select class="in" id="cCls">${opts(CLASSES, S.cls, c => (FLANGE_STDS[pr.meta.fstd] || FLANGE_STDS['ASME B16.5'])[c])}</select></label></div>
+    <label class="f" style="margin-top:6px">Comprimento do tubo (mm)<input class="in" id="cLen" type="number" min="10" step="10" value="${S.pipeLen}"></label>
+    <div class="mut" style="margin-top:8px">${act ? `Próxima peça entra em <span class="chip ok">${esc(act.tag)} · ${S.active.port}</span> <button class="ib sm" id="cClrAct">soltar</button>` : 'Sem porta ativa: a peça entra solta. Toque numa esfera âmbar no 3D para continuar uma linha.'}</div></div>`;
+  for (const g of CAT) h += `<div class="sec"><h3>${g.g}</h3><div class="grid3">${g.items.map((it, i) => `<button class="cat" data-ins="${CAT.indexOf(g)}:${i}"><svg viewBox="0 0 26 26">${ICON[it[3]]}</svg>${it[2]}</button>`).join('')}</div></div>`;
+  h += `<div class="sec"><details ${lib.length ? '' : ''}><summary><h3>Smart Builder <span class="chip">${lib.length}</span></h3></summary>
+    <div class="grid2" style="margin-top:6px"><label class="f" style="grid-column:1/3">Nome<input class="in" id="sbN" placeholder="Ex.: Carretel especial"></label>
+    <label class="f">Ø externo (mm)<input class="in" id="sbOd" type="number" value="114.3"></label><label class="f">Comprimento<input class="in" id="sbL" type="number" value="500"></label>
+    <label class="f">Espessura<input class="in" id="sbT" type="number" value="6.02"></label><label class="f">Extremidade<select class="in" id="sbE"><option value="BW">Solda topo</option><option value="FL">Flangeada</option><option value="TH">Rosca</option></select></label>
+    <label class="f">Norma<input class="in" id="sbS" value="ASME B36.10"></label><label class="f">Material<input class="in" id="sbM" value="ASTM A106 Gr.B"></label></div>
+    <button class="ib am" id="sbGo" style="width:100%;margin-top:8px">Criar e salvar no catálogo</button>
+    <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px">${lib.map((c, i) => `<div class="row"><button class="ib sm" style="flex:1;justify-content:flex-start" data-lib="${i}">${esc(c.label)} · Ø${c.od}×${c.len}</button><button class="ib sm" data-libdel="${i}">✕</button></div>`).join('')}</div>
+    </details></div>`;
+  const pcs = [...pr.pieces.values()], clashIds = new Set(S.clashes.flatMap(c => [c.a, c.b]));
+  h += `<div class="sec"><h3>Modelo <span class="chip">${pcs.length} peças</span></h3><div class="tree">${pcs.map(p => `<button data-sel="${p.id}" class="${p.id === S.sel ? 'on' : ''}"><span>${esc(p.tag)}</span><span class="${clashIds.has(p.id) ? 'er' : 'mut'}">${clashIds.has(p.id) ? '⚠ ' : ''}${TYPES[p.type].name}${DIM[p.dn] && p.type !== 'custom' ? ' ' + DIM[p.dn].nps : ''}</span></button>`).join('') || '<span class="mut">Vazio</span>'}</div></div>
+    ${(() => { const o = (USER.modules || []).filter(m => m !== 'TB'); return o.length ? `<div class="sec"><h3>Outras disciplinas do seu pacote</h3><div class="mut">${o.map(m => esc(USER.MODULES[m] || m)).join(', ')} — em desenvolvimento, chegam nas próximas versões.</div></div>` : ''; })()}`;
+  const L = $('#left'); const st = L.scrollTop; L.innerHTML = h; L.scrollTop = st;
+  $('#cDn').onchange = e => { S.dn = +e.target.value; };
+  $('#cCls').onchange = e => { S.cls = +e.target.value; };
+  $('#cLen').onchange = e => { S.pipeLen = Math.max(10, +e.target.value || 1000); };
+  if ($('#cClrAct')) $('#cClrAct').onclick = () => { S.active = null; refresh(); };
+  L.querySelectorAll('[data-ins]').forEach(b => b.onclick = () => { const [g, i] = b.dataset.ins.split(':').map(Number); const it = CAT[g].items[i]; insert(it[0], it[1]); if (innerWidth < 768) closeDrawers(); });
+  L.querySelectorAll('[data-sel]').forEach(b => b.onclick = () => { S.sel = b.dataset.sel; refresh(); if (innerWidth < 768) openDrawer('right'); });
+  $('#sbGo').onclick = () => {
+    const c = { label: $('#sbN').value.trim() || 'Componente', od: +$('#sbOd').value, len: +$('#sbL').value, wt: +$('#sbT').value, ends: $('#sbE').value, std: $('#sbS').value, material: $('#sbM').value };
+    if (!(c.od > 5 && c.len > 1 && c.wt > 0 && c.wt < c.od / 2)) { toast('Confira Ø, comprimento e espessura.', 'er'); return; }
+    const l = store.get(LIBK, []); l.push(c); store.set(LIBK, l); toast(`"${c.label}" salvo no catálogo pessoal.`, 'ok'); renderLeft();
+  };
+  L.querySelectorAll('[data-lib]').forEach(b => b.onclick = () => { const c = store.get(LIBK, [])[+b.dataset.lib]; const dn = DNS.reduce((a, d) => Math.abs(DIM[d].od - c.od) < Math.abs(DIM[a].od - c.od) ? d : a, DNS[0]); insertCustom(Object.assign({ dn }, c)); });
+  L.querySelectorAll('[data-libdel]').forEach(b => b.onclick = () => { const l = store.get(LIBK, []); l.splice(+b.dataset.libdel, 1); store.set(LIBK, l); renderLeft(); });
+}
+function insertCustom(c) {
+  mutate(() => {
+    const act = S.active && pr.get(S.active.id) && !pr.get(S.active.id).conn[S.active.port] ? S.active : null;
+    const pc = pr.create('custom', c);
+    if (act) {
+      const tgt = pr.get(act.id), tp = TP.worldPort(tgt, act.port), r = TP.compatible(TP.localPorts(pc)[0], tp, pc, tgt);
+      if (!r.ok) { toast('Componente não compatível com a porta ativa: ' + r.why, 'er'); const b = bbox(); if (b) pc.pos = new V3(b.mx.x + 1000, 0, 0); }
+      else attach(pc, 'P1', tgt, act.port);
+    }
+    S.sel = pc.id; S.active = firstFree(pc, 'P2');
+  });
+}
+
+/* ======================= PAINEL DIREITO ======================= */
+function renderRight() {
+  const Rt = $('#right'); const st = Rt.scrollTop;
+  const pc = S.sel && pr.get(S.sel);
+  if (!pc) {
+    const m = pr.meta;
+    Rt.innerHTML = `<div class="sec"><h3>Projeto</h3>
+      <label class="f">Título<input class="in" data-meta="title" value="${esc(m.title)}"></label>
+      <div class="grid2" style="margin-top:6px"><label class="f">Linha<input class="in" data-meta="line" value="${esc(m.line)}"></label><label class="f">Pressão projeto (bar)<input class="in" type="number" data-meta="designP" value="${esc(m.designP)}"></label></div></div>
+      <div class="sec"><h3>Como usar</h3><div class="mut" style="display:flex;flex-direction:column;gap:6px">
+      <div>1. Escolha diâmetro e toque numa peça do catálogo.</div><div>2. As esferas <b style="color:var(--am)">âmbar</b> são portas livres; a <b style="color:var(--ok)">verde</b> é onde a próxima peça encaixa.</div>
+      <div>3. Toque numa peça para editar. Giros usam a <b>face da conexão</b> como pivô e levam junto tudo a jusante — nada desconecta.</div>
+      <div>4. Para mudar a direção da linha use a curva: "Girar no eixo" vira a curva para cima, baixo ou lados; o ângulo da curva define inclinações.</div>
+      <div>5. No Isométrico, desenhe à mão e converta para 3D.</div></div></div>`;
+    Rt.querySelectorAll('[data-meta]').forEach(i => i.onchange = () => mutate(() => { pr.meta[i.dataset.meta] = i.type === 'number' ? +i.value : i.value; }));
+    Rt.scrollTop = st; return;
+  }
+  const T = TYPES[pc.type], w = TP.worldPorts(pc), piv = TP.pivotPort(pc), upc = pc.conn[piv] ? pr.get(pc.conn[piv].id) : null;
+  const dnOpts = (cur, f = () => true) => DNS.filter(f).map(d => `<option value="${d}" ${d == cur ? 'selected' : ''}>${DIM[d].nps} · DN ${d}</option>`).join('');
+  const flTypes = ['flange', 'valve', 'strainer', 'expjoint', 'sightglass', 'psv'];
+  let par = '';
+  if (pc.type !== 'custom') par += `<label class="f">Diâmetro<select class="in" id="pDn">${dnOpts(pc.dn)}</select></label>`;
+  if (flTypes.includes(pc.type)) par += `<label class="f">Classe<select class="in" id="pCls">${CLASSES.map(c => `<option value="${c}" ${c == pc.cls ? 'selected' : ''}>${(FLANGE_STDS[pr.meta.fstd] || FLANGE_STDS['ASME B16.5'])[c]}</option>`).join('')}</select></label>`;
+  if (pc.type === 'pipe' || pc.type === 'custom') par += `<label class="f">Comprimento (mm)<input class="in" id="pLen" type="number" step="1" value="${TP.r1(pc.len)}"></label>`;
+  if (pc.type === 'elbow') par += `<label class="f">Ângulo (°)<input class="in" id="pAng" type="number" min="1" max="180" step="0.5" value="${pc.angle}"></label><label class="f">Raio<select class="in" id="pRad"><option value="LR" ${pc.radius !== 'SR' ? 'selected' : ''}>Longo 1,5D</option><option value="SR" ${pc.radius === 'SR' ? 'selected' : ''}>Curto 1D</option></select></label>`;
+  if (pc.type === 'tee') par += `<label class="f">Derivação<select class="in" id="pDn2">${dnOpts(pc.dn2 || pc.dn, d => d <= pc.dn)}</select></label>`;
+  if (pc.type === 'reducer') par += `<label class="f">Menor diâmetro<select class="in" id="pDn2">${dnOpts(pc.dn2, d => d < pc.dn)}</select></label><label class="f">Tipo<select class="in" id="pEcc"><option value="0">Concêntrica</option><option value="1" ${pc.ecc ? 'selected' : ''}>Excêntrica</option></select></label>`;
+  if (pc.type === 'psv') par += `<label class="f">Saída<select class="in" id="pDn2">${dnOpts(pc.dn2, d => d >= pc.dn)}</select></label>`;
+  if (pc.type === 'flange') par += `<label class="f">Tipo<select class="in" id="pSub">${[['WN', 'Weld Neck'], ['SO', 'Slip-On'], ['BL', 'Cego']].map(([k, l]) => `<option value="${k}" ${pc.sub === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
+  if (pc.type === 'valve') par += `<label class="f">Tipo<select class="in" id="pSub">${Object.entries(VALVE_SUBS).map(([k, l]) => `<option value="${k}" ${pc.sub === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
+  const ports = Object.keys(pc.conn).map(k => {
+    const c = pc.conn[k], o = c && pr.get(c.id), isAct = S.active && S.active.id === pc.id && S.active.port === k;
+    return `<div class="pt"><span><b class="mono">${k}</b> <span class="mut">${DIM[w[k].dn]?.nps || 'Ø' + TP.r1(w[k].od)} · ${{ BW: 'solda topo', SW: 'solda encaixe', FL: 'flange', TH: 'rosca' }[w[k].end]}</span><br>${o ? `<span class="chip ok">→ ${esc(o.tag)} ${c.port}</span>` : '<span class="chip am">livre</span>'}</span>
+      ${o ? `<button class="ib sm" data-unl="${k}">soltar</button>` : `<button class="ib sm ${isAct ? 'on' : ''}" data-act="${k}">${isAct ? 'ativa' : 'continuar aqui'}</button>`}</div>`;
+  }).join('');
+  const pv = w[piv].pos;
+  const mis = S.mis.filter(m => m.a === pc.id || m.b === pc.id);
+  Rt.innerHTML = `<div class="sec"><h3>${esc(T.name)} <span class="chip am">${esc(pc.tag)}</span></h3>
+    <div style="margin-bottom:6px">${esc(T.desc(pc))}</div><div class="mut mono">${esc(T.mat(pc))} · ${fmt(T.weight(pc), 1)} kg</div>
+    ${mis.length ? `<div class="chip er" style="margin-top:6px">Junta com desvio de ${mis.map(m => fmt(m.deg, 1) + '°').join(', ')}</div>` : ''}
+    <div class="grid2" style="margin-top:8px"><label class="f">TAG<input class="in" id="pTag" value="${esc(pc.tag)}"></label>${par}</div></div>
+    <div class="sec"><h3>Orientação</h3><div class="mut" style="margin-bottom:6px">Pivô: face ${piv}${upc ? ' em ' + esc(upc.tag) : ''} · E ${fmt(pv.x)} N ${fmt(-pv.z)} EL ${fmt(pv.y)}</div>
+      <div class="row" style="margin-bottom:6px"><label class="f" style="flex:1">Passo (°)<input class="in" id="oStep" type="number" value="${S.step}"></label></div>
+      <div class="btns">
+        <button class="ib" data-o="roll:90">Girar no eixo +90°</button><button class="ib" data-o="roll:-90">−90°</button>
+        <button class="ib" data-o="roll:s">Girar +passo</button><button class="ib" data-o="roll:-s">−passo</button>
+        <button class="ib" data-o="tv:s">Inclinar ↑</button><button class="ib" data-o="tv:-s">Inclinar ↓</button>
+        <button class="ib" data-o="th:s">Desviar ⟲</button><button class="ib" data-o="th:-s">Desviar ⟳</button>
+        <button class="ib" data-o="up">Em pé</button><button class="ib" data-o="flat">Deitado</button><button class="ib" data-o="flip">Inverter direção</button>
+      </div><div class="mut" style="margin-top:6px;font-size:11px">"Girar no eixo" mantém a junta perfeita. "Inclinar/Desviar" gira na face mas cria junta em ângulo (avisado em vermelho) — para trechos inclinados prefira curvas com ângulo.</div></div>
+    <div class="sec"><h3>Mover grupo conectado</h3><div class="row" style="margin-bottom:6px"><label class="f" style="flex:1">Passo (mm)<input class="in" id="mStep" type="number" value="${S.move}"></label></div>
+      <div class="grid3">${[['E+', 'x', 1], ['N+', 'z', -1], ['EL+', 'y', 1], ['E−', 'x', -1], ['N−', 'z', 1], ['EL−', 'y', -1]].map(([l, a, s]) => `<button class="ib" data-mv="${a}:${s}">${l}</button>`).join('')}</div></div>
+    <div class="sec"><h3>Portas</h3><div class="ports">${ports}</div></div>
+    <div class="sec"><div class="btns"><button class="ib am" id="aCpl">Acoplar</button><button class="ib" id="aDup">Duplicar</button><button class="ib" id="aDel" style="color:var(--er)">Excluir</button></div></div>`;
+  Rt.scrollTop = st;
+  const id = pc.id;
+  $('#pTag').onchange = e => mutate(() => { pr.get(id).tag = e.target.value.trim() || pc.tag; });
+  if ($('#pDn')) $('#pDn').onchange = e => setParam(p => { p.dn = +e.target.value; if (p.dn2 && (p.type === 'reducer' ? p.dn2 >= p.dn : p.type === 'tee' ? p.dn2 > p.dn : p.dn2 < p.dn)) p.dn2 = p.type === 'psv' ? TP.nextUp(p.dn) : p.type === 'tee' ? p.dn : TP.nextDown(p.dn); });
+  if ($('#pCls')) $('#pCls').onchange = e => setParam(p => { p.cls = +e.target.value; });
+  if ($('#pLen')) $('#pLen').onchange = e => { const v = +e.target.value; if (v > 1) setParam(p => { p.len = v; }); };
+  if ($('#pAng')) $('#pAng').onchange = e => { const v = +e.target.value; if (v > 0 && v <= 180) setParam(p => { p.angle = v; }); };
+  if ($('#pRad')) $('#pRad').onchange = e => setParam(p => { p.radius = e.target.value; });
+  if ($('#pDn2')) $('#pDn2').onchange = e => setParam(p => { p.dn2 = +e.target.value; });
+  if ($('#pEcc')) $('#pEcc').onchange = e => setParam(p => { p.ecc = e.target.value === '1'; });
+  if ($('#pSub')) $('#pSub').onchange = e => setParam(p => { p.sub = e.target.value; });
+  $('#oStep').onchange = e => { S.step = +e.target.value || 15; };
+  $('#mStep').onchange = e => { S.move = +e.target.value || 100; };
+  Rt.querySelectorAll('[data-o]').forEach(b => b.onclick = () => {
+    const [op, a] = b.dataset.o.split(':'), deg = a === 's' ? S.step : a === '-s' ? -S.step : +a;
+    mutate(() => {
+      let r;
+      if (op === 'roll') r = TP.roll(pr, id, deg);
+      else if (op === 'tv') r = TP.tilt(pr, id, deg, 'v');
+      else if (op === 'th') r = TP.tilt(pr, id, deg, 'h');
+      else if (op === 'up' || op === 'flat') TP.orient(pr, id, op);
+      else if (op === 'flip') return flip(id);
+      if (r && !r.ok) { toast(r.msg, 'er'); return false; }
+    });
+  });
+  Rt.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => { const [a, s] = b.dataset.mv.split(':'); const d = new V3(); d[a] = +s * S.move; mutate(() => TP.moveGroup(pr, id, d)); });
+  Rt.querySelectorAll('[data-act]').forEach(b => b.onclick = () => onPortTap({ id, port: b.dataset.act }));
+  Rt.querySelectorAll('[data-unl]').forEach(b => b.onclick = () => mutate(() => pr.unlink(pr.get(id), b.dataset.unl)));
+  $('#aCpl').onclick = () => { let msg; mutate(() => { const r = TP.acoplar(pr, id); msg = r; if (!r.ok) return false; }); toast(msg.msg, msg.ok ? 'ok' : 'er'); };
+  $('#aDup').onclick = () => mutate(() => { const o = pr.get(id); const { id: _i, tag: _t, conn: _c, ...rest } = o; const c = pr.create(o.type, Object.assign(rest, { pos: o.pos.add(new V3(0, 0, 500)), q: o.q })); S.sel = c.id; });
+  $('#aDel').onclick = deleteSel;
+}
+function flip(id) {
+  const pc = pr.get(id), ks = Object.keys(pc.conn), con = ks.filter(k => pc.conn[k]);
+  if (con.length > 1) { toast('Inverter só funciona em peças com uma ligação (ponta de linha).', 'er'); return false; }
+  if (con.length === 0) { const c = Object.values(TP.worldPorts(pc)).reduce((s, p) => s.add(p.pos), new V3()).scale(1 / ks.length); TP.applyRigid(pr, [id], c, c, Q.axisAngle(TP.UP, Math.PI)); return; }
+  const k = con[0], other = ks.find(x => x !== k); if (!other) return false;
+  const c = pc.conn[k], tgt = pr.get(c.id), tw = TP.worldPort(tgt, c.port), ow = TP.localPorts(pc).find(p => p.id === other);
+  if (!endOk(ow.end, tw.end) || Math.abs(ow.od - tw.od) > 0.6) { toast('A outra ponta não é compatível com essa ligação.', 'er'); return false; }
+  pr.unlink(pc, k); attach(pc, other, tgt, c.port);
+  if (S.active && S.active.id === id) S.active = { id, port: k };
+}
+
+/* ======================= STATUS ======================= */
+function computeMis() {
+  const out = [];
+  for (const j of TP.joints(pr)) { const a = TP.worldPort(j.a, j.ap), b = TP.worldPort(j.b, j.bp); const d = a.dir.dot(b.dir); if (d > -0.9998) out.push({ a: j.a.id, b: j.b.id, deg: Math.acos(Math.max(-1, Math.min(1, -d))) * 180 / Math.PI, ta: j.a.tag, tb: j.b.tag }); }
+  return out;
+}
+function renderStatus() {
+  const h = S.hover, n = pr.pieces.size;
+  $('#status').innerHTML = `<span>${h ? `E ${fmt(h.x)} · N ${fmt(-h.z)} · EL 0` : 'E — · N — · EL —'}</span><span>${n} peças</span>
+    <span class="${S.clashes.length ? 'er' : ''}">${S.clashOn ? (S.clashes.length ? `⚠ ${S.clashes.length} interferência(s)` : '✓ sem interferências') : 'clash desligado'}</span>
+    ${S.mis.length ? `<span class="am">∠ ${S.mis.length} junta(s) em ângulo</span>` : ''}<span style="margin-left:auto">mm · ${pr.meta.fstd}</span>`;
+}
+
+/* ======================= ISOMÉTRICO ======================= */
+const ISO = (() => {
+  const K = 'tecplan.iso.v1';
+  const st = Object.assign({ segs: [], strokes: [], ells: [], tool: 'line', skew: false, plane: 'EN', grid: 100, dn: 100, view: { k: 38, x: 0, y: 0 } }, store.get(K, {}));
+  let cv, ctx, W = 0, H = 0, dpr = 1, drag = null, preview = null, hist = [], fut = [], cursor = null, inited = false;
+  const C30 = TP.C30, S30 = TP.S30;
+  const toS = p => [p[0] * st.view.k + st.view.x, p[1] * st.view.k + st.view.y];
+  const toW = (x, y) => [(x - st.view.x) / st.view.k, (y - st.view.y) / st.view.k];
+  const persist = () => store.set(K, { segs: st.segs, strokes: st.strokes, ells: st.ells, tool: st.tool, skew: st.skew, plane: st.plane, grid: st.grid, dn: st.dn, view: st.view });
+  const push = () => { hist.push(JSON.stringify([st.segs, st.strokes, st.ells])); if (hist.length > 80) hist.shift(); fut = []; };
+  function init() {
+    if (inited) return; inited = true;
+    cv = $('#isoc'); ctx = cv.getContext('2d');
+    new ResizeObserver(resize).observe($('#viso'));
+    bar(); bind(); resize();
+    if (!st.view.x && !st.view.y) { st.view.x = W * 0.3; st.view.y = H * 0.6; }
+    persist(); draw();
+  }
+  function bar() {
+    const tools = [['line', '✏ Linha'], ['free', '∿ Livre'], ['ell', '◯ Elipse'], ['erase', '⌫ Borracha'], ['pan', '✋ Mover']];
+    $('#isobar').innerHTML = tools.map(([t, l]) => `<button class="ib sm ${st.tool === t ? 'on' : ''}" data-tool="${t}">${l}</button>`).join('') +
+      `<span class="sep"></span><button class="ib sm ${st.skew ? 'on' : ''}" id="iSkew" title="Permite trechos fora dos eixos">Inclinado</button>
+      <select class="in" id="iPlane" title="Plano para trechos inclinados e elipses"><option value="EN">Plano horizontal (E-N)</option><option value="EU">Plano vertical (E-Cima)</option><option value="NU">Plano vertical (N-Cima)</option></select>
+      <span class="sep"></span><label class="mut">Grade</label><input class="in" id="iGrid" type="number" min="10" step="10" value="${st.grid}" style="width:70px"><span class="mut">mm</span>
+      <select class="in" id="iDn">${DNS.map(d => `<option value="${d}" ${d == st.dn ? 'selected' : ''}>${DIM[d].nps}</option>`).join('')}</select>
+      <span class="sep"></span><button class="ib sm" id="iUndo">↶</button><button class="ib sm" id="iClr">Limpar</button><button class="ib sm" id="iCenter">Centralizar</button><button class="ib sm am" id="iConv">Converter para 3D</button>`;
+    $('#iPlane').value = st.plane;
+    $('#isobar').querySelectorAll('[data-tool]').forEach(b => b.onclick = () => { st.tool = b.dataset.tool; persist(); bar(); draw(); });
+    $('#iSkew').onclick = () => { st.skew = !st.skew; persist(); bar(); };
+    $('#iPlane').onchange = e => { st.plane = e.target.value; persist(); };
+    $('#iGrid').onchange = e => { st.grid = Math.max(10, +e.target.value || 100); persist(); draw(); };
+    $('#iDn').onchange = e => { st.dn = +e.target.value; persist(); };
+    $('#iUndo').onclick = () => { if (!hist.length) return; fut.push(JSON.stringify([st.segs, st.strokes, st.ells])); [st.segs, st.strokes, st.ells] = JSON.parse(hist.pop()); persist(); draw(); };
+    $('#iClr').onclick = () => { if (!st.segs.length && !st.strokes.length && !st.ells.length) return; push(); st.segs = []; st.strokes = []; st.ells = []; persist(); draw(); toast('Desenho limpo (↶ desfaz).'); };
+    $('#iCenter').onclick = center;
+    $('#iConv').onclick = convert;
+  }
+  function center() {
+    const pts = st.segs.flatMap(s => [s.a, s.b]);
+    if (!pts.length) { st.view.x = W * 0.3; st.view.y = H * 0.6; draw(); return; }
+    const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+    const w = Math.max(...xs) - Math.min(...xs) || 1, h = Math.max(...ys) - Math.min(...ys) || 1;
+    st.view.k = Math.max(6, Math.min(120, Math.min((W - 80) / w, (H - 140) / h)));
+    st.view.x = W / 2 - (Math.min(...xs) + w / 2) * st.view.k; st.view.y = (H + 50) / 2 - (Math.min(...ys) + h / 2) * st.view.k; persist(); draw();
+  }
+  function resize() { const r = $('#viso').getBoundingClientRect(); dpr = Math.min(2, window.devicePixelRatio || 1); W = r.width; H = r.height; if (!W) return; cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; draw(); }
+  function snapEnd(a, wpt) {
+    if (st.skew) return TP.snapLattice(wpt[0], wpt[1]);
+    const d = [wpt[0] - a[0], wpt[1] - a[1]];
+    let best = null;
+    for (const ax of TP.ISO_AXES) { const t = d[0] * ax.s[0] + d[1] * ax.s[1]; if (!best || t > best.t) best = { t, ax }; }
+    const n = Math.max(1, Math.round(best.t));
+    return [a[0] + best.ax.s[0] * n, a[1] + best.ax.s[1] * n];
+  }
+  function segInfo(a, b, plane) { const d = TP.isoDelta(b[0] - a[0], b[1] - a[1], st.grid, plane); return { L: d.v.len(), axis: d.axis, v: d.v }; }
+  function bind() {
+    const P = new Map(); let pinch = null;
+    cv.addEventListener('contextmenu', e => e.preventDefault());
+    cv.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.offsetX, e.offsetY, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+    cv.addEventListener('pointerdown', e => {
+      cv.setPointerCapture(e.pointerId); P.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
+      if (P.size === 2) { drag = null; preview = null; pinch = null; draw(); return; }
+      const w = toW(e.offsetX, e.offsetY), tool = (e.button === 1 || e.button === 2) ? 'pan' : st.tool;
+      if (tool === 'line') { const a = TP.snapLattice(w[0], w[1]); drag = { tool, a }; preview = { a, b: a }; }
+      else if (tool === 'free') drag = { tool, pts: [w] };
+      else if (tool === 'ell') { const c = TP.snapLattice(w[0], w[1]); drag = { tool, c, r: 0 }; }
+      else if (tool === 'erase') { drag = { tool, pushed: false }; erase(e.offsetX, e.offsetY, drag); }
+      else drag = { tool: 'pan', x: e.offsetX, y: e.offsetY };
+      draw();
+    });
+    cv.addEventListener('pointermove', e => {
+      const w = toW(e.offsetX, e.offsetY); cursor = TP.snapLattice(w[0], w[1]);
+      if (P.has(e.pointerId)) P.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
+      if (P.size === 2) {
+        const [a, b] = [...P.values()], dist = Math.hypot(a.x - b.x, a.y - b.y), mid = [(a.x + b.x) / 2, (a.y + b.y) / 2];
+        if (pinch) { st.view.x += mid[0] - pinch.mid[0]; st.view.y += mid[1] - pinch.mid[1]; zoomAt(mid[0], mid[1], dist / pinch.dist); }
+        pinch = { dist, mid }; return;
+      }
+      if (!drag) { info(); draw(); return; }
+      if (drag.tool === 'line') { preview = { a: drag.a, b: snapEnd(drag.a, w) }; const s = segInfo(preview.a, preview.b, st.plane); info(`Trecho: ${fmt(s.L)} mm · ${s.axis === 'skew' ? 'inclinado (' + st.plane + ')' : s.axis}`); }
+      else if (drag.tool === 'free') drag.pts.push(w);
+      else if (drag.tool === 'ell') { drag.r = Math.max(1, Math.round(Math.hypot(w[0] - drag.c[0], w[1] - drag.c[1]))); info(`Raio: ${fmt(drag.r * st.grid)} mm`); }
+      else if (drag.tool === 'erase') erase(e.offsetX, e.offsetY, drag);
+      else if (drag.tool === 'pan') { st.view.x += e.offsetX - drag.x; st.view.y += e.offsetY - drag.y; drag.x = e.offsetX; drag.y = e.offsetY; }
+      draw();
+    });
+    const end = e => {
+      P.delete(e.pointerId); if (P.size < 2) pinch = null;
+      if (!drag) { persist(); return; }
+      if (drag.tool === 'line' && preview && (preview.a[0] !== preview.b[0] || preview.a[1] !== preview.b[1])) { push(); st.segs.push({ a: preview.a, b: preview.b, plane: st.skew ? st.plane : 'EN' }); }
+      if (drag.tool === 'free' && drag.pts.length > 2) { push(); st.strokes.push(drag.pts.filter((p, i) => i % 2 === 0)); }
+      if (drag.tool === 'ell' && drag.r > 0) { push(); st.ells.push({ c: drag.c, r: drag.r, plane: st.plane }); }
+      drag = null; preview = null; persist(); info(); draw();
+    };
+    cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+  }
+  function zoomAt(x, y, f) { const k2 = Math.max(4, Math.min(200, st.view.k * f)); const r = k2 / st.view.k; st.view.x = x - (x - st.view.x) * r; st.view.y = y - (y - st.view.y) * r; st.view.k = k2; draw(); }
+  function distSeg(p, a, b) { const dx = b[0] - a[0], dy = b[1] - a[1], l = dx * dx + dy * dy || 1; const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l)); return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy); }
+  function erase(x, y, d) {
+    const p = [x, y], tol = 12;
+    const hit = (arr, f) => { const i = arr.findIndex(f); if (i >= 0) { if (!d.pushed) { push(); d.pushed = true; } arr.splice(i, 1); return true; } };
+    hit(st.segs, s => distSeg(p, toS(s.a), toS(s.b)) < tol) || hit(st.strokes, s => s.some((q, i) => i && distSeg(p, toS(s[i - 1]), toS(q)) < tol)) || hit(st.ells, e => ellPts(e).some((q, i, a) => i && distSeg(p, toS(a[i - 1]), toS(q)) < tol));
+  }
+  function ellPts(e) { const [un, vn] = TP.PLANES[e.plane]; const u = TP.ISO_AXES.find(a => a.n === un).s, v = TP.ISO_AXES.find(a => a.n === vn).s; const out = []; for (let i = 0; i <= 48; i++) { const t = i / 48 * Math.PI * 2; out.push([e.c[0] + e.r * (Math.cos(t) * u[0] + Math.sin(t) * v[0]), e.c[1] + e.r * (Math.cos(t) * u[1] + Math.sin(t) * v[1])]); } return out; }
+  function info(t) {
+    if (t) { $('#isoinfo').textContent = t; return; }
+    const tot = st.segs.reduce((s, g) => s + segInfo(g.a, g.b, g.plane).L, 0);
+    $('#isoinfo').textContent = `${st.segs.length} trechos · ${fmt(tot / 1000, 2)} m · grade ${st.grid} mm · ${DIM[st.dn].nps}`;
+  }
+  function draw() {
+    if (!ctx || !W) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.fillStyle = '#0d0f12'; ctx.fillRect(0, 0, W, H);
+    // grade isométrica
+    const corners = [toW(0, 0), toW(W, 0), toW(0, H), toW(W, H)].map(p => TP.screenToLattice(p[0], p[1]));
+    const as = corners.map(c => c[0]), bs = corners.map(c => c[1]);
+    const a0 = Math.floor(Math.min(...as)) - 1, a1 = Math.ceil(Math.max(...as)) + 1, b0 = Math.floor(Math.min(...bs)) - 1, b1 = Math.ceil(Math.max(...bs)) + 1;
+    const step = st.view.k < 10 ? 5 : st.view.k < 18 ? 2 : 1;
+    const line = (p, q, c) => { const s = toS(p), t = toS(q); ctx.strokeStyle = c; ctx.beginPath(); ctx.moveTo(s[0], s[1]); ctx.lineTo(t[0], t[1]); ctx.stroke(); };
+    ctx.lineWidth = 1;
+    if ((a1 - a0) * (b1 - b0) / (step * step) < 60000) {
+      for (let b = Math.ceil(b0 / step) * step; b <= b1; b += step) line(TP.latticeToScreen(a0, b), TP.latticeToScreen(a1, b), b % 10 === 0 ? '#2b313b' : '#1a1e25');
+      for (let a = Math.ceil(a0 / step) * step; a <= a1; a += step) line(TP.latticeToScreen(a, b0), TP.latticeToScreen(a, b1), a % 10 === 0 ? '#2b313b' : '#1a1e25');
+      const x0 = toW(0, 0)[0] / C30, x1 = toW(W, 0)[0] / C30;
+      for (let m = Math.floor(x0 / step) * step; m <= x1; m += step) { const x = m * C30 * st.view.k + st.view.x; ctx.strokeStyle = m % 10 === 0 ? '#2b313b' : '#1a1e25'; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    }
+    // eixos de referência
+    const o = toS([0, 0]);
+    [['E', '#ef4444'], ['N', '#3b82f6'], ['Cima', '#22c55e']].forEach(([n, c]) => { const ax = TP.ISO_AXES.find(a => a.n === n); ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(o[0] + ax.s[0] * 40, o[1] + ax.s[1] * 40); ctx.stroke(); ctx.fillStyle = c; ctx.font = '11px IBM Plex Mono, monospace'; ctx.fillText(n, o[0] + ax.s[0] * 46 - 4, o[1] + ax.s[1] * 46 + 4); });
+    // rabiscos e elipses
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#9aa3ad'; ctx.lineWidth = 1.6;
+    for (const s of st.strokes.concat(drag && drag.tool === 'free' ? [drag.pts] : [])) { ctx.beginPath(); s.forEach((p, i) => { const q = toS(p); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.stroke(); }
+    for (const e of st.ells.concat(drag && drag.tool === 'ell' && drag.r ? [{ c: drag.c, r: drag.r, plane: st.plane }] : [])) { ctx.beginPath(); ellPts(e).forEach((p, i) => { const q = toS(p); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.stroke(); }
+    // trechos de tubulação
+    const segs = st.segs.concat(preview ? [Object.assign({ prev: true, plane: st.skew ? st.plane : 'EN' }, preview)] : []);
+    for (const s of segs) {
+      const a = toS(s.a), b = toS(s.b);
+      ctx.strokeStyle = s.prev ? '#fbbf24' : '#f59e0b'; ctx.lineWidth = s.prev ? 3 : 4; ctx.setLineDash(s.prev ? [8, 6] : []);
+      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); ctx.setLineDash([]);
+      const inf = segInfo(s.a, s.b, s.plane); if (inf.L < 1) continue;
+      let ang = Math.atan2(b[1] - a[1], b[0] - a[0]); if (ang > Math.PI / 2) ang -= Math.PI; if (ang < -Math.PI / 2) ang += Math.PI;
+      ctx.save(); ctx.translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2); ctx.rotate(ang); ctx.fillStyle = '#e5e7eb'; ctx.font = '600 11px IBM Plex Mono, monospace'; ctx.textAlign = 'center';
+      ctx.fillText(`${fmt(inf.L)}${inf.axis === 'skew' ? ' ∠' : ''}`, 0, -8); ctx.restore();
+    }
+    ctx.fillStyle = '#f59e0b';
+    for (const s of st.segs) for (const p of [s.a, s.b]) { const q = toS(p); ctx.beginPath(); ctx.arc(q[0], q[1], 3.5, 0, 7); ctx.fill(); }
+    if (cursor && (st.tool === 'line' || st.tool === 'ell')) { const q = toS(cursor); ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(q[0], q[1], 6, 0, 7); ctx.stroke(); }
+  }
+  function convert() {
+    if (!st.segs.length) { toast('Desenhe trechos com a ferramenta Linha primeiro.', 'er'); return; }
+    let res;
+    mutate(() => {
+      const conv = TP.isoTo3D(st.segs, st.grid);
+      const b = bbox();
+      const origin = b ? new V3(b.mx.x + 1500, 0, 0) : new V3();
+      res = TP.buildFromIso(pr, conv, { dn: st.dn, cls: S.cls, origin });
+      if (!res.created.length) return false;
+      S.sel = null; S.active = null;
+    });
+    if (!res || !res.created.length) { toast('Nada foi gerado.', 'er'); return; }
+    const n = { pipe: 0, elbow: 0, tee: 0 }; res.created.forEach(p => n[p.type]++);
+    toast(`Convertido: ${n.pipe} tubos, ${n.elbow} curvas, ${n.tee} tês — todos acoplados.`, 'ok');
+    res.warnings.forEach(w => toast(w, 'er'));
+    setTab('3d'); setTimeout(() => R.fit(), 60);
+  }
+  return { init, draw, resize: () => inited && resize(), info };
+})();
+
+/* ======================= PRANCHA ======================= */
+let dlNs = null;
+try { if (window.claude && window.claude.use) window.claude.use('downloads').then(n => { dlNs = n; }).catch(() => { }); } catch { }
+async function download(name, text, mime) {
+  if (dlNs) { try { await dlNs.save({ filename: name, data: text }); toast(`${name} salvo.`, 'ok'); } catch { toast('Download cancelado ou bloqueado — use Copiar.', 'er'); } return; }
+  try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: mime })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); toast(`Baixando ${name}… se não começar, use Copiar.`); }
+  catch { toast('Download bloqueado aqui — use Copiar.', 'er'); }
+}
+async function copy(text, what) { try { await navigator.clipboard.writeText(text); toast(`${what} copiado.`, 'ok'); } catch { toast('Não foi possível copiar automaticamente.', 'er'); } }
+let lastSVG = '';
+function renderSheet() {
+  const an = TP.analyze(pr);
+  if (S.sheet.spool !== 'ALL' && !an.spools.find(s => s.name === S.sheet.spool)) S.sheet.spool = 'ALL';
+  const m = pr.meta;
+  $('#sheetbar').innerHTML = `<select class="in" id="shSize" style="width:auto"><option ${S.sheet.size === 'A3' ? 'selected' : ''}>A3</option><option ${S.sheet.size === 'A4' ? 'selected' : ''}>A4</option></select>
+    <select class="in" id="shSp" style="width:auto"><option value="ALL">Linha completa</option>${an.spools.map(s => `<option ${S.sheet.spool === s.name ? 'selected' : ''}>${s.name}</option>`).join('')}</select>
+    <button class="ib sm" id="shZo">−</button><button class="ib sm" id="shZi">+</button>
+    <button class="ib sm ${S.sheet.carimbo ? 'on' : ''}" id="shCar">Carimbo</button><span style="flex:1"></span>
+    <button class="ib sm" id="shCopy">Copiar SVG</button><button class="ib sm am" id="shDl">Baixar SVG</button>`;
+  const fields = [['title', 'Título do projeto'], ['line', 'Linha'], ['sheet', 'Folha'], ['designer', 'Projetista'], ['approver', 'Aprovador'], ['date', 'Data'], ['rev', 'Revisão'], ['fluid', 'Fluido']];
+  $('#carimbo').className = S.sheet.carimbo ? 'on' : '';
+  $('#carimbo').innerHTML = fields.map(([k, l]) => `<label class="f">${l}<input class="in" data-m="${k}" value="${esc(m[k])}"></label>`).join('');
+  $('#carimbo').querySelectorAll('[data-m]').forEach(i => i.onchange = () => mutate(() => { pr.meta[i.dataset.m] = i.value; }));
+  $('#shSize').onchange = e => { S.sheet.size = e.target.value; renderSheet(); };
+  $('#shSp').onchange = e => { S.sheet.spool = e.target.value; renderSheet(); };
+  $('#shZo').onclick = () => { S.sheet.zoom = Math.max(0.4, S.sheet.zoom / 1.25); renderSheet(); };
+  $('#shZi').onclick = () => { S.sheet.zoom = Math.min(5, S.sheet.zoom * 1.25); renderSheet(); };
+  $('#shCar').onclick = () => { S.sheet.carimbo = !S.sheet.carimbo; renderSheet(); };
+  $('#shCopy').onclick = () => copy(lastSVG, 'SVG da prancha');
+  $('#shDl').onclick = () => download(`${(m.line || 'TP')}-${S.sheet.spool}-${S.sheet.size}.svg`, lastSVG, 'image/svg+xml');
+  const wrap = $('#sheetwrap');
+  if (!pr.pieces.size) { wrap.innerHTML = '<div class="mut" style="padding:40px">Modelo vazio — insira peças no 3D ou converta um isométrico.</div>'; return; }
+  const out = TPSheet.sheetSVG(pr, { size: S.sheet.size, spool: S.sheet.spool });
+  lastSVG = out.svg; wrap.innerHTML = out.svg;
+  const svg = wrap.querySelector('svg'); svg.removeAttribute('height'); svg.style.width = Math.round((wrap.clientWidth - 32) * S.sheet.zoom) + 'px';
+}
+
+/* ======================= BOM ======================= */
+function renderBom() {
+  const items = TP.bom(pr), an = TP.analyze(pr), m = pr.meta;
+  const totW = items.reduce((a, b) => a + b.w, 0), pipeLen = [...pr.pieces.values()].filter(p => p.type === 'pipe' || p.type === 'custom').reduce((a, p) => a + p.len, 0);
+  const sw = an.welds.filter(w => !w.field).length, fw = an.welds.length - sw;
+  const per = 10, pages = Math.max(1, Math.ceil(an.welds.length / per)); S.weldPage = Math.min(S.weldPage, pages - 1);
+  const wp = an.welds.slice(S.weldPage * per, S.weldPage * per + per);
+  const tn = TP.testNotes(pr);
+  $('#bomw').innerHTML = `
+  <div class="cards">
+    <div class="card"><div class="v">${pr.pieces.size}</div><div class="l">Peças</div></div>
+    <div class="card"><div class="v">${fmt(totW, 1)}</div><div class="l">Peso total (kg)</div></div>
+    <div class="card"><div class="v">${fmt(pipeLen / 1000, 2)}</div><div class="l">Tubo (m)</div></div>
+    <div class="card"><div class="v">${an.spools.length}</div><div class="l">Spools</div></div>
+    <div class="card"><div class="v">${sw}/${fw}</div><div class="l">Soldas oficina/campo</div></div>
+    <div class="card"><div class="v">${an.bolted.length}</div><div class="l">Juntas flangeadas</div></div>
+    <div class="card"><div class="v" style="color:${S.clashes.length ? 'var(--er)' : 'var(--ok)'}">${S.clashes.length}</div><div class="l">Interferências</div></div>
+  </div>
+  <h2>Dados de projeto</h2>
+  <div class="grid2" style="max-width:640px;grid-template-columns:repeat(3,1fr)"><label class="f">Pressão de projeto (bar)<input class="in" type="number" data-mb="designP" value="${m.designP}"></label>
+    <label class="f">Norma de flanges<select class="in" data-mb="fstd">${Object.keys(FLANGE_STDS).map(k => `<option ${m.fstd === k ? 'selected' : ''}>${k}</option>`).join('')}</select></label>
+    <label class="f">Fluido<input class="in" data-mb="fluid" value="${esc(m.fluid)}"></label></div>
+  <div class="mut" style="margin-top:8px">Teste hidrostático: <b class="mono">${fmt(tn.Pt, 1)} bar</b> (1,5 × P) · ${tn.rows.map(r => `${r.nps}: Barlow ${fmt(r.Pallow)} bar <span class="chip ${r.ok ? 'ok' : 'er'}">${r.ok ? 'OK' : 'revisar'}</span>`).join(' · ')}</div>
+  <h2>Lista de materiais <button class="ib sm" id="bCsv">Copiar CSV</button><button class="ib sm" id="bCsvD">Baixar CSV</button></h2>
+  <div class="tw"><table class="t"><thead><tr><th>It</th><th>Descrição</th><th>DN</th><th>Classe</th><th>Norma</th><th>Material</th><th>Qtd</th><th>Peso un.</th><th>Peso total</th><th>TAGs</th></tr></thead><tbody>
+  ${items.map(g => `<tr><td class="n">${g.item}</td><td>${esc(g.desc)}</td><td class="n">${g.dn}${g.nps ? ' · ' + g.nps : ''}</td><td>${esc(g.cls)}</td><td>${esc(g.std)}</td><td>${esc(g.mat)}</td><td class="n">${g.unit === 'm' ? fmt(g.qty, 2) + ' m' : fmt(g.qty)}</td><td class="n">${fmt(g.w / (g.qty || 1), 2)}</td><td class="n">${fmt(g.w, 1)}</td><td class="mono" style="font-size:11px;color:var(--mu)">${esc(g.tags.join(', '))}</td></tr>`).join('') || '<tr><td colspan="10" class="mut">Sem itens</td></tr>'}
+  </tbody></table></div>
+  <h2>Registro de soldagem <span class="chip">toque no tipo para alternar oficina/campo</span></h2>
+  <div class="tw"><table class="t"><thead><tr><th>Solda</th><th>Tipo</th><th>Spool</th><th>Entre</th><th>DN</th><th>Esp. (mm)</th><th>END</th></tr></thead><tbody>
+  ${wp.map(w => `<tr><td class="mono">${w.name}</td><td><button class="ib sm ${w.field ? '' : 'on'}" data-fw="${esc(w.key)}">${w.field ? 'Campo (FW)' : 'Oficina (SW)'}</button></td><td>${w.spool}</td><td class="mono">${esc(w.a.tag)} / ${esc(w.b.tag)}</td><td class="n">${w.dn}</td><td class="n">${w.wt}</td><td>VS 100% · RX 5%</td></tr>`).join('') || '<tr><td colspan="7" class="mut">Sem soldas</td></tr>'}
+  </tbody></table></div>
+  ${pages > 1 ? `<div class="row" style="margin:-10px 0 16px"><button class="ib sm" id="wPrev" ${S.weldPage ? '' : 'disabled'}>‹</button><span class="mut">Página ${S.weldPage + 1} de ${pages}</span><button class="ib sm" id="wNext" ${S.weldPage < pages - 1 ? '' : 'disabled'}>›</button></div>` : ''}
+  <h2>Spools</h2>
+  <div class="tw"><table class="t"><thead><tr><th>Spool</th><th>Peças</th><th>Peso (kg)</th><th></th></tr></thead><tbody>
+  ${an.spools.map(s => `<tr><td class="mono">${s.name}</td><td class="mono" style="font-size:11px">${s.pieces.map(p => esc(p.tag)).join(', ')}</td><td class="n">${fmt(s.pieces.reduce((a, p) => a + TYPES[p.type].weight(p), 0), 1)}</td><td><button class="ib sm" data-sp="${s.name}">Prancha</button></td></tr>`).join('') || '<tr><td colspan="4" class="mut">Sem spools</td></tr>'}
+  </tbody></table></div>
+  ${S.clashes.length ? `<h2>Interferências</h2><div class="tw"><table class="t"><thead><tr><th>Peça A</th><th>Peça B</th><th>Penetração</th><th></th></tr></thead><tbody>${S.clashes.map(c => `<tr><td class="mono">${esc(pr.get(c.a).tag)}</td><td class="mono">${esc(pr.get(c.b).tag)}</td><td class="n">${fmt(c.pen)} mm</td><td><button class="ib sm" data-cs="${c.a}">Ver</button></td></tr>`).join('')}</tbody></table></div>` : ''}
+  <h2>Exportações</h2>
+  <div class="btns" style="max-width:720px;margin-bottom:8px"><button class="ib" id="ePcfC">Copiar PCF</button><button class="ib am" id="ePcfD">Baixar PCF</button><button class="ib" id="eJsC">Copiar projeto (.json)</button><button class="ib" id="eJsD">Baixar projeto (.json)</button><label class="ib" style="position:relative">Importar projeto<input type="file" accept=".json,application/json" id="eImp" style="position:absolute;inset:0;opacity:0"></label></div>
+  <div class="mut" style="margin-bottom:6px">PCF compatível com CAESAR II / ISOGEN (coordenadas E, N, EL em mm).</div>
+  <textarea class="code" readonly id="pcfTxt"></textarea>`;
+  $('#pcfTxt').value = TP.pcf(pr);
+  const csv = () => ['Item;Descrição;DN;Classe;Norma;Material;Qtd;Unid;Peso total (kg);TAGs', ...items.map(g => [g.item, g.desc, g.dn, g.cls, g.std, g.mat, g.unit === 'm' ? g.qty.toFixed(2).replace('.', ',') : g.qty, g.unit, g.w.toFixed(2).replace('.', ','), g.tags.join(' ')].join(';'))].join('\n');
+  $('#bCsv').onclick = () => copy(csv(), 'CSV');
+  $('#bCsvD').onclick = () => download(`${m.line || 'TP'}-BOM.csv`, '﻿' + csv(), 'text/csv');
+  $('#ePcfC').onclick = () => copy(TP.pcf(pr), 'PCF');
+  $('#ePcfD').onclick = () => download(`${m.line || 'TP'}.pcf`, TP.pcf(pr), 'text/plain');
+  $('#eJsC').onclick = () => copy(JSON.stringify(pr.toJSON()), 'Projeto');
+  $('#eJsD').onclick = () => download(`${m.line || 'TP'}.tecplan.json`, JSON.stringify(pr.toJSON(), null, 1), 'application/json');
+  $('#eImp').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const o = JSON.parse(await f.text()); if (!o.pieces) throw 0; mutate(() => { const n = TP.Project.fromJSON(o); pr.pieces = n.pieces; pr.meta = n.meta; pr.seq = n.seq; pr.nextId = n.nextId; pr.fieldWelds = n.fieldWelds; S.sel = null; S.active = null; }); toast('Projeto importado.', 'ok'); } catch { toast('Arquivo inválido.', 'er'); } };
+  $('#bomw').querySelectorAll('[data-mb]').forEach(i => i.onchange = () => mutate(() => { pr.meta[i.dataset.mb] = i.type === 'number' ? +i.value : i.value; }));
+  $('#bomw').querySelectorAll('[data-fw]').forEach(b => b.onclick = () => mutate(() => { const k = b.dataset.fw; if (pr.fieldWelds[k]) delete pr.fieldWelds[k]; else pr.fieldWelds[k] = true; }));
+  $('#bomw').querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { S.sheet.spool = b.dataset.sp; setTab('sheet'); });
+  $('#bomw').querySelectorAll('[data-cs]').forEach(b => b.onclick = () => { S.sel = b.dataset.cs; setTab('3d'); });
+  if ($('#wPrev')) { $('#wPrev').onclick = () => { S.weldPage--; renderBom(); }; $('#wNext').onclick = () => { S.weldPage++; renderBom(); }; }
+}
+
+/* ======================= GERAL ======================= */
+function refresh() {
+  S.clashes = S.clashOn ? TP.detectClashes(pr) : [];
+  S.mis = computeMis();
+  R.sync(); renderLeft(); renderRight(); renderStatus();
+  $('#bUndo').disabled = !S.hist.length; $('#bRedo').disabled = !S.fut.length;
+  if (S.tab === 'sheet') renderSheet();
+  if (S.tab === 'bom') renderBom();
+}
+function setTab(t) {
+  S.tab = t;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  ['3d', 'iso', 'sheet', 'bom'].forEach(v => $('#v' + v).classList.toggle('on', v === t));
+  $('#main').classList.toggle('full', t !== '3d');
+  document.querySelectorAll('.mob').forEach(b => b.style.visibility = t === '3d' ? '' : 'hidden');
+  closeDrawers();
+  if (t === 'iso') { ISO.init(); ISO.resize(); ISO.info(); }
+  refresh();
+  if (t === '3d') R.resize();
+}
+function openDrawer(side) { closeDrawers(); $('#' + side).classList.add('open'); $('#back').classList.add('on'); }
+function closeDrawers() { $('#left').classList.remove('open'); $('#right').classList.remove('open'); $('#back').classList.remove('on'); }
+
+function demo() {
+  const add = (type, params, tgt, tp, mp = 'P1') => { const pc = pr.create(type, params); if (tgt) attach(pc, mp, tgt, tp); return pc; };
+  pr.meta.title = 'Linha de água de resfriamento'; pr.meta.line = 'AR-100-001';
+  const a = add('pipe', { dn: 100, len: 1800 });
+  const e1 = add('elbow', { dn: 100 }, a, 'P2');
+  const b = add('pipe', { dn: 100, len: 1400 }, e1, 'P2');
+  const e2 = add('elbow', { dn: 100 }, b, 'P2'); TP.roll(pr, e2.id, 90);
+  const c = add('pipe', { dn: 100, len: 900 }, e2, 'P2');
+  const e3 = add('elbow', { dn: 100 }, c, 'P2'); TP.roll(pr, e3.id, 90);
+  const d = add('pipe', { dn: 100, len: 700 }, e3, 'P2');
+  const f1 = add('flange', { dn: 100, sub: 'WN' }, d, 'P2');
+  const v = add('valve', { dn: 100, sub: 'gate' }, f1, 'P2');
+  const f2 = add('flange', { dn: 100, sub: 'WN' }, v, 'P2', 'P2');
+  const g = add('pipe', { dn: 100, len: 600 }, f2, 'P1');
+  const t = add('tee', { dn: 100, dn2: 50 }, g, 'P2');
+  const r = add('pipe', { dn: 100, len: 900 }, t, 'P2');
+  add('flange', { dn: 100, sub: 'WN' }, r, 'P2');
+  const br = add('pipe', { dn: 50, len: 300 }, t, 'P3');
+  const fb = add('flange', { dn: 50, sub: 'WN' }, br, 'P2');
+  add('valve', { dn: 50, sub: 'ball' }, fb, 'P2');
+  TP.autoConnect(pr);
+}
+
+function init() {
+  const had = load();
+  if (!had) { demo(); save(); }
+  R.init($('#v3d'));
+  document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => setTab(b.dataset.t));
+  document.querySelectorAll('[data-cam]').forEach(b => b.onclick = () => R.view(b.dataset.cam));
+  $('#bFit').onclick = () => R.fit();
+  $('#bPorts').onclick = e => { S.ports = !S.ports; e.currentTarget.classList.toggle('on', S.ports); R.sync(); };
+  $('#bClash').onclick = e => { S.clashOn = !S.clashOn; e.currentTarget.classList.toggle('on', S.clashOn); refresh(); };
+  $('#bUndo').onclick = undo; $('#bRedo').onclick = redo;
+  $('#bNew').onclick = () => { if ($('#bNew').dataset.c) { delete $('#bNew').dataset.c; $('#bNew').textContent = 'Novo'; mutate(() => { pr.pieces.clear(); pr.seq = {}; pr.fieldWelds = {}; S.sel = null; S.active = null; }); toast('Projeto novo (↶ desfaz).'); } else { $('#bNew').dataset.c = 1; $('#bNew').textContent = 'Confirmar?'; setTimeout(() => { delete $('#bNew').dataset.c; $('#bNew').textContent = 'Novo'; }, 3000); } };
+  $('#bLeft').onclick = () => $('#left').classList.contains('open') ? closeDrawers() : openDrawer('left');
+  $('#bRight').onclick = () => $('#right').classList.contains('open') ? closeDrawers() : openDrawer('right');
+  $('#back').onclick = closeDrawers;
+  window.addEventListener('keydown', e => {
+    if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+    else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+    else if ((e.key === 'Delete' || e.key === 'Backspace') && S.sel && S.tab === '3d') deleteSel();
+    else if (e.key === 'Escape') { S.sel = null; S.active = null; refresh(); }
+  });
+  window.addEventListener('resize', () => { if (S.tab === 'sheet') renderSheet(); });
+  refresh();
+  setTimeout(() => R.fit(), 50);
+  if (!had) toast('Projeto de exemplo carregado. Toque numa peça ou numa esfera âmbar para começar.');
+}
+function modulesOnly() {
+  $('#tabs').style.display = 'none'; $('#bUndo').style.display = 'none'; $('#bRedo').style.display = 'none'; $('#bNew').style.display = 'none';
+  document.querySelectorAll('.mob').forEach(b => b.style.display = 'none');
+  $('#main').classList.add('full'); $('#status').innerHTML = '<span>' + esc(USER.package || '') + '</span>';
+  const mods = (USER.modules || []).map(m => `<div class="card" style="text-align:left"><div class="l">${esc(m)}.Max</div><div style="font-size:16px;font-weight:600;margin:4px 0">${esc(USER.MODULES[m] || m)}</div><span class="chip am">em desenvolvimento</span></div>`).join('');
+  $('#center').innerHTML = `<div class="mods"><div style="max-width:620px;text-align:center"><h2 style="justify-content:center">Seu pacote: ${esc(USER.package || '')}</h2><div class="mut" style="margin-bottom:18px">Os módulos abaixo estão liberados para você. Assim que cada um for lançado, ele aparece aqui automaticamente.</div><div class="cards">${mods}</div></div></div>`;
+}
+window.TPApp = {
+  start(user) {
+    USER = user; KEY = 'tecplan.project.v1:' + String(user.email || '').toLowerCase();
+    if (typeof THREE === 'undefined') { document.body.innerHTML = '<div style="padding:40px;color:#ddd;font-family:sans-serif">Não foi possível carregar o motor 3D (Three.js). Verifique a conexão e recarregue.</div>'; return; }
+    if (!has('TB')) { modulesOnly(); return; }
+    init();
+  }
+};
+})();
+
+</script>
+<script>
+(function () {
+'use strict';
+/* =====================================================================
+ * TEC PLAN — acesso, pacotes e painel administrativo
+ * Preencha a configuração abaixo com os dados do seu projeto Supabase
+ * (Project Settings → API). Vazio = modo demonstração (dados só neste navegador).
+ * ===================================================================== */
+const CONFIG = {
+  supabaseUrl: 'https://ocsaeisvaeopvdbgytep.supabase.co',
+  supabaseAnonKey: 'sb_publishable_SrU1vt-msmTT4I4DU-IIpA_bYGp6A15',
+  superAdmin: 'gabriel.correa.cr6@gmail.com',
+};
+
+const MODULES = { TB: 'Tubulação', CL: 'Construção civil', EL: 'Eletromecânico', ES: 'Estruturas metálicas', HV: 'HVAC / Dutos' };
+const ALL = Object.keys(MODULES);
+function packageName(mods) {
+  const m = ALL.filter(k => mods.includes(k));
+  if (!m.length) return '—';
+  if (m.length === ALL.length) return 'Master Premium';
+  if (m.length === 1) return m[0] + '.Max';
+  return 'Pro ' + m.join('+');
+}
+const ROLE_L = { admin: 'Administrador', moderator: 'Moderador', client: 'Cliente' };
+const STATUS_L = { nova: 'Nova', negociacao: 'Em negociação', liberada: 'Liberada', recusada: 'Recusada' };
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const low = s => String(s || '').trim().toLowerCase();
+const daysLeft = g => g.expires_at ? Math.ceil((new Date(g.expires_at) - Date.now()) / 864e5) : null;
+const isValid = g => g && g.active && (g.role !== 'client' || !g.expires_at || new Date(g.expires_at) > new Date());
+const dt = s => s ? new Date(s).toLocaleDateString('pt-BR') : '—';
+function toast(msg, kind = '') { const t = document.createElement('div'); t.className = 'toast ' + kind; t.textContent = msg; $('#toast').appendChild(t); setTimeout(() => t.remove(), kind === 'er' ? 5200 : 3400); }
+
+// regras de quem pode mexer em quem (repetidas no servidor pelo SQL)
+function canEdit(actor, target) {
+  if (!actor || !target) return false;
+  if (low(target.email) === CONFIG.superAdmin) return false;
+  if (actor.role === 'admin') return true;
+  if (actor.role === 'moderator') return target.role === 'client';
+  return false;
+}
+
+/* ---------------- Backend: demonstração (localStorage) ---------------- */
+const Demo = (() => {
+  const K = 'tecplan.demo.db.v1', KS = 'tecplan.demo.session';
+  const get = () => { try { return JSON.parse(localStorage.getItem(K)) || null; } catch { return null; } };
+  const put = d => { try { localStorage.setItem(K, JSON.stringify(d)); } catch { } };
+  let db = get();
+  if (!db) {
+    const now = Date.now();
+    db = {
+      grants: [
+        { email: CONFIG.superAdmin, name: 'Gabriel Corrêa', role: 'admin', modules: ALL, package: 'Master Premium', expires_at: null, active: true, created_at: new Date(now).toISOString() },
+        { email: 'moderador@demo.com', name: 'Moderador Demo', role: 'moderator', modules: ['TB'], package: 'TB.Max', expires_at: null, active: true, created_at: new Date(now).toISOString() },
+        { email: 'cliente@demo.com', name: 'Cliente Demo', company: 'Metalúrgica Exemplo', role: 'client', modules: ['TB'], package: 'TB.Max', expires_at: new Date(now + 30 * 864e5).toISOString(), active: true, created_at: new Date(now).toISOString() },
+        { email: 'civil@demo.com', name: 'Construtora Demo', role: 'client', modules: ['CL'], package: 'CL.Max', expires_at: new Date(now + 7 * 864e5).toISOString(), active: true, created_at: new Date(now).toISOString() },
+      ],
+      pw: { [CONFIG.superAdmin]: 'demo', 'moderador@demo.com': 'demo', 'cliente@demo.com': 'demo', 'civil@demo.com': 'demo' },
+      leads: [{ id: 'l1', name: 'João Silva', company: 'Caldeiraria Silva', whatsapp: '(11) 98888-7777', email: 'joao@exemplo.com', interests: ['TB'], message: 'Preciso gerar spools e BOM para uma linha de vapor.', consent: true, status: 'nova', created_at: new Date(now - 36e5).toISOString() }],
+    };
+    put(db);
+  }
+  const me = () => { try { const e = localStorage.getItem(KS); return e ? db.grants.find(g => g.email === e) || null : null; } catch { return null; } };
+  return {
+    demo: true,
+    async session() { return me(); },
+    async signIn(email, pw) { email = low(email); const g = db.grants.find(x => x.email === email); if (!g || db.pw[email] !== pw) throw new Error('E-mail ou senha incorretos'); localStorage.setItem(KS, email); return g; },
+    async signUp(email, pw) { email = low(email); const g = db.grants.find(x => x.email === email && x.active); if (!g) throw new Error('Este e-mail ainda não tem acesso liberado. Use o formulário abaixo para falar com a gente.'); if (db.pw[email]) throw new Error('Esse e-mail já tem senha. Use "Entrar".'); db.pw[email] = pw; put(db); localStorage.setItem(KS, email); return { user: g }; },
+    async reset() { return 'Modo demonstração: a senha das contas de exemplo é "demo".'; },
+    async signOut() { try { localStorage.removeItem(KS); } catch { } },
+    async submitLead(l) { db.leads.unshift(Object.assign({ id: 'l' + Date.now(), status: 'nova', created_at: new Date().toISOString() }, l)); put(db); },
+    async listLeads() { return db.leads.slice(); },
+    async updateLead(id, patch) { const l = db.leads.find(x => x.id === id); Object.assign(l, patch); put(db); },
+    async deleteLead(id) { db.leads = db.leads.filter(x => x.id !== id); put(db); },
+    async listGrants() { return db.grants.slice(); },
+    async saveGrant(g, actor) {
+      g.email = low(g.email);
+      const old = db.grants.find(x => x.email === g.email);
+      if (old && !canEdit(actor, old)) throw new Error('Você não tem permissão para alterar esse acesso');
+      if (g.role === 'admin') throw new Error('Só existe um administrador');
+      if (actor.role === 'moderator' && g.role !== 'client') throw new Error('Moderador só gerencia clientes');
+      if (old) Object.assign(old, g, { updated_at: new Date().toISOString() });
+      else db.grants.push(Object.assign({ created_at: new Date().toISOString(), created_by: actor.email }, g));
+      put(db);
+    },
+    async deleteGrant(email, actor) { const g = db.grants.find(x => x.email === email); if (!canEdit(actor, g) || actor.role !== 'admin') throw new Error('Somente o administrador remove acessos'); db.grants = db.grants.filter(x => x.email !== email); delete db.pw[email]; put(db); },
+    resetDemo() { try { localStorage.removeItem(K); localStorage.removeItem(KS); } catch { } },
+  };
+})();
+
+/* ---------------- Backend: Supabase ---------------- */
+function SupabaseBackend(sb) {
+  const grantOf = async email => { const { data, error } = await sb.from('access_grants').select('*').eq('email', low(email)).maybeSingle(); if (error) throw error; return data; };
+  return {
+    demo: false,
+    async session() { const { data } = await sb.auth.getSession(); const u = data.session?.user; return u ? await grantOf(u.email) : null; },
+    async signIn(email, pw) { const { data, error } = await sb.auth.signInWithPassword({ email: low(email), password: pw }); if (error) throw new Error(error.message.includes('Invalid') ? 'E-mail ou senha incorretos' : error.message); return await grantOf(data.user.email); },
+    async signUp(email, pw) {
+      const { data: ok, error: e1 } = await sb.rpc('grant_exists', { p_email: low(email) });
+      if (e1) throw e1; if (!ok) throw new Error('Este e-mail ainda não tem acesso liberado. Use o formulário abaixo para falar com a gente.');
+      const { data, error } = await sb.auth.signUp({ email: low(email), password: pw, options: { emailRedirectTo: location.href.split('#')[0] } });
+      if (error) throw new Error(error.message);
+      if (!data.session) return { confirm: true };
+      return { user: await grantOf(email) };
+    },
+    async reset(email) { const { error } = await sb.auth.resetPasswordForEmail(low(email), { redirectTo: location.href.split('#')[0] }); if (error) throw error; return 'Se o e-mail tiver acesso, enviamos um link para criar uma nova senha.'; },
+    async signOut() { await sb.auth.signOut(); },
+    async submitLead(l) { const { error } = await sb.from('leads').insert(l); if (error) throw new Error('Não foi possível enviar agora. Tente de novo em instantes.'); },
+    async listLeads() { const { data, error } = await sb.from('leads').select('*').order('created_at', { ascending: false }); if (error) throw error; return data; },
+    async updateLead(id, patch) { const { error } = await sb.from('leads').update(patch).eq('id', id); if (error) throw error; },
+    async deleteLead(id) { const { error } = await sb.from('leads').delete().eq('id', id); if (error) throw error; },
+    async listGrants() { const { data, error } = await sb.from('access_grants').select('*').order('created_at'); if (error) throw error; return data; },
+    async saveGrant(g) { g.email = low(g.email); const { error } = await sb.from('access_grants').upsert(g, { onConflict: 'email' }); if (error) throw new Error(error.message); },
+    async deleteGrant(email) { const { error } = await sb.from('access_grants').delete().eq('email', email); if (error) throw new Error(error.message); },
+    async setPassword(pw) { const { error } = await sb.auth.updateUser({ password: pw }); if (error) throw error; },
+    sb,
+  };
+}
+function loadScript(src) { return new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
+async function backend() {
+  if (!CONFIG.supabaseUrl || !CONFIG.supabaseAnonKey) return Demo;
+  try {
+    const ac = new AbortController(); const tm = setTimeout(() => ac.abort(), 6000);
+    const r = await fetch(CONFIG.supabaseUrl + '/auth/v1/health', { headers: { apikey: CONFIG.supabaseAnonKey }, signal: ac.signal }); clearTimeout(tm);
+    if (!r.ok && r.status >= 500) throw new Error('health ' + r.status);
+  } catch (e) { console.warn('Supabase inacessível daqui', e); return Demo; }
+  try {
+    await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js');
+    return SupabaseBackend(window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseAnonKey));
+  } catch (e) { console.error(e); toast('Servidor indisponível — usando modo demonstração.', 'er'); return Demo; }
+}
+
+/* ---------------- Galeria de projetos ---------------- */
+function sampleProjects() {
+  const { Project, snapPose, roll, autoConnect, isoTo3D, buildFromIso, latticeToScreen } = TP;
+  const mk = () => new Project();
+  const chain = (pr) => {
+    const add = (type, params, tgt, tp, mp = 'P1') => { const pc = pr.create(type, params); if (tgt) { const p = snapPose(pc, mp, tgt, tp); pc.pos = p.pos; pc.q = p.q; pr.link(pc, mp, tgt, tp); } return pc; };
+    return add;
+  };
+  // 1) Linha com válvula e derivação
+  const p1 = mk(); { const add = chain(p1);
+    const a = add('pipe', { dn: 100, len: 1600 }), e1 = add('elbow', { dn: 100 }, a, 'P2'), b = add('pipe', { dn: 100, len: 1200 }, e1, 'P2'), e2 = add('elbow', { dn: 100 }, b, 'P2'); roll(p1, e2.id, 90);
+    const c = add('pipe', { dn: 100, len: 900 }, e2, 'P2'), e3 = add('elbow', { dn: 100 }, c, 'P2'); roll(p1, e3.id, 90);
+    const d = add('pipe', { dn: 100, len: 500 }, e3, 'P2'), f1 = add('flange', { dn: 100 }, d, 'P2'), v = add('valve', { dn: 100, sub: 'gate' }, f1, 'P2'), f2 = add('flange', { dn: 100 }, v, 'P2', 'P2');
+    const g = add('pipe', { dn: 100, len: 500 }, f2, 'P1'), t = add('tee', { dn: 100, dn2: 50 }, g, 'P2'); add('pipe', { dn: 100, len: 700 }, t, 'P2');
+    const br = add('pipe', { dn: 50, len: 300 }, t, 'P3'), fb = add('flange', { dn: 50 }, br, 'P2'); add('valve', { dn: 50, sub: 'ball' }, fb, 'P2'); }
+  // 2) Coletor com três saídas
+  const p2 = mk(); { const add = chain(p2);
+    let prev = add('flange', { dn: 150, sub: 'BL' }); let port = 'P1';
+    const w = add('flange', { dn: 150 }, prev, 'P1', 'P2'); prev = w; port = 'P1';
+    for (let i = 0; i < 3; i++) {
+      const pp = add('pipe', { dn: 150, len: 450 }, prev, port), te = add('tee', { dn: 150, dn2: 80 }, pp, 'P2'); roll(p2, te.id, 90);
+      const s = add('pipe', { dn: 80, len: 350 }, te, 'P3'), fl = add('flange', { dn: 80 }, s, 'P2'), vv = add('valve', { dn: 80, sub: i === 1 ? 'globe' : 'gate' }, fl, 'P2'); add('flange', { dn: 80 }, vv, 'P2', 'P2');
+      prev = te; port = 'P2';
+    }
+    const pe = add('pipe', { dn: 150, len: 450 }, prev, port), el = add('elbow', { dn: 150 }, pe, 'P2'); roll(p2, el.id, -90); add('pipe', { dn: 150, len: 900 }, el, 'P2'); }
+  // 3) Traçado vindo do isométrico
+  const p3 = mk(); { const L = latticeToScreen, a = [0, 0], b = L(12, 0), c = [b[0], b[1] - 6], d = (() => { const q = L(0, 8); return [c[0] + q[0], c[1] + q[1]]; })(), e = (() => { const q = L(6, 0); return [d[0] + q[0], d[1] + q[1]]; })(), f = [e[0], e[1] + 4];
+    buildFromIso(p3, isoTo3D([{ a, b }, { a: b, b: c }, { a: c, b: d }, { a: d, b: e }, { a: e, b: f }], 100), { dn: 80 }); }
+  autoConnect(p1); autoConnect(p2);
+  return [
+    { pr: p1, t: 'Linha de água de resfriamento', s: '4" · válvula gaveta · derivação 2"' },
+    { pr: p2, t: 'Coletor de distribuição', s: '6" × 3" · 3 saídas com bloqueio' },
+    { pr: p3, t: 'Rota desenhada no isométrico', s: '3" · convertida para 3D em 1 toque' },
+  ];
+}
+
+/* ---------------- Telas ---------------- */
+let B = null, ME = null;
+const CSS = `
+#gate{position:fixed;inset:0;overflow-y:auto;background:radial-gradient(1200px 600px at 70% -10%,#1a1f28 0,#0d0f12 60%);z-index:40;color:var(--tx)}
+#gate .wrap{max-width:1080px;margin:0 auto;padding:28px 18px 0}
+#gate .top{display:grid;grid-template-columns:1.1fr .9fr;gap:36px;align-items:center;min-height:min(560px,78vh)}
+#gate h1{font-size:clamp(28px,4.4vw,46px);line-height:1.06;margin:14px 0 12px;letter-spacing:-.01em}
+#gate h1 b{color:var(--am)}
+#gate .lead{color:var(--mu);font-size:15px;max-width:460px}
+#gate .feat{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px}
+.gcard{background:rgba(22,25,31,.92);border:1px solid var(--ln);border-radius:12px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+.gcard h3{margin:0 0 4px;font-size:17px}
+.gtabs{display:flex;gap:4px;background:var(--bg);padding:3px;border-radius:7px;margin:12px 0}
+.gtabs button{flex:1;background:none;border:0;padding:7px;border-radius:5px;color:var(--mu);font-weight:500}
+.gtabs button.on{background:var(--p3);color:var(--am)}
+.gform{display:flex;flex-direction:column;gap:9px}
+.gform .in{height:38px}
+.link{background:none;border:0;color:var(--am);padding:0;font-size:12px;text-decoration:underline;cursor:pointer}
+.demo{margin-top:12px;padding-top:12px;border-top:1px dashed var(--ln);font-size:12px;color:var(--mu)}
+.demo .btns .ib{font-size:12px}
+#gate .show{margin:46px 0 0;padding:34px 0 10px;border-top:1px solid var(--ln)}
+#gate .show h2{all:unset;display:block;font-size:clamp(20px,3vw,28px);font-weight:700;text-align:center;margin-bottom:6px}
+#gate .show h2 b{color:var(--am)}
+#gate .show p.c{text-align:center;color:var(--mu);margin:0 0 22px}
+.gal{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.gal .it{background:var(--p1);border:1px solid var(--ln);border-radius:10px;overflow:hidden}
+.gal .it .pic{background:#1c2028;aspect-ratio:16/10;display:flex;align-items:center;justify-content:center;background-image:linear-gradient(#232833 1px,transparent 1px),linear-gradient(90deg,#232833 1px,transparent 1px);background-size:20px 20px}
+.gal .it .pic svg{width:100%;height:100%}
+.gal .it .tx{padding:10px 12px}
+.gal .it .tx b{display:block;font-size:13.5px}.gal .it .tx span{font-size:12px;color:var(--mu)}
+.contact{display:grid;grid-template-columns:.8fr 1.2fr;gap:28px;margin:34px 0 10px;align-items:start}
+.contact h3{font-size:22px;margin:0 0 8px}
+.chk{display:flex;gap:6px;flex-wrap:wrap}
+.chk label{display:flex;align-items:center;gap:5px;background:var(--p2);border:1px solid var(--ln);border-radius:16px;padding:4px 10px;font-size:12px;cursor:pointer}
+.chk input{accent-color:#f59e0b}
+.consent{display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--mu)}
+.consent input{margin-top:2px;accent-color:#f59e0b}
+.gfoot{display:flex;justify-content:space-between;gap:10px;padding:22px 0;margin-top:30px;border-top:1px solid var(--ln);font-size:11.5px;color:var(--mu);letter-spacing:.06em}
+.gfoot b{color:var(--tx);letter-spacing:.14em;font-weight:600}
+.err{color:#ff8a8a;font-size:12.5px;min-height:1em}
+.okbox{background:#0e2f1a;border:1px solid #1d5a35;color:#9ff0bd;border-radius:8px;padding:14px;font-size:13.5px}
+#adm{position:fixed;inset:46px 0 0 0;background:var(--bg);z-index:30;overflow:auto;display:none}
+#adm.on{display:block}
+#adm .aw{max-width:1100px;margin:0 auto;padding:16px}
+.lc{background:var(--p1);border:1px solid var(--ln);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.lc .hd{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+.lc .ct{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0;font-size:12.5px}
+.lc .ct a{color:var(--am2)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:60;display:flex;align-items:center;justify-content:center;padding:14px}
+.modal .box{background:var(--p1);border:1px solid var(--ln);border-radius:12px;padding:18px;width:min(560px,100%);max-height:92vh;overflow:auto}
+.ublock{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:45;background:var(--bg);padding:20px}
+#userchip{max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.mods{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px}
+@media(max-width:767px){#gate .top,.contact{grid-template-columns:1fr;gap:22px}.gal{grid-template-columns:1fr}#gate .top{min-height:0;padding-top:6px}#userchip{max-width:120px}}
+`;
+const LOGO = '<svg width="28" height="28" viewBox="0 0 24 24"><rect x="1" y="1" width="22" height="22" rx="4" fill="#f59e0b"/><path d="M5 8h14M12 8v11M5 15h4" stroke="#111" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>';
+
+function gateHTML(expired) {
+  const chips = Object.entries(MODULES).map(([k, v]) => `<label><input type="checkbox" name="int" value="${k}" ${k === 'TB' ? 'checked' : ''}>${v}</label>`).join('');
+  return `<div class="wrap">
+  <div class="top">
+    <div>
+      <div class="logo" style="font-size:16px">${LOGO}<span>TEC <b>PLAN</b></span></div>
+      <h1>Projeto de tubulação industrial, <b>do traço à fabricação.</b></h1>
+      <div class="lead">Modelagem 3D com acoplamento inteligente, isométrico à mão livre, pranchas de spool, lista de materiais e exportação PCF — direto no navegador.</div>
+      <div class="feat"><span class="chip am">3D com portas de conexão</span><span class="chip am">Isométrico → 3D</span><span class="chip am">Spools e soldas</span><span class="chip am">BOM automática</span><span class="chip am">PCF · CAESAR II</span></div>
+    </div>
+    <div class="gcard" id="gcard">${expired ? expiredHTML(expired) : loginHTML('in')}</div>
+  </div>
+  <section class="show">
+    <h2>Projetos reais, feitos no TEC PLAN. <b>O próximo pode ser o seu.</b></h2>
+    <p class="c">Alguns modelos criados na plataforma.</p>
+    <div class="gal" id="gal"></div>
+    <div class="contact" id="contato">
+      <div><h3>Fale com a gente</h3><div class="mut" style="font-size:14px">Conte o que você precisa projetar. Montamos um pacote com exatamente os módulos do seu trabalho e liberamos o seu acesso.</div>
+        <div class="mut" style="margin-top:14px;font-size:12.5px;line-height:1.7"><b style="color:var(--tx)">Pacotes</b><br>TB.Max — tubulação<br>CL.Max — construção civil<br>Pro — combinação sob medida<br>Master Premium — todos os módulos</div></div>
+      <div class="gcard" id="leadbox">
+        <form class="gform" id="leadf" novalidate>
+          <div class="grid2"><label class="f">Nome *<input class="in" name="name" required maxlength="120"></label><label class="f">Empresa<input class="in" name="company" maxlength="120"></label></div>
+          <div class="grid2"><label class="f">WhatsApp<input class="in" name="whatsapp" inputmode="tel" placeholder="(11) 90000-0000" maxlength="40"></label><label class="f">E-mail<input class="in" name="email" type="email" maxlength="160" value="${esc(expired ? expired.email : '')}"></label></div>
+          <label class="f">Outro contato (Telegram, LinkedIn…)<input class="in" name="other" maxlength="160"></label>
+          <div><div class="mut" style="font-size:11px;margin-bottom:5px">O que você quer projetar?</div><div class="chk">${chips}</div></div>
+          <label class="f">Mensagem<textarea class="in" name="msg" rows="3" maxlength="1500" style="height:auto;resize:vertical"></textarea></label>
+          <label class="consent"><input type="checkbox" name="consent">Autorizo a TEC PLAN a entrar em contato comigo pelos dados acima (LGPD).</label>
+          <div class="err" id="lerr"></div>
+          <button class="ib am" style="height:40px" type="submit">Enviar solicitação</button>
+        </form>
+      </div>
+    </div>
+  </section>
+  <div class="gfoot"><span>© 2026 Kitsune Systems</span><b>PRECISÃO EM CADA MOVIMENTO.</b></div>
+  </div>`;
+}
+function loginHTML(mode) {
+  const demo = B && B.demo ? `<div class="demo">Modo demonstração (sem servidor) — entrar como:<div class="btns" style="margin-top:6px"><button class="ib" data-demo="${CONFIG.superAdmin}">Administrador</button><button class="ib" data-demo="moderador@demo.com">Moderador</button><button class="ib" data-demo="cliente@demo.com">Cliente TB.Max</button><button class="ib" data-demo="civil@demo.com">Cliente CL.Max</button></div></div>` : '';
+  return `<h3>${mode === 'up' ? 'Primeiro acesso' : 'Entrar'}</h3><div class="mut">${mode === 'up' ? 'Crie sua senha com o e-mail que foi liberado para você.' : 'Acesse com o e-mail liberado pela nossa equipe.'}</div>
+    <div class="gtabs"><button data-m="in" class="${mode === 'in' ? 'on' : ''}">Entrar</button><button data-m="up" class="${mode === 'up' ? 'on' : ''}">Primeiro acesso</button></div>
+    <form class="gform" id="logf"><label class="f">E-mail<input class="in" name="email" type="email" autocomplete="username" required></label>
+    <label class="f">Senha<input class="in" name="pw" type="password" autocomplete="${mode === 'up' ? 'new-password' : 'current-password'}" minlength="6" required></label>
+    ${mode === 'up' ? '<label class="f">Confirmar senha<input class="in" name="pw2" type="password" autocomplete="new-password" required></label>' : ''}
+    <div class="err" id="gerr"></div>
+    <button class="ib am" style="height:40px" type="submit">${mode === 'up' ? 'Criar senha e entrar' : 'Entrar'}</button>
+    ${mode === 'in' ? '<div class="row" style="justify-content:space-between"><button type="button" class="link" id="forgot">Esqueci a senha</button><a class="link" href="#contato">Quero acesso</a></div>' : ''}</form>${demo}`;
+}
+function expiredHTML(g) {
+  return `<h3>Seu acesso ${g.active ? 'venceu' : 'está suspenso'}</h3><div class="mut" style="margin:6px 0 14px">${g.active ? `O pacote <b>${esc(g.package || packageName(g.modules || []))}</b> venceu em ${dt(g.expires_at)}.` : 'Fale com a nossa equipe para reativar.'} Seus projetos continuam salvos neste aparelho.</div>
+    <div class="btns"><a class="ib am" href="#contato" style="text-decoration:none">Renovar pelo formulário</a><button class="ib" id="gOut">Sair</button></div>`;
+}
+function bindLogin(mode) {
+  const card = $('#gcard');
+  card.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { card.innerHTML = loginHTML(b.dataset.m); bindLogin(b.dataset.m); });
+  card.querySelectorAll('[data-demo]').forEach(b => b.onclick = async () => { try { const g = await B.signIn(b.dataset.demo, 'demo'); enter(g); } catch (e) { $('#gerr').textContent = e.message; } });
+  const f = $('#logf'); if (!f) return;
+  if ($('#forgot')) $('#forgot').onclick = async () => { const em = f.email.value.trim(); if (!em) { $('#gerr').textContent = 'Digite seu e-mail acima.'; return; } try { toast(await B.reset(em), 'ok'); } catch (e) { $('#gerr').textContent = e.message; } };
+  f.onsubmit = async e => {
+    e.preventDefault(); const btn = f.querySelector('button[type=submit]'); $('#gerr').textContent = '';
+    const em = f.email.value.trim(), pw = f.pw.value;
+    if (!/^\S+@\S+\.\S+$/.test(em)) { $('#gerr').textContent = 'E-mail inválido.'; return; }
+    if (pw.length < 6) { $('#gerr').textContent = 'A senha precisa ter pelo menos 6 caracteres.'; return; }
+    if (mode === 'up' && pw !== f.pw2.value) { $('#gerr').textContent = 'As senhas não conferem.'; return; }
+    btn.disabled = true;
+    try {
+      if (mode === 'up') { const r = await B.signUp(em, pw); if (r.confirm) { $('#gcard').innerHTML = '<div class="okbox">Senha criada. Enviamos um e-mail de confirmação — abra o link para entrar.</div>'; return; } enter(r.user); }
+      else enter(await B.signIn(em, pw));
+    } catch (err) { $('#gerr').textContent = err.message || 'Falha ao entrar.'; } finally { btn.disabled = false; }
+  };
+}
+function bindLead() {
+  const f = $('#leadf');
+  f.onsubmit = async e => {
+    e.preventDefault(); const er = $('#lerr'); er.textContent = '';
+    const l = { name: f.name.value.trim(), company: f.company.value.trim() || null, whatsapp: f.whatsapp.value.trim() || null, email: f.email.value.trim() || null, other_contact: f.other.value.trim() || null, interests: [...f.querySelectorAll('[name=int]:checked')].map(i => i.value), message: f.msg.value.trim() || null, consent: f.consent.checked };
+    if (l.name.length < 2) { er.textContent = 'Informe seu nome.'; return; }
+    if (!l.whatsapp && !l.email && !l.other_contact) { er.textContent = 'Deixe pelo menos um contato: WhatsApp, e-mail ou outro.'; return; }
+    if (l.email && !/^\S+@\S+\.\S+$/.test(l.email)) { er.textContent = 'E-mail inválido.'; return; }
+    if (l.whatsapp && l.whatsapp.replace(/\D/g, '').length < 10) { er.textContent = 'WhatsApp incompleto — inclua o DDD.'; return; }
+    if (!l.consent) { er.textContent = 'Marque a autorização de contato para enviar.'; return; }
+    const btn = f.querySelector('button[type=submit]'); btn.disabled = true;
+    try { await B.submitLead(l); $('#leadbox').innerHTML = `<div class="okbox"><b>Recebemos sua solicitação, ${esc(l.name.split(' ')[0])}!</b><br>Nossa equipe vai entrar em contato em breve${l.whatsapp ? ' pelo WhatsApp' : l.email ? ' pelo e-mail' : ''} para montar o seu pacote.</div>`; }
+    catch (err) { er.textContent = err.message; btn.disabled = false; }
+  };
+}
+function renderGallery() {
+  try { $('#gal').innerHTML = sampleProjects().map(s => `<div class="it"><div class="pic">${TPSheet.isoThumb(s.pr, 320, 200)}</div><div class="tx"><b>${esc(s.t)}</b><span>${esc(s.s)}</span></div></div>`).join(''); }
+  catch (e) { console.error(e); }
+}
+function showGate(expired) {
+  let g = $('#gate'); if (!g) { g = document.createElement('div'); g.id = 'gate'; document.body.appendChild(g); }
+  g.innerHTML = gateHTML(expired);
+  if (expired) $('#gOut').onclick = async () => { await B.signOut(); showGate(); };
+  else bindLogin('in');
+  bindLead(); renderGallery();
+}
+
+/* ---------------- Entrada no app ---------------- */
+function enter(g) {
+  if (!g) { toast('Sua conta existe, mas não há acesso liberado para ela.', 'er'); B.signOut(); return; }
+  if (!isValid(g)) { showGate(g); return; }
+  ME = g;
+  $('#gate') && $('#gate').remove();
+  window.TPApp.start({ email: g.email, name: g.name, role: g.role, modules: g.role === 'admin' ? ALL : (g.modules || []), package: g.package || packageName(g.modules || []), expires_at: g.expires_at, MODULES });
+  headerExtras();
+  const d = daysLeft(g); if (g.role === 'client' && d !== null && d <= 5) toast(`Seu acesso vence em ${d} dia(s). Fale com a gente para renovar.`, 'er');
+}
+function headerExtras() {
+  const hdr = document.querySelector('header'); const anchor = $('#bUndo');
+  const chip = document.createElement('button'); chip.className = 'ib'; chip.id = 'userchip';
+  const d = daysLeft(ME);
+  chip.innerHTML = `<span class="chip am">${esc(ME.role === 'admin' ? 'Admin' : ME.role === 'moderator' ? 'Moderador' : (ME.package || packageName(ME.modules)))}</span><span class="hdr-extra">${esc((ME.name || ME.email).split(' ')[0])}${ME.role === 'client' && d !== null ? ` · ${d}d` : ''}</span>`;
+  chip.title = `${ME.email} — clique para sair`;
+  chip.onclick = () => confirmBox('Sair da conta?', `${esc(ME.email)}<br>Seus projetos continuam salvos neste aparelho.`, 'Sair', async () => { await B.signOut(); location.reload(); });
+  hdr.insertBefore(chip, anchor);
+  if (ME.role === 'admin' || ME.role === 'moderator') {
+    const b = document.createElement('button'); b.className = 'ib'; b.id = 'bAdm'; b.textContent = 'Painel';
+    b.onclick = () => { const a = $('#adm'); if (a.classList.contains('on')) a.classList.remove('on'); else { a.classList.add('on'); renderAdmin(); } b.classList.toggle('on', a.classList.contains('on')); };
+    hdr.insertBefore(b, chip);
+    const adm = document.createElement('div'); adm.id = 'adm'; document.body.appendChild(adm);
+  }
+}
+function confirmBox(title, html, ok, fn) {
+  const m = document.createElement('div'); m.className = 'modal';
+  m.innerHTML = `<div class="box"><h3 style="margin:0 0 8px">${title}</h3><div class="mut" style="margin-bottom:14px">${html}</div><div class="btns"><button class="ib" data-x>Cancelar</button><button class="ib am" data-ok>${ok}</button></div></div>`;
+  document.body.appendChild(m); m.onclick = e => { if (e.target === m || e.target.dataset.x !== undefined) m.remove(); };
+  m.querySelector('[data-ok]').onclick = async () => { m.remove(); await fn(); };
+}
+
+/* ---------------- Painel do administrador / moderador ---------------- */
+let ATAB = 'leads', LFILTER = 'abertas';
+async function renderAdmin() {
+  const a = $('#adm'); a.innerHTML = '<div class="aw"><div class="mut">Carregando…</div></div>';
+  let leads = [], grants = [];
+  try { [leads, grants] = await Promise.all([B.listLeads(), B.listGrants()]); } catch (e) { a.innerHTML = `<div class="aw"><div class="err">Erro ao carregar: ${esc(e.message)}</div></div>`; return; }
+  const open = leads.filter(l => l.status === 'nova' || l.status === 'negociacao');
+  const shownLeads = LFILTER === 'abertas' ? open : leads;
+  const wa = n => { const d = String(n || '').replace(/\D/g, ''); return d ? `https://wa.me/${d.length <= 11 ? '55' + d : d}` : null; };
+  const leadCard = l => `<div class="lc"><div class="hd"><div><b>${esc(l.name)}</b>${l.company ? ` <span class="mut">· ${esc(l.company)}</span>` : ''}<div class="mut" style="font-size:11.5px">${new Date(l.created_at).toLocaleString('pt-BR')}</div></div>
+      <select class="in" data-ls="${l.id}" style="width:auto">${Object.entries(STATUS_L).map(([k, v]) => `<option value="${k}" ${l.status === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+    <div class="ct">${l.whatsapp ? `<a href="${wa(l.whatsapp)}" target="_blank" rel="noopener">WhatsApp ${esc(l.whatsapp)}</a>` : ''}${l.email ? `<span>${esc(l.email)}</span>` : ''}${l.other_contact ? `<span>${esc(l.other_contact)}</span>` : ''}</div>
+    <div class="chk" style="margin-bottom:6px">${(l.interests || []).map(k => `<span class="chip am">${esc(MODULES[k] || k)}</span>`).join('')}</div>
+    ${l.message ? `<div style="font-size:13px;margin-bottom:8px">${esc(l.message)}</div>` : ''}
+    <div class="row"><input class="in" data-ln="${l.id}" placeholder="Anotações internas" value="${esc(l.notes || '')}" style="flex:1"><button class="ib am" data-lg="${l.id}">Liberar acesso</button>${ME.role === 'admin' ? `<button class="ib" data-ld="${l.id}" title="Excluir">✕</button>` : ''}</div></div>`;
+  const gRow = g => { const d = daysLeft(g), ok = isValid(g), ed = canEdit(ME, g);
+    return `<tr><td><b>${esc(g.name || '—')}</b><div class="mut mono" style="font-size:11px">${esc(g.email)}</div></td><td>${ROLE_L[g.role]}</td><td><span class="chip am">${esc(g.package || packageName(g.modules || []))}</span></td>
+    <td class="n">${g.role !== 'client' ? '—' : g.expires_at ? `${dt(g.expires_at)}<div class="mut" style="font-size:11px">${d > 0 ? d + ' dias' : 'vencido'}</div>` : 'sem validade'}</td>
+    <td><span class="chip ${ok ? 'ok' : 'er'}">${ok ? 'ativo' : g.active ? 'vencido' : 'suspenso'}</span></td>
+    <td>${ed ? `<button class="ib sm" data-ge="${esc(g.email)}">Editar</button>` : `<span class="mut" style="font-size:11px">${low(g.email) === CONFIG.superAdmin ? 'protegido' : '—'}</span>`}</td></tr>`; };
+  a.innerHTML = `<div class="aw">
+    <div class="row" style="justify-content:space-between;flex-wrap:wrap;margin-bottom:12px"><div class="gtabs" style="margin:0;min-width:280px"><button data-at="leads" class="${ATAB === 'leads' ? 'on' : ''}">Solicitações (${open.length})</button><button data-at="grants" class="${ATAB === 'grants' ? 'on' : ''}">Acessos (${grants.length})</button></div>
+    <div class="row">${B.demo ? '<span class="chip">modo demonstração</span>' : '<span class="chip ok">Supabase</span>'}<button class="ib" id="admClose">Fechar painel</button></div></div>
+    ${ATAB === 'leads' ? `<div class="row" style="margin-bottom:10px"><button class="ib sm ${LFILTER === 'abertas' ? 'on' : ''}" data-lf="abertas">Em aberto</button><button class="ib sm ${LFILTER === 'todas' ? 'on' : ''}" data-lf="todas">Todas</button></div>${shownLeads.map(leadCard).join('') || '<div class="mut">Nenhuma solicitação aqui.</div>'}`
+      : `<div class="row" style="margin-bottom:10px"><button class="ib am" id="gNew">+ Novo acesso</button><span class="mut" style="font-size:12px">${ME.role === 'moderator' ? 'Como moderador, você gerencia apenas clientes.' : 'O administrador principal é protegido e não pode ser alterado.'}</span></div>
+      <div class="tw"><table class="t"><thead><tr><th>Usuário</th><th>Papel</th><th>Pacote</th><th>Validade</th><th>Status</th><th></th></tr></thead><tbody>${grants.map(gRow).join('')}</tbody></table></div>`}
+  </div>`;
+  a.querySelectorAll('[data-at]').forEach(b => b.onclick = () => { ATAB = b.dataset.at; renderAdmin(); });
+  a.querySelectorAll('[data-lf]').forEach(b => b.onclick = () => { LFILTER = b.dataset.lf; renderAdmin(); });
+  $('#admClose').onclick = () => { a.classList.remove('on'); $('#bAdm').classList.remove('on'); };
+  a.querySelectorAll('[data-ls]').forEach(s => s.onchange = async () => { try { await B.updateLead(s.dataset.ls, { status: s.value, handled_by: ME.email }); toast('Status atualizado.', 'ok'); renderAdmin(); } catch (e) { toast(e.message, 'er'); } });
+  a.querySelectorAll('[data-ln]').forEach(i => i.onchange = async () => { try { await B.updateLead(i.dataset.ln, { notes: i.value, handled_by: ME.email }); toast('Anotação salva.', 'ok'); } catch (e) { toast(e.message, 'er'); } });
+  a.querySelectorAll('[data-ld]').forEach(b => b.onclick = () => confirmBox('Excluir solicitação?', 'Essa ação não pode ser desfeita.', 'Excluir', async () => { try { await B.deleteLead(b.dataset.ld); renderAdmin(); } catch (e) { toast(e.message, 'er'); } }));
+  a.querySelectorAll('[data-lg]').forEach(b => b.onclick = () => { const l = leads.find(x => x.id === b.dataset.lg); const ex = grants.find(g => low(g.email) === low(l.email)); grantEditor(ex || { email: l.email || '', name: l.name, company: l.company, role: 'client', modules: l.interests && l.interests.length ? l.interests : ['TB'], active: true }, l); });
+  if ($('#gNew')) $('#gNew').onclick = () => grantEditor({ email: '', role: 'client', modules: ['TB'], active: true });
+  a.querySelectorAll('[data-ge]').forEach(b => b.onclick = () => grantEditor(Object.assign({}, grants.find(g => g.email === b.dataset.ge)), null, true));
+}
+function grantEditor(g, lead, editing) {
+  const m = document.createElement('div'); m.className = 'modal';
+  const d = daysLeft(g);
+  const expDate = g.expires_at ? g.expires_at.slice(0, 10) : '';
+  m.innerHTML = `<div class="box"><h3 style="margin:0 0 4px">${editing ? 'Editar acesso' : 'Liberar acesso'}</h3>${lead ? `<div class="mut" style="margin-bottom:8px">Solicitação de ${esc(lead.name)}</div>` : ''}
+    <form class="gform" id="gef">
+      <label class="f">E-mail de acesso *<input class="in" name="email" type="email" value="${esc(g.email)}" ${editing ? 'readonly' : ''} required></label>
+      <div class="grid2"><label class="f">Nome<input class="in" name="name" value="${esc(g.name || '')}"></label><label class="f">Empresa<input class="in" name="company" value="${esc(g.company || '')}"></label></div>
+      <label class="f">Papel<select class="in" name="role"><option value="client">Cliente</option>${ME.role === 'admin' ? `<option value="moderator" ${g.role === 'moderator' ? 'selected' : ''}>Moderador</option>` : ''}</select></label>
+      <div><div class="mut" style="font-size:11px;margin-bottom:5px">Módulos liberados</div><div class="chk">${Object.entries(MODULES).map(([k, v]) => `<label><input type="checkbox" name="mod" value="${k}" ${(g.modules || []).includes(k) ? 'checked' : ''}>${v}</label>`).join('')}</div></div>
+      <label class="f">Nome do pacote<input class="in" name="package" value="${esc(g.package || packageName(g.modules || []))}"></label>
+      <div class="grid2"><label class="f">Validade<select class="in" name="dur"><option value="">Manter / data abaixo</option><option value="7">Teste 7 dias</option><option value="30">30 dias</option><option value="90">90 dias</option><option value="180">6 meses</option><option value="365">1 ano</option><option value="none">Sem validade</option></select></label>
+        <label class="f">Vence em<input class="in" name="exp" type="date" value="${expDate}"></label></div>
+      ${editing ? `<div class="mut" style="font-size:12px">${d === null ? 'Sem validade' : d > 0 ? `Restam ${d} dias` : 'Vencido'}</div>` : ''}
+      <label class="consent"><input type="checkbox" name="active" ${g.active !== false ? 'checked' : ''}>Acesso ativo</label>
+      <label class="f">Notas<input class="in" name="notes" value="${esc(g.notes || '')}"></label>
+      <div class="err" id="geerr"></div>
+      <div class="btns"><button type="button" class="ib" data-x>Cancelar</button>${editing && ME.role === 'admin' ? '<button type="button" class="ib" id="geDel" style="color:var(--er)">Remover</button>' : ''}<button class="ib am" type="submit">${editing ? 'Salvar' : 'Liberar acesso'}</button></div>
+    </form></div>`;
+  document.body.appendChild(m);
+  const f = m.querySelector('#gef');
+  const autoPkg = () => { const mods = [...f.querySelectorAll('[name=mod]:checked')].map(i => i.value); if (!f.package.dataset.touched) f.package.value = packageName(mods); };
+  f.package.oninput = () => { f.package.dataset.touched = 1; };
+  f.querySelectorAll('[name=mod]').forEach(i => i.onchange = autoPkg);
+  f.dur.onchange = () => { const v = f.dur.value; if (v === 'none') f.exp.value = ''; else if (v) f.exp.value = new Date(Date.now() + +v * 864e5).toISOString().slice(0, 10); };
+  if (!editing && !g.expires_at) { f.dur.value = '30'; f.dur.onchange(); }
+  m.onclick = e => { if (e.target === m || e.target.dataset.x !== undefined) m.remove(); };
+  if (m.querySelector('#geDel')) m.querySelector('#geDel').onclick = () => confirmBox('Remover acesso?', `${esc(g.email)} perde o acesso imediatamente.`, 'Remover', async () => { try { await B.deleteGrant(g.email, ME); m.remove(); toast('Acesso removido.', 'ok'); renderAdmin(); } catch (e) { toast(e.message, 'er'); } });
+  f.onsubmit = async e => {
+    e.preventDefault(); const er = m.querySelector('#geerr'); er.textContent = '';
+    const out = { email: low(f.email.value), name: f.name.value.trim() || null, company: f.company.value.trim() || null, role: f.role.value, modules: [...f.querySelectorAll('[name=mod]:checked')].map(i => i.value), package: f.package.value.trim() || null, expires_at: f.exp.value ? new Date(f.exp.value + 'T23:59:59').toISOString() : null, active: f.active.checked, notes: f.notes.value.trim() || null };
+    if (!/^\S+@\S+\.\S+$/.test(out.email)) { er.textContent = 'E-mail inválido.'; return; }
+    if (out.email === CONFIG.superAdmin) { er.textContent = 'Esse é o administrador principal.'; return; }
+    if (!out.modules.length) { er.textContent = 'Marque pelo menos um módulo.'; return; }
+    try {
+      await B.saveGrant(out, ME);
+      if (lead) await B.updateLead(lead.id, { status: 'liberada', handled_by: ME.email });
+      m.remove(); renderAdmin();
+      toast(editing ? 'Acesso atualizado.' : `Acesso liberado para ${out.email}. ${B.demo ? 'No modo demo, a pessoa cria a senha em "Primeiro acesso".' : 'Envie a ela o link do app: ela cria a senha em "Primeiro acesso".'}`, 'ok');
+    } catch (err) { er.textContent = err.message; }
+  };
+}
+
+/* ---------------- Início ---------------- */
+async function boot() {
+  const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
+  B = await backend();
+  let g = null; try { g = await B.session(); } catch (e) { console.error(e); }
+  if (g) enter(g); else showGate();
+}
+window.TPAuth = { MODULES, packageName, CONFIG };
+if (typeof THREE !== 'undefined') boot();
+})();
+
+</script>
+</body>
+</html>
