@@ -456,6 +456,131 @@ const TYPES = {
     weight: () => 0.8, keys: (p, w) => ({ pts: [w.P1], key: [w.P1] }),
   },
 };
+
+/* ---------------- Construção civil (CL) ---------------- */
+const DOWN = new V3(0, -1, 0);
+const CVP = (id, pos, dir) => ({ id, pos, dir, end: 'CV', dn: 0, od: 0 });
+const civKeys = () => ({ pts: [], key: [] });
+const FCK = [20, 25, 30, 35, 40];
+function concreteLines(p, vol, form, rate) {
+  return [
+    { desc: `Concreto usinado fck ${p.fck || 25} MPa`, unit: 'm³', qty: vol, std: 'NBR 6118 / NBR 12655', mat: `Concreto C${p.fck || 25}`, w: vol * 2400 },
+    { desc: 'Forma de madeira (compensado resinado 12 mm)', unit: 'm²', qty: form, std: 'NBR 15696', mat: 'Compensado resinado', w: form * 8 },
+    { desc: 'Aço CA-50 para armadura', unit: 'kg', qty: vol * rate, std: 'NBR 7480', mat: 'Aço CA-50', w: vol * rate },
+  ];
+}
+const WALL_K = {
+  bloco: { label: 'bloco de concreto 14×19×39', item: 'Bloco de concreto 14×19×39 cm', per: 12.5, kg: 11, std: 'NBR 6136', mort: 0.015, mat: 'block' },
+  ceramico: { label: 'bloco cerâmico 14×19×29', item: 'Bloco cerâmico vedação 14×19×29 cm', per: 16.5, kg: 6.5, std: 'NBR 15270', mort: 0.02, mat: 'ceramic' },
+  tijolo: { label: 'tijolo maciço 5×10×20', item: 'Tijolo maciço 5×10×20 cm', per: 48, kg: 2.5, std: 'NBR 15270', mort: 0.03, mat: 'brick' },
+};
+const ROOF_K = {
+  ceramica: { label: 'telha cerâmica', item: 'Telha cerâmica tipo romana', unit: 'un', per: 16, kg: 2.6, std: 'NBR 15310', mat: 'tile' },
+  fibrocimento: { label: 'telha de fibrocimento', item: 'Telha de fibrocimento 6 mm 2,44×1,10 m', unit: 'un', per: 1 / 2.15, kg: 18, std: 'NBR 7581', mat: 'fiber' },
+  metalica: { label: 'telha metálica', item: 'Telha metálica trapezoidal 0,5 mm', unit: 'm²', per: 1, kg: 4.5, std: 'NBR 14514', mat: 'metal' },
+};
+function roofGeo(p) {
+  const t = Math.atan(p.slope / 100), half = p.S / 2 + p.ov, rise = p.slope / 100 * p.S / 2, drop = p.ov * p.slope / 100;
+  const len = Math.hypot(half, rise + drop), LL = p.L + 2 * p.ov;
+  return { t, half, rise, drop, len, LL, area: 2 * LL * len / 1e6 };
+}
+const civW = T => p => T.bomLines(p).reduce((a, b) => a + b.w, 0);
+const CIVIL = {
+  footing: {
+    name: 'Bloco de fundação', prefix: 'BF', civil: true, spool: false,
+    defaults: { dn: 0, L: 1400, W: 1400, h1: 350, h2: 350, cb: 300, ch: 300, hs: 250, fck: 25 },
+    fields: [['L', 'Comprimento (mm)'], ['W', 'Largura (mm)'], ['h1', 'Altura da base (mm)'], ['h2', 'Altura do tronco (mm)'], ['cb', 'Arranque b (mm)'], ['ch', 'Arranque h (mm)'], ['hs', 'Altura do arranque (mm)'], ['fck', 'fck (MPa)', FCK]],
+    desc: p => `Bloco de fundação ${p.L}×${p.W} mm, tronco de pirâmide c/ arranque ${p.cb}×${p.ch}`,
+    std: () => 'NBR 6118 / NBR 6122', mat: p => `Concreto C${p.fck}`,
+    ports: p => [CVP('TOP', new V3(0, p.h1 + p.h2 + p.hs, 0), UP)],
+    prims(p) {
+      const y2 = p.h1 + p.h2, top = y2 + p.hs;
+      const out = [box(new V3(0, p.h1 / 2, 0), [p.L, p.h1, p.W], { mat: 'concrete' }), { k: 'frustum', y0: p.h1, y1: y2, b: [p.L, p.W], t: [p.cb + 150, p.ch + 150], mat: 'concrete' }, box(new V3(0, y2 + p.hs / 2, 0), [p.cb, p.hs, p.ch], { mat: 'concrete' })];
+      const ix = p.cb / 2 - 40, iz = p.ch / 2 - 40;
+      for (const [a, b] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) out.push(cyl(new V3(a * ix, p.h1, b * iz), new V3(a * ix, top + 600, b * iz), 6.25, null, { mat: 'rebar', clash: false }));
+      return out;
+    },
+    bomLines(p) {
+      const a1 = p.L * p.W, a2 = (p.cb + 150) * (p.ch + 150);
+      const vol = (a1 * p.h1 + p.h2 / 3 * (a1 + a2 + Math.sqrt(a1 * a2)) + p.cb * p.ch * p.hs) / 1e9;
+      return concreteLines(p, vol, (2 * (p.L + p.W) * p.h1 + 2 * (p.cb + p.ch) * p.hs) / 1e6, 80);
+    },
+    keys: civKeys,
+  },
+  column: {
+    name: 'Pilar', prefix: 'P', civil: true, spool: false,
+    defaults: { dn: 0, b: 300, h: 300, H: 3000, chf: 20, fck: 25 },
+    fields: [['b', 'Seção b (mm)'], ['h', 'Seção h (mm)'], ['H', 'Altura (mm)'], ['chf', 'Chanfro (mm)'], ['fck', 'fck (MPa)', FCK]],
+    desc: p => `Pilar de concreto ${p.b}×${p.h} mm, altura ${p.H} mm`,
+    std: () => 'NBR 6118', mat: p => `Concreto C${p.fck}`,
+    ports: p => [CVP('BASE', new V3(0, 0, 0), DOWN), CVP('TOPO', new V3(0, p.H, 0), UP)],
+    prims: p => [{ k: 'cbox', c: new V3(0, p.H / 2, 0), s: [p.b, p.H, p.h], axis: 'y', ch: p.chf, mat: 'concrete' }],
+    bomLines: p => concreteLines(p, p.b * p.h * p.H / 1e9, 2 * (p.b + p.h) * p.H / 1e6, 120),
+    keys: civKeys,
+  },
+  beam: {
+    name: 'Viga', prefix: 'V', civil: true, spool: false,
+    defaults: { dn: 0, L: 4000, b: 150, h: 450, ov: 150, fck: 25 },
+    fields: [['L', 'Vão entre apoios (mm)'], ['b', 'Largura b (mm)'], ['h', 'Altura h (mm)'], ['ov', 'Apoio além do eixo (mm)'], ['fck', 'fck (MPa)', FCK]],
+    desc: p => `Viga de concreto ${p.b}×${p.h} mm, vão ${p.L} mm`,
+    std: () => 'NBR 6118', mat: p => `Concreto C${p.fck}`,
+    ports: p => [CVP('A', new V3(0, 0, 0), DOWN), CVP('B', new V3(p.L, 0, 0), DOWN)],
+    prims: p => [{ k: 'cbox', c: new V3(p.L / 2, p.h / 2, 0), s: [p.L + 2 * p.ov, p.h, p.b], axis: 'x', ch: 10, mat: 'concrete' }],
+    bomLines: p => concreteLines(p, p.b * p.h * (p.L + 2 * p.ov) / 1e9, (2 * p.h + p.b) * p.L / 1e6, 110),
+    keys: civKeys,
+  },
+  slab: {
+    name: 'Laje', prefix: 'L', civil: true, spool: false,
+    defaults: { dn: 0, L: 4300, W: 4300, e: 120, fck: 25 },
+    fields: [['L', 'Comprimento (mm)'], ['W', 'Largura (mm)'], ['e', 'Espessura (mm)'], ['fck', 'fck (MPa)', FCK]],
+    desc: p => `Laje maciça ${p.L}×${p.W} mm, e = ${p.e} mm`,
+    std: () => 'NBR 6118', mat: p => `Concreto C${p.fck}`,
+    ports: p => [CVP('C1', new V3(0, 0, 0), DOWN), CVP('C2', new V3(p.L, 0, 0), DOWN), CVP('C3', new V3(0, 0, p.W), DOWN), CVP('C4', new V3(p.L, 0, p.W), DOWN)],
+    prims: p => [box(new V3(p.L / 2, p.e / 2, p.W / 2), [p.L, p.e, p.W], { mat: 'concrete' })],
+    bomLines: p => concreteLines(p, p.L * p.W * p.e / 1e9, p.L * p.W / 1e6, 70),
+    keys: civKeys,
+  },
+  wall: {
+    name: 'Parede', prefix: 'PA', civil: true, spool: false,
+    defaults: { dn: 0, L: 3000, H: 2800, t: 140, kind: 'bloco' },
+    fields: [['L', 'Comprimento (mm)'], ['H', 'Altura (mm)'], ['t', 'Espessura (mm)'], ['kind', 'Alvenaria', Object.keys(WALL_K), k => WALL_K[k].label]],
+    desc: p => `Parede de alvenaria, ${WALL_K[p.kind].label}, ${p.L}×${p.H}×${p.t} mm`,
+    std: p => WALL_K[p.kind].std, mat: p => WALL_K[p.kind].item,
+    ports: p => [CVP('P1', new V3(0, 0, 0), AX.neg()), CVP('P2', new V3(p.L, 0, 0), AX)],
+    prims: p => [box(new V3(p.L / 2, p.H / 2, 0), [p.L, p.H, p.t], { mat: WALL_K[p.kind].mat })],
+    bomLines(p) {
+      const k = WALL_K[p.kind], A = p.L * p.H / 1e6;
+      return [{ desc: `Alvenaria de ${k.label} (área)`, unit: 'm²', qty: A, std: 'NBR 15575', mat: 'Alvenaria de vedação', w: 0 },
+        { desc: k.item, unit: 'un', qty: Math.ceil(A * k.per * 1.05), std: k.std, mat: k.item, w: Math.ceil(A * k.per * 1.05) * k.kg },
+        { desc: 'Argamassa de assentamento 1:2:8', unit: 'm³', qty: A * k.mort, std: 'NBR 13281', mat: 'Cimento, cal e areia', w: A * k.mort * 1900 }];
+    },
+    keys: civKeys,
+  },
+  roof: {
+    name: 'Telhado', prefix: 'T', civil: true, spool: false,
+    defaults: { dn: 0, L: 4300, S: 4300, slope: 30, ov: 500, kind: 'ceramica' },
+    fields: [['L', 'Comprimento (mm)'], ['S', 'Vão (mm)'], ['slope', 'Inclinação (%)'], ['ov', 'Beiral (mm)'], ['kind', 'Telha', Object.keys(ROOF_K), k => ROOF_K[k].label]],
+    desc: p => `Telhado duas águas, ${ROOF_K[p.kind].label}, ${p.L}×${p.S} mm, ${p.slope}%`,
+    std: p => ROOF_K[p.kind].std, mat: p => ROOF_K[p.kind].item,
+    ports: p => [CVP('C1', new V3(0, 0, -p.S / 2), DOWN), CVP('C2', new V3(p.L, 0, -p.S / 2), DOWN), CVP('C3', new V3(0, 0, p.S / 2), DOWN), CVP('C4', new V3(p.L, 0, p.S / 2), DOWN)],
+    prims(p) {
+      const g = roofGeo(p), k = ROOF_K[p.kind], th = 25;
+      const cy = (g.rise - g.drop) / 2 + th / 2, cz = g.half / 2;
+      return [box(new V3(p.L / 2, cy, -cz), [g.LL, th, g.len], { mat: k.mat, rq: Q.axisAngle(AX, -g.t) }),
+        box(new V3(p.L / 2, cy, cz), [g.LL, th, g.len], { mat: k.mat, rq: Q.axisAngle(AX, g.t) }),
+        cyl(new V3(-p.ov, g.rise + th, 0), new V3(p.L + p.ov, g.rise + th, 0), 60, null, { mat: k.mat, clash: false })];
+    },
+    bomLines(p) {
+      const g = roofGeo(p), k = ROOF_K[p.kind], n = k.unit === 'un' ? Math.ceil(g.area * k.per * 1.05) : g.area;
+      return [{ desc: k.item, unit: k.unit, qty: n, std: k.std, mat: k.item, w: k.unit === 'un' ? n * k.kg : g.area * k.kg },
+        { desc: 'Cumeeira', unit: 'm', qty: g.LL / 1000, std: k.std, mat: k.item, w: g.LL / 1000 * 5 },
+        { desc: 'Estrutura de madeira para telhado (área)', unit: 'm²', qty: g.area, std: 'NBR 7190', mat: 'Madeira tratada', w: g.area * 18 }];
+    },
+    keys: civKeys,
+  },
+};
+for (const k in CIVIL) CIVIL[k].weight = civW(CIVIL[k]);
+Object.assign(TYPES, CIVIL);
 const TYPE_PREF_UP = { valve: 1, strainer: 1, sightglass: 1, psv: 1, pgauge: 1, tgauge: 1, reducer: 1, tee: 0, elbow: 0 };
 
 /* ---------------- Peças e portas no mundo ---------------- */
@@ -479,7 +604,7 @@ class Project {
   }
   tag(type) { const pre = TYPES[type].prefix; this.seq[pre] = (this.seq[pre] || 0) + 1; return `${pre}-${String(this.seq[pre]).padStart(3, '0')}`; }
   create(type, params) {
-    const pc = Object.assign({ id: 'p' + (this.nextId++), type, dn: 100, cls: 150, len: 1000, angle: 90, radius: 'LR', sub: null, pos: new V3(), q: new Q(), conn: {} }, params || {});
+    const pc = Object.assign({ id: 'p' + (this.nextId++), type, dn: 100, cls: 150, len: 1000, angle: 90, radius: 'LR', sub: null, pos: new V3(), q: new Q(), conn: {} }, TYPES[type].defaults || {}, params || {});
     if (type === 'valve' && !pc.sub) pc.sub = 'gate';
     if (type === 'flange' && !pc.sub) pc.sub = 'WN';
     if (type === 'reducer' && !pc.dn2) pc.dn2 = nextDown(pc.dn);
@@ -513,6 +638,7 @@ class Project {
 
 /* ---------------- Compatibilidade e acoplamento ---------------- */
 function compatible(pa, pb, A, B) {
+  if (pa.end === 'CV' || pb.end === 'CV') return pa.end === pb.end ? { ok: true } : { ok: false, why: 'peça civil × tubulação' };
   if (Math.abs(pa.od - pb.od) > 0.6) return { ok: false, why: `diâmetros diferentes (Ø${r1(pa.od)} × Ø${r1(pb.od)})` };
   if (pa.end === 'FL' && pb.end === 'FL' && A && B && (A.cls || 150) !== (B.cls || 150)) return { ok: false, why: 'classes de pressão diferentes' };
   const fl = [pa.end, pb.end].filter(e => e === 'FL').length;
@@ -520,6 +646,7 @@ function compatible(pa, pb, A, B) {
   return { ok: true };
 }
 function jointType(ea, eb) {
+  if (ea === 'CV' || eb === 'CV') return 'civil';
   if (ea === 'FL' && eb === 'FL') return 'bolted';
   if (ea === 'TH' || eb === 'TH') return 'threaded';
   return 'weld';
@@ -907,6 +1034,14 @@ function bom(pr, filterIds) {
   const clsLabel = c => (FLANGE_STDS[fstd] || FLANGE_STDS['ASME B16.5'])[c] || ('Cl.' + c);
   for (const p of pcs) {
     const T = TYPES[p.type];
+    if (T.bomLines) {
+      for (const l of T.bomLines(p)) {
+        const k = 'CIV|' + l.desc + '|' + l.unit;
+        if (!groups.has(k)) groups.set(k, { desc: l.desc, dn: '—', nps: '', cls: '—', std: l.std, mat: l.mat, qty: 0, unit: l.unit, w: 0, tags: [], type: 'civ' });
+        const g = groups.get(k); g.qty += l.qty; g.w += l.w; if (!g.tags.includes(p.tag)) g.tags.push(p.tag);
+      }
+      continue;
+    }
     const hasFl = ['flange', 'valve', 'strainer', 'expjoint', 'sightglass', 'psv'].includes(p.type);
     const desc = T.desc(p), std = p.type === 'flange' ? fstd : T.std(p);
     const k = [desc, std, hasFl ? p.cls : ''].join('|');
@@ -928,7 +1063,8 @@ function bom(pr, filterIds) {
     const gg = groups.get(kg); gg.qty += 1; gg.w += 0.1 + j.dn * 0.004;
   }
   const order = ['pipe', 'custom', 'elbow', 'tee', 'reducer', 'flange', 'valve', 'strainer', 'expjoint', 'sightglass', 'psv', 'pgauge', 'tgauge', 'gasket', 'bolt'];
-  return [...groups.values()].sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type) || (+a.dn || 0) - (+b.dn || 0)).map((g, i) => Object.assign(g, { item: i + 1 }));
+  const rk = t => { const i = order.indexOf(t); return i < 0 ? 99 : i; };
+  return [...groups.values()].sort((a, b) => rk(a.type) - rk(b.type) || (+a.dn || 0) - (+b.dn || 0)).map((g, i) => Object.assign(g, { item: i + 1 }));
 }
 
 /* ---------------- PCF ---------------- */
@@ -970,7 +1106,8 @@ function testNotes(pr) {
   return { P, Pt, rows };
 }
 
-const TP = { V3, Q, UP, AX, AZ, D2R, DNS, DIM, CLASSES, FLANGE_STDS, flg, TYPES, VALVE_SUBS, Project, localPorts, worldPorts, worldPort, worldPt,
+const fmtQty = g => (g.unit === 'pç' || g.unit === 'un') ? String(Math.round(g.qty)) : (Math.round(g.qty * 100) / 100).toFixed(2) + ' ' + g.unit;
+const TP = { fmtQty, WALL_K, ROOF_K, V3, Q, UP, AX, AZ, D2R, DNS, DIM, CLASSES, FLANGE_STDS, flg, TYPES, VALVE_SUBS, Project, localPorts, worldPorts, worldPort, worldPt,
   compatible, jointType, snapPose, component, branch, applyRigid, pivotPort, rotateBranch, roll, tilt, orient, moveGroup, updateParams, autoConnect, acoplar,
   segSegDist, capsules, detectClashes, ISO_AXES, PLANES, latticeToScreen, screenToLattice, snapLattice, classifyIso, isoDelta, isoTo3D, buildFromIso,
   joints, analyze, bom, pcf, testNotes, nextDown, nextUp, odOf, r1, C30, S30 };
@@ -1002,8 +1139,23 @@ function geomOf(pc) { // primitivas em coordenadas do mundo
       for (let i = 0; i <= n; i++) { const t = p.ang * i / n; pts.push(worldPt(pc, p.c.add(p.u.scale(p.R * Math.cos(t))).add(p.v.scale(p.R * Math.sin(t))))); }
       out.push({ k: 'poly', pts, r: p.r, center: !p.accent && p.clash !== false });
     } else if (p.k === 'sph') out.push({ k: 'circ', c: worldPt(pc, p.c), r: p.r });
+    else if (p.mat && (p.k === 'box' || p.k === 'cbox')) {
+      const pts = []; for (const a of [-1, 1]) for (const b of [-1, 1]) for (const c of [-1, 1]) { let v = new V3(a * p.s[0] / 2, b * p.s[1] / 2, c * p.s[2] / 2); if (p.rq) v = p.rq.rot(v); pts.push(worldPt(pc, p.c.add(v))); }
+      out.push({ k: 'hull', pts });
+    } else if (p.k === 'frustum') {
+      const pts = []; for (const [y, [x, z]] of [[p.y0, p.b], [p.y1, p.t]]) for (const a of [-1, 1]) for (const c of [-1, 1]) pts.push(worldPt(pc, new V3(a * x / 2, y, c * z / 2)));
+      out.push({ k: 'hull', pts });
+    }
   }
   return out;
+}
+function hull2(P) {
+  const p = P.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]); if (p.length < 3) return p;
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const q of p) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  for (let i = p.length - 1; i >= 0; i--) { const q = p[i]; while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
 }
 
 // segmentos de cota (centro a centro / face a face)
@@ -1051,7 +1203,7 @@ function sheetSVG(pr, opts = {}) {
   const bboxOf = pj => {
     let x0 = 1e12, y0 = 1e12, x1 = -1e12, y1 = -1e12;
     const ext = (p, r) => { x0 = Math.min(x0, p[0] - r); y0 = Math.min(y0, p[1] - r); x1 = Math.max(x1, p[0] + r); y1 = Math.max(y1, p[1] + r); };
-    for (const g of geo) { if (g.k === 'seg') { ext(pj(g.a), g.rmax); ext(pj(g.b), g.rmax); } else if (g.k === 'poly') g.pts.forEach(p => ext(pj(p), g.r)); else ext(pj(g.c), g.r); }
+    for (const g of geo) { if (g.k === 'seg') { ext(pj(g.a), g.rmax); ext(pj(g.b), g.rmax); } else if (g.k === 'poly') g.pts.forEach(p => ext(pj(p), g.r)); else if (g.k === 'hull') g.pts.forEach(p => ext(pj(p), 0)); else ext(pj(g.c), g.r); }
     if (x0 > x1) return [0, 0, 1, 1];
     return [x0, y0, x1, y1];
   };
@@ -1080,8 +1232,9 @@ function sheetSVG(pr, opts = {}) {
     const pj = PROJ[name], b = bboxOf(pj), [cx, cy] = cells[name];
     const ox = cx + cellW / 2 - (b[0] + b[2]) / 2 * sc, oy = cy + cellH / 2 - (b[1] + b[3]) / 2 * sc + 2 * k;
     const P = v => { const p = pj(v); return [ox + p[0] * sc, oy + p[1] * sc]; };
-    const dark = [], light = [], center = [];
+    const dark = [], light = [], center = [], civ = [];
     for (const g of geo) {
+      if (g.k === 'hull') { civ.push(`<polygon points="${hull2(g.pts.map(P)).map(p => p.map(v => v.toFixed(2)).join(',')).join(' ')}" fill="#ececec" fill-opacity="0.85" stroke="#333" stroke-width="0.22" stroke-linejoin="round"/>`); continue; }
       if (g.k === 'seg') {
         const a = P(g.a), bb = P(g.b), L = Math.hypot(bb[0] - a[0], bb[1] - a[1]), w = 2 * g.r * sc;
         if (L < 0.08 * w) { dark.push(`<circle cx="${a[0].toFixed(2)}" cy="${a[1].toFixed(2)}" r="${(g.rmax * sc).toFixed(2)}" fill="#fff" stroke="#111" stroke-width="0.3"/>`); continue; }
@@ -1095,7 +1248,7 @@ function sheetSVG(pr, opts = {}) {
         if (g.center) center.push(`<polyline points="${pts}" stroke="#c0392b" stroke-width="0.13" stroke-dasharray="3 0.8 0.6 0.8"/>`);
       } else { const c = P(g.c); dark.push(`<circle cx="${c[0].toFixed(2)}" cy="${c[1].toFixed(2)}" r="${(g.r * sc + 0.25).toFixed(2)}" fill="#111"/>`); light.push(`<circle cx="${c[0].toFixed(2)}" cy="${c[1].toFixed(2)}" r="${Math.max(0, g.r * sc - 0.05).toFixed(2)}" fill="#fff"/>`); }
     }
-    out.push(`<g>${dark.join('')}${light.join('')}${center.join('')}</g>`);
+    out.push(`<g>${civ.join('')}${dark.join('')}${light.join('')}${center.join('')}</g>`);
     // cotas
     const dimOut = [];
     for (const [A, B] of dims) {
@@ -1171,7 +1324,7 @@ function sheetSVG(pr, opts = {}) {
   for (const it of shown) {
     const d = it.desc.length > maxDesc ? it.desc.slice(0, maxDesc - 1) + '…' : it.desc;
     out.push(txt(cols[0][0], y + rowH * 0.72, it.item, fs), txt(cols[1][0], y + rowH * 0.72, d, fs), txt(cols[2][0], y + rowH * 0.72, it.dn, fs),
-      txt(cols[3][0], y + rowH * 0.72, it.unit === 'm' ? it.qty.toFixed(2) + 'm' : it.qty, fs), txt(cols[4][0], y + rowH * 0.72, it.w.toFixed(1), fs));
+      txt(cols[3][0], y + rowH * 0.72, T.fmtQty(it), fs), txt(cols[4][0], y + rowH * 0.72, it.w.toFixed(1), fs));
     out.push(line(x0c, y + rowH, x0c + cw, y + rowH, 0.08)); y += rowH;
   }
   if (items.length > shown.length) { out.push(txt(x0c + 2, y + rowH * 0.72, `… +${items.length - shown.length} itens — ver lista completa (aba BOM)`, fs)); y += rowH; }
@@ -1191,7 +1344,9 @@ function sheetSVG(pr, opts = {}) {
   }
   // Notas
   const tn = T.testNotes(pr);
-  const notes = [
+  const hasPipe = pcs.some(p => !TYPES[p.type].civil), hasCiv = pcs.some(p => TYPES[p.type].civil);
+  const civNotes = ['NOTAS:', '1. Projeto e execução conforme NBR 6118 (concreto) e NBR 6122 (fundações).', '2. Cobrimento: 30 mm pilares e vigas, 40 mm fundações (CAA II).', '3. Aço CA-50 (NBR 7480) — quantitativo estimado por taxa de armadura.', '4. Alvenaria de vedação conforme NBR 15575, argamassa 1:2:8.', '5. Cotas em mm. Conferir com o projeto estrutural antes de executar.'];
+  const notes = !hasPipe ? civNotes : [
     'NOTAS:',
     '1. Fabricação, montagem e inspeção conforme ASME B31.3 — serviço normal.',
     `2. Pressão de projeto: ${tn.P} bar(g). Teste hidrostático: ${tn.Pt.toFixed(1)} bar(g) (1,5×P).`,
@@ -1199,6 +1354,7 @@ function sheetSVG(pr, opts = {}) {
     '3. END: soldas de topo — VS 100% + RX/US 5% aleatório; filete — VS + LP.',
     '4. Cotas em mm, de centro a centro e de face a face de flange.',
     '5. Soldas: ● oficina (SW)  ○ campo (FW). Spools quebrados em juntas flangeadas.',
+    ...(hasCiv ? ['6. Elementos civis: NBR 6118 / NBR 6122 / NBR 15575.'] : []),
   ];
   notes.forEach((n, i) => out.push(txt(x0c + 1.5, yNotes + 4 * k + i * 3.6 * k, n, i === 0 ? 2.1 : 1.75, { bold: i === 0 })));
   // Carimbo
@@ -1225,17 +1381,18 @@ function isoThumb(pr, W = 320, H = 200) {
   const pj = PROJ.iso;
   let x0 = 1e12, y0 = 1e12, x1 = -1e12, y1 = -1e12;
   const ext = (p, r) => { x0 = Math.min(x0, p[0] - r); y0 = Math.min(y0, p[1] - r); x1 = Math.max(x1, p[0] + r); y1 = Math.max(y1, p[1] + r); };
-  for (const g of geo) { if (g.k === 'seg') { ext(pj(g.a), g.rmax); ext(pj(g.b), g.rmax); } else if (g.k === 'poly') g.pts.forEach(p => ext(pj(p), g.r)); else ext(pj(g.c), g.r); }
+  for (const g of geo) { if (g.k === 'seg') { ext(pj(g.a), g.rmax); ext(pj(g.b), g.rmax); } else if (g.k === 'poly') g.pts.forEach(p => ext(pj(p), g.r)); else if (g.k === 'hull') g.pts.forEach(p => ext(pj(p), 0)); else ext(pj(g.c), g.r); }
   const s = Math.min((W - 24) / Math.max(1, x1 - x0), (H - 24) / Math.max(1, y1 - y0));
   const ox = W / 2 - (x0 + x1) / 2 * s, oy = H / 2 - (y0 + y1) / 2 * s;
   const P = v => { const p = pj(v); return [(ox + p[0] * s).toFixed(1), (oy + p[1] * s).toFixed(1)]; };
-  const a = [], b = [];
+  const a = [], b = [], h = [];
   for (const g of geo) {
+    if (g.k === 'hull') { h.push(`<polygon points="${hull2(g.pts.map(P).map(p => p.map(Number))).map(p => p.join(',')).join(' ')}" fill="#232833" fill-opacity=".9" stroke="#f59e0b" stroke-width="1" stroke-linejoin="round"/>`); continue; }
     if (g.k === 'seg') { const p = P(g.a), q = P(g.b), w = Math.max(1, 2 * g.r * s); a.push(`<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="#f59e0b" stroke-width="${(w + 1.4).toFixed(1)}"/>`); if (w > 1.5) b.push(`<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="#1c2028" stroke-width="${(w - 0.6).toFixed(1)}"/>`); }
     else if (g.k === 'poly') { const pts = g.pts.map(P).map(p => p.join(',')).join(' '), w = Math.max(1, 2 * g.r * s); a.push(`<polyline points="${pts}" stroke="#f59e0b" stroke-width="${(w + 1.4).toFixed(1)}" stroke-linejoin="round"/>`); if (w > 1.5) b.push(`<polyline points="${pts}" stroke="#1c2028" stroke-width="${(w - 0.6).toFixed(1)}" stroke-linejoin="round"/>`); }
     else { const c = P(g.c); a.push(`<circle cx="${c[0]}" cy="${c[1]}" r="${(g.r * s + 0.7).toFixed(1)}" fill="#f59e0b"/>`); b.push(`<circle cx="${c[0]}" cy="${c[1]}" r="${Math.max(0, g.r * s - 0.3).toFixed(1)}" fill="#1c2028"/>`); }
   }
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" fill="none" stroke-linecap="butt">${a.join('')}${b.join('')}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" fill="none" stroke-linecap="butt">${h.join('')}${a.join('')}${b.join('')}</svg>`;
 }
 if (typeof module !== 'undefined') module.exports = { sheetSVG, dimSegments, isoThumb };
 else window.TPSheet = { sheetSVG, dimSegments, isoThumb };
@@ -1317,7 +1474,7 @@ async function bootProjects() {
   const loc = localProjects(); if (loc.length) { if (await openProject(loc[0].id, { quiet: true })) return; }
   const legacy = store.get('tecplan.project.v1:' + String(USER.email || '').toLowerCase(), null);
   pr = legacy ? TP.Project.fromJSON(legacy) : new TP.Project();
-  if (!legacy) demo();
+  if (!legacy) demoFor();
   S.pid = uid(); save(); flushCloud(); refresh(); setTimeout(() => R.fit(), 50);
   if (!legacy) toast('Projeto de exemplo criado. Toque numa peça ou numa esfera âmbar para começar.');
 }
@@ -1350,7 +1507,28 @@ function resolveParams(type, params, dn) {
   if (type === 'pipe' && !p.len) p.len = S.pipeLen;
   return p;
 }
+function insertCivil(type, params) {
+  mutate(() => {
+    const act = S.active && pr.get(S.active.id) && !pr.get(S.active.id).conn[S.active.port] ? S.active : null;
+    const pc = pr.create(type, Object.assign({}, params));
+    let placed = false;
+    if (act) {
+      const tgt = pr.get(act.id), tp = TP.worldPort(tgt, act.port);
+      if (tp.end === 'CV') {
+        const lp = TP.localPorts(pc);
+        const mp = tp.dir.y > 0.9 ? lp.find(p => p.dir.y < -0.9) : tp.dir.y < -0.9 ? lp.find(p => p.dir.y > 0.9) : lp.find(p => p.dir.x < -0.9 && Math.abs(p.dir.y) < 0.1);
+        if (mp) { attach(pc, mp.id, tgt, act.port); TP.autoConnect(pr); placed = true; }
+        else { pc.pos = tp.pos; placed = true; }
+      }
+    }
+    if (!placed) { const b = bbox(); if (b && pr.pieces.size > 1) pc.pos = new V3(b.mx.x + 1500, 0, 0); }
+    S.sel = pc.id;
+    const pref = { footing: 'TOP', column: 'TOPO', beam: 'B', wall: 'P2' }[type];
+    S.active = pref && !pc.conn[pref] ? { id: pc.id, port: pref } : null;
+  });
+}
 function insert(type, params) {
+  if (TYPES[type].civil) return insertCivil(type, params);
   mutate(() => {
     const act = S.active && pr.get(S.active.id) && !pr.get(S.active.id).conn[S.active.port] ? S.active : null;
     const gauge = type === 'pgauge' || type === 'tgauge';
@@ -1408,6 +1586,43 @@ const R = (() => {
   let markerMap = [];
   const COLORS = { pipe: 0xa3abb5, elbow: 0xa3abb5, tee: 0xa3abb5, reducer: 0xa3abb5, flange: 0x8c96a2, valve: 0x56677a, strainer: 0x56677a, expjoint: 0x7d8794, sightglass: 0x56677a, psv: 0x8a3b3b, pgauge: 0x7d8794, tgauge: 0x7d8794, custom: 0xb59a6a };
   const qYX = Q.fromUnitVectors(TP.UP, TP.AX);
+  /* ---- materiais PBR com texturas procedurais (concreto, alvenaria, telhas) ---- */
+  const TEX = {};
+  const rnd = (a => () => (a = (a * 16807) % 2147483647) / 2147483647)(12345);
+  function canvasTex(key, draw, bump) {
+    const k = key + (bump ? ':b' : ''); if (TEX[k]) return TEX[k];
+    const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); draw(g, 256, bump);
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; if (!bump) t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; TEX[k] = t; return t;
+  }
+  const noise = (g, n, s, base, amp, bump) => { g.fillStyle = bump ? '#808080' : base; g.fillRect(0, 0, n, n); for (let i = 0; i < s; i++) { const v = (rnd() - 0.5) * amp; g.fillStyle = bump ? `rgba(${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${Math.abs(v) / 120})` : `rgba(${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${Math.abs(v) / 255})`; g.fillRect(rnd() * n, rnd() * n, 1 + rnd() * 2, 1 + rnd() * 2); } };
+  const masonry = (rows, cols, base, joint, varAmp) => (g, n, bump) => {
+    noise(g, n, 2500, base, 60, bump);
+    const rh = n / rows, cw = n / cols, j = 3;
+    for (let r = 0; r < rows; r++) for (let c = -1; c <= cols; c++) {
+      const x = c * cw + (r % 2 ? cw / 2 : 0), y = r * rh;
+      if (!bump) { const v = (rnd() - 0.5) * varAmp; g.fillStyle = `rgba(${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${Math.abs(v) / 255})`; g.fillRect(x + j, y + j, cw - j, rh - j); }
+    }
+    g.fillStyle = bump ? '#202020' : joint;
+    for (let r = 0; r <= rows; r++) g.fillRect(0, r * rh - j / 2, n, j);
+    for (let r = 0; r < rows; r++) for (let c = 0; c <= cols; c++) g.fillRect(c * cw + (r % 2 ? cw / 2 : 0) - j / 2, r * rh, j, rh);
+  };
+  const MATS = {
+    concrete: { draw: (g, n, b) => { noise(g, n, 9000, '#a3a49f', 70, b); for (let i = 0; i < 70; i++) { g.fillStyle = b ? '#303030' : 'rgba(60,60,58,.55)'; g.beginPath(); g.arc(rnd() * n, rnd() * n, 0.6 + rnd() * 1.6, 0, 7); g.fill(); } }, u: 600, v: 600, rough: 0.92, metal: 0 },
+    block: { draw: masonry(2, 1, '#8e9092', '#c2beb5', 30), u: 400, v: 400, rough: 0.95, metal: 0 },
+    ceramic: { draw: masonry(2, 1, '#b4643c', '#cfc6b8', 40), u: 300, v: 400, rough: 0.9, metal: 0 },
+    brick: { draw: masonry(4, 2, '#a24a2c', '#d2c8b8', 55), u: 420, v: 240, rough: 0.88, metal: 0 },
+    tile: { draw: (g, n, b) => { noise(g, n, 1500, '#b5532e', 40, b); for (let x = 0; x < n; x += n / 8) { const gr = g.createLinearGradient(x, 0, x + n / 8, 0); gr.addColorStop(0, b ? '#202020' : 'rgba(0,0,0,.35)'); gr.addColorStop(0.5, b ? '#e0e0e0' : 'rgba(255,220,180,.18)'); gr.addColorStop(1, b ? '#202020' : 'rgba(0,0,0,.35)'); g.fillStyle = gr; g.fillRect(x, 0, n / 8, n); } g.fillStyle = b ? '#101010' : 'rgba(40,10,0,.45)'; for (let y = 0; y < n; y += n / 4) g.fillRect(0, y, n, 3); }, u: 800, v: 1600, rough: 0.8, metal: 0 },
+    fiber: { draw: (g, n, b) => { noise(g, n, 1200, '#9aa0a3', 30, b); for (let x = 0; x < n; x++) { const v = Math.sin(x / n * Math.PI * 2 * 6); g.fillStyle = b ? `rgb(${128 + v * 110 | 0},${128 + v * 110 | 0},${128 + v * 110 | 0})` : `rgba(${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${Math.abs(v) * 0.18})`; g.fillRect(x, 0, 1, n); } }, u: 1100, v: 1100, rough: 0.85, metal: 0 },
+    metal: { draw: (g, n, b) => { g.fillStyle = b ? '#808080' : '#c7ccd1'; g.fillRect(0, 0, n, n); for (let x = 0; x < n; x += n / 4) { g.fillStyle = b ? '#f0f0f0' : 'rgba(255,255,255,.25)'; g.fillRect(x, 0, n / 16, n); g.fillStyle = b ? '#404040' : 'rgba(0,0,0,.15)'; g.fillRect(x + n / 16, 0, 3, n); } }, u: 1000, v: 1000, rough: 0.35, metal: 0.7 },
+    rebar: { color: 0x5b4636, rough: 0.6, metal: 0.6 },
+  };
+  function civMat(key, ru, rv) {
+    const d = MATS[key];
+    if (!d.draw) return { m: new THREE.MeshStandardMaterial({ color: d.color, roughness: d.rough, metalness: d.metal }), t: [] };
+    const map = canvasTex(key, d.draw).clone(), bm = canvasTex(key, d.draw, true).clone();
+    for (const t of [map, bm]) { t.repeat.set(ru, rv); t.needsUpdate = true; }
+    return { m: new THREE.MeshStandardMaterial({ map, bumpMap: bm, bumpScale: 1.4, roughness: d.rough, metalness: d.metal }), t: [map, bm] };
+  }
   const v = p => new THREE.Vector3(p.x, p.y, p.z);
 
   function init(container) {
@@ -1451,18 +1666,41 @@ const R = (() => {
       g = new THREE.TorusGeometry(p.R, p.r, 12, Math.max(8, Math.ceil(p.ang / (Math.PI / 16))), p.ang);
       m = new THREE.Mesh(g, mat); const u = v(p.u), w = v(p.v); m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(u, w, u.clone().cross(w))); m.position.copy(v(p.c));
     } else if (p.k === 'sph') { g = new THREE.SphereGeometry(p.r, 18, 12); m = new THREE.Mesh(g, mat); m.position.copy(v(p.c)); }
-    else if (p.k === 'box') { g = new THREE.BoxGeometry(p.s[0], p.s[1], p.s[2]); m = new THREE.Mesh(g, mat); m.position.copy(v(p.c)); }
+    else if (p.k === 'box') { g = new THREE.BoxGeometry(p.s[0], p.s[1], p.s[2]); m = new THREE.Mesh(g, mat); m.position.copy(v(p.c)); if (p.rq) m.quaternion.set(p.rq.x, p.rq.y, p.rq.z, p.rq.w); }
+    else if (p.k === 'cbox') {
+      const [sx, sy, sz] = p.s; let w, h, len; if (p.axis === 'y') { w = sx; h = sz; len = sy; } else { w = sz; h = sy; len = sx; }
+      const c = Math.min(p.ch || 0, w / 4, h / 4), sh = new THREE.Shape(), x0 = -w / 2, x1 = w / 2, y0 = -h / 2, y1 = h / 2;
+      sh.moveTo(x0 + c, y0); sh.lineTo(x1 - c, y0); sh.lineTo(x1, y0 + c); sh.lineTo(x1, y1 - c); sh.lineTo(x1 - c, y1); sh.lineTo(x0 + c, y1); sh.lineTo(x0, y1 - c); sh.lineTo(x0, y0 + c); sh.closePath();
+      g = new THREE.ExtrudeGeometry(sh, { depth: len, bevelEnabled: false }); g.translate(0, 0, -len / 2);
+      if (p.axis === 'y') g.rotateX(-Math.PI / 2); else g.rotateY(Math.PI / 2);
+      m = new THREE.Mesh(g, mat); m.position.copy(v(p.c));
+    } else if (p.k === 'frustum') {
+      const [bx, bz] = p.b, [tx, tz] = p.t, B = [[-bx / 2, p.y0, -bz / 2], [bx / 2, p.y0, -bz / 2], [bx / 2, p.y0, bz / 2], [-bx / 2, p.y0, bz / 2]], T = [[-tx / 2, p.y1, -tz / 2], [tx / 2, p.y1, -tz / 2], [tx / 2, p.y1, tz / 2], [-tx / 2, p.y1, tz / 2]];
+      const tri = []; for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; tri.push(B[i], T[j], B[j], B[i], T[i], T[j]); }
+      tri.push(T[0], T[2], T[1], T[0], T[3], T[2], B[0], B[1], B[2], B[0], B[2], B[3]);
+      g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(tri.flat(), 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(tri.flatMap(q => [q[0] + q[2], q[1]]), 2)); g.computeVertexNormals();
+      m = new THREE.Mesh(g, mat);
+    }
     return m;
   }
-  const pkey = pc => JSON.stringify([pc.type, pc.sub, pc.dn, pc.dn2, pc.cls, pc.len, pc.angle, pc.radius, pc.ecc, pc.od, pc.wt, pc.ends]);
-  function disposeObj(o) { o.group.traverse(c => { if (c.geometry) c.geometry.dispose(); }); o.mats.forEach(m => m.dispose()); root.remove(o.group); }
+  const pkey = pc => JSON.stringify([pc.type, pc.sub, pc.dn, pc.dn2, pc.cls, pc.len, pc.angle, pc.radius, pc.ecc, pc.od, pc.wt, pc.ends, ...(TYPES[pc.type].fields || []).map(f => pc[f[0]])]);
+  function disposeObj(o) { o.group.traverse(c => { if (c.geometry) c.geometry.dispose(); }); o.mats.forEach(m => m.dispose()); (o.texs || []).forEach(t => t.dispose()); root.remove(o.group); }
   function build(pc) {
     const steel = new THREE.MeshStandardMaterial({ color: COLORS[pc.type] || 0xa3abb5, metalness: 0.55, roughness: 0.4 });
     const acc = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.25, roughness: 0.5 });
-    const group = new THREE.Group();
-    for (const p of TYPES[pc.type].prims(pc)) { const m = primMesh(p, p.accent ? acc : steel); if (m) { m.userData.pid = pc.id; group.add(m); } }
+    const group = new THREE.Group(), mats = [steel, acc], texs = [];
+    for (const p of TYPES[pc.type].prims(pc)) {
+      let mat = p.accent ? acc : steel;
+      if (p.mat && MATS[p.mat]) {
+        const d = MATS[p.mat]; let ru = 1, rv = 1;
+        if (d.draw) { if (p.k === 'box') { const roofy = p.rq || p.mat === 'tile' || p.mat === 'fiber' || p.mat === 'metal'; ru = p.s[0] / d.u; rv = (roofy ? p.s[2] : p.s[1]) / d.v; } else { ru = 1 / d.u; rv = 1 / d.v; } }
+        const cm = civMat(p.mat, ru, rv); mat = cm.m; mats.push(mat); texs.push(...cm.t);
+      }
+      const m = primMesh(p, mat); if (m) { m.userData.pid = pc.id; group.add(m); }
+    }
     group.userData.pid = pc.id;
-    return { group, mats: [steel, acc], key: pkey(pc) };
+    return { group, mats, texs, key: pkey(pc) };
   }
   function sync() {
     for (const [id, o] of objs) if (!pr.get(id)) { disposeObj(o); objs.delete(id); }
@@ -1472,7 +1710,7 @@ const R = (() => {
       if (!o || o.key !== pkey(pc)) { if (o) disposeObj(o); o = build(pc); objs.set(pc.id, o); root.add(o.group); }
       o.group.position.set(pc.pos.x, pc.pos.y, pc.pos.z); o.group.quaternion.set(pc.q.x, pc.q.y, pc.q.z, pc.q.w);
       const em = pc.id === S.sel ? 0x6a4300 : clashIds.has(pc.id) ? 0x7a0d0d : 0x000000;
-      o.mats[0].emissive.setHex(em);
+      o.mats.forEach((m, i) => { if (i !== 1) m.emissive.setHex(em); });
     }
     buildBolts(); buildMarkers(); buildClash(); render();
   }
@@ -1601,13 +1839,19 @@ const ICON = {
   strainer: '<path d="M2 8h22M2 15h22M10 15l7 8"/>', exp: '<path d="M2 9h4l2 4-2 4M10 9l2 4-2 4M14 9l2 4-2 4M18 9l2 4-2 4h4M2 17h4"/>',
   glass: '<path d="M2 9h22M2 17h22"/><circle cx="13" cy="13" r="4"/>', pg: '<circle cx="13" cy="10" r="7"/><path d="M13 17v7M13 10l4-3"/>', tg: '<circle cx="13" cy="9" r="6"/><path d="M13 15v9M10 9h6"/>',
   custom: '<path d="M4 4h18v18H4zM4 13h18M13 4v18"/>',
+  footing: '<path d="M3 22h20v-4H3zM6 18l4-5h6l4 5M11 13V6h4v7"/>', column: '<path d="M10 2h6v22h-6zM8 24h10"/>', beam: '<path d="M2 10h22v6H2zM4 16v6M22 16v6"/>',
+  slab: '<path d="M2 12l11-5 11 5-11 5zM2 12v3l11 5 11-5v-3"/>', wallB: '<path d="M3 5h20v16H3zM3 10h20M3 15h20M10 5v5M16 10v5M10 15v6"/>', wallT: '<path d="M3 5h20v16H3zM3 9h20M3 13h20M3 17h20M8 5v4M14 9v4M8 13v4M14 17v4M19 5v4"/>',
+  roof: '<path d="M2 15L13 5l11 10M5 13v9h16v-9"/>',
 };
 const CAT = [
-  { g: 'Tubulação', items: [['pipe', {}, 'Tubo', 'pipe'], ['elbow', { angle: 90 }, 'Curva 90° RL', 'elbow'], ['elbow', { angle: 45 }, 'Curva 45° RL', 'elbow45'], ['elbow', { angle: 90, radius: 'SR' }, 'Curva 90° RC', 'elbow'],
+  { g: 'Tubulação', mod: 'TB', items: [['pipe', {}, 'Tubo', 'pipe'], ['elbow', { angle: 90 }, 'Curva 90° RL', 'elbow'], ['elbow', { angle: 45 }, 'Curva 45° RL', 'elbow45'], ['elbow', { angle: 90, radius: 'SR' }, 'Curva 90° RC', 'elbow'],
     ['tee', {}, 'Tê reto', 'tee'], ['tee', { dn2: 'down' }, 'Tê redução', 'tee'], ['reducer', {}, 'Red. concêntr.', 'reducer'], ['reducer', { ecc: true }, 'Red. excêntr.', 'reducerE'],
     ['flange', { sub: 'WN' }, 'Flange WN', 'flange'], ['flange', { sub: 'SO' }, 'Flange SO', 'flange'], ['flange', { sub: 'BL' }, 'Flange cego', 'blind']] },
-  { g: 'Válvulas', items: [['valve', { sub: 'gate' }, 'Gaveta', 'valve'], ['valve', { sub: 'ball' }, 'Esfera', 'ball'], ['valve', { sub: 'globe' }, 'Globo', 'valve'], ['valve', { sub: 'butterfly' }, 'Borboleta', 'bfly'], ['valve', { sub: 'check' }, 'Retenção', 'check'], ['psv', {}, 'PSV', 'psv']] },
-  { g: 'Acessórios e instrumentos', items: [['strainer', {}, 'Filtro Y', 'strainer'], ['expjoint', {}, 'Junta expansão', 'exp'], ['sightglass', {}, 'Visor de fluxo', 'glass'], ['pgauge', {}, 'Manômetro', 'pg'], ['tgauge', {}, 'Termômetro', 'tg']] },
+  { g: 'Válvulas', mod: 'TB', items: [['valve', { sub: 'gate' }, 'Gaveta', 'valve'], ['valve', { sub: 'ball' }, 'Esfera', 'ball'], ['valve', { sub: 'globe' }, 'Globo', 'valve'], ['valve', { sub: 'butterfly' }, 'Borboleta', 'bfly'], ['valve', { sub: 'check' }, 'Retenção', 'check'], ['psv', {}, 'PSV', 'psv']] },
+  { g: 'Acessórios e instrumentos', mod: 'TB', items: [['strainer', {}, 'Filtro Y', 'strainer'], ['expjoint', {}, 'Junta expansão', 'exp'], ['sightglass', {}, 'Visor de fluxo', 'glass'], ['pgauge', {}, 'Manômetro', 'pg'], ['tgauge', {}, 'Termômetro', 'tg']] },
+  { g: 'Construção civil', mod: 'CL', items: [['footing', {}, 'Bloco de fundação', 'footing'], ['column', {}, 'Pilar', 'column'], ['beam', {}, 'Viga', 'beam'], ['slab', {}, 'Laje', 'slab'],
+    ['wall', { kind: 'bloco' }, 'Parede bloco concreto', 'wallB'], ['wall', { kind: 'ceramico' }, 'Parede bloco cerâmico', 'wallB'], ['wall', { kind: 'tijolo' }, 'Parede tijolo maciço', 'wallT'],
+    ['roof', { kind: 'ceramica' }, 'Telhado cerâmico', 'roof'], ['roof', { kind: 'fibrocimento' }, 'Telhado fibrocimento', 'roof'], ['roof', { kind: 'metalica' }, 'Telhado metálico', 'roof']] },
 ];
 const LIBK = 'tecplan.lib.v1';
 function renderLeft() {
@@ -1615,12 +1859,12 @@ function renderLeft() {
   const act = S.active && pr.get(S.active.id);
   const opts = (arr, cur, lab) => arr.map(x => `<option value="${x}" ${x == cur ? 'selected' : ''}>${lab ? lab(x) : x}</option>`).join('');
   let h = `<div class="sec"><h3>Inserir</h3>
-    <div class="grid2"><label class="f">Diâmetro<select class="in" id="cDn">${opts(DNS, S.dn, d => `DN ${d} · ${DIM[d].nps}`)}</select></label>
+    ${has('TB') ? `<div class="grid2"><label class="f">Diâmetro<select class="in" id="cDn">${opts(DNS, S.dn, d => `DN ${d} · ${DIM[d].nps}`)}</select></label>
     <label class="f">Classe<select class="in" id="cCls">${opts(CLASSES, S.cls, c => (FLANGE_STDS[pr.meta.fstd] || FLANGE_STDS['ASME B16.5'])[c])}</select></label></div>
-    <label class="f" style="margin-top:6px">Comprimento do tubo (mm)<input class="in" id="cLen" type="number" min="10" step="10" value="${S.pipeLen}"></label>
+    <label class="f" style="margin-top:6px">Comprimento do tubo (mm)<input class="in" id="cLen" type="number" min="10" step="10" value="${S.pipeLen}"></label>` : ''}
     <div class="mut" style="margin-top:8px">${act ? `Próxima peça entra em <span class="chip ok">${esc(act.tag)} · ${S.active.port}</span> <button class="ib sm" id="cClrAct">soltar</button>` : 'Sem porta ativa: a peça entra solta. Toque numa esfera âmbar no 3D para continuar uma linha.'}</div></div>`;
-  for (const g of CAT) h += `<div class="sec"><h3>${g.g}</h3><div class="grid3">${g.items.map((it, i) => `<button class="cat" data-ins="${CAT.indexOf(g)}:${i}"><svg viewBox="0 0 26 26">${ICON[it[3]]}</svg>${it[2]}</button>`).join('')}</div></div>`;
-  h += `<div class="sec"><details ${lib.length ? '' : ''}><summary><h3>Smart Builder <span class="chip">${lib.length}</span></h3></summary>
+  for (const g of CAT.filter(g => has(g.mod))) h += `<div class="sec"><h3>${g.g}</h3><div class="grid3">${g.items.map((it, i) => `<button class="cat" data-ins="${CAT.indexOf(g)}:${i}"><svg viewBox="0 0 26 26">${ICON[it[3]]}</svg>${it[2]}</button>`).join('')}</div></div>`;
+  if (has('TB')) h += `<div class="sec"><details ${lib.length ? '' : ''}><summary><h3>Smart Builder <span class="chip">${lib.length}</span></h3></summary>
     <div class="grid2" style="margin-top:6px"><label class="f" style="grid-column:1/3">Nome<input class="in" id="sbN" placeholder="Ex.: Carretel especial"></label>
     <label class="f">Ø externo (mm)<input class="in" id="sbOd" type="number" value="114.3"></label><label class="f">Comprimento<input class="in" id="sbL" type="number" value="500"></label>
     <label class="f">Espessura<input class="in" id="sbT" type="number" value="6.02"></label><label class="f">Extremidade<select class="in" id="sbE"><option value="BW">Solda topo</option><option value="FL">Flangeada</option><option value="TH">Rosca</option></select></label>
@@ -1630,15 +1874,15 @@ function renderLeft() {
     </details></div>`;
   const pcs = [...pr.pieces.values()], clashIds = new Set(S.clashes.flatMap(c => [c.a, c.b]));
   h += `<div class="sec"><h3>Modelo <span class="chip">${pcs.length} peças</span></h3><div class="tree">${pcs.map(p => `<button data-sel="${p.id}" class="${p.id === S.sel ? 'on' : ''}"><span>${esc(p.tag)}</span><span class="${clashIds.has(p.id) ? 'er' : 'mut'}">${clashIds.has(p.id) ? '⚠ ' : ''}${TYPES[p.type].name}${DIM[p.dn] && p.type !== 'custom' ? ' ' + DIM[p.dn].nps : ''}</span></button>`).join('') || '<span class="mut">Vazio</span>'}</div></div>
-    ${(() => { const o = (USER.modules || []).filter(m => m !== 'TB'); return o.length ? `<div class="sec"><h3>Outras disciplinas do seu pacote</h3><div class="mut">${o.map(m => esc(USER.MODULES[m] || m)).join(', ')} — em desenvolvimento, chegam nas próximas versões.</div></div>` : ''; })()}`;
+    ${(() => { const o = (USER.modules || []).filter(m => m !== 'TB' && m !== 'CL'); return o.length ? `<div class="sec"><h3>Outras disciplinas do seu pacote</h3><div class="mut">${o.map(m => esc(USER.MODULES[m] || m)).join(', ')} — em desenvolvimento, chegam nas próximas versões.</div></div>` : ''; })()}`;
   const L = $('#left'); const st = L.scrollTop; L.innerHTML = h; L.scrollTop = st;
-  $('#cDn').onchange = e => { S.dn = +e.target.value; };
+  if ($('#cDn')) { $('#cDn').onchange = e => { S.dn = +e.target.value; };
   $('#cCls').onchange = e => { S.cls = +e.target.value; };
-  $('#cLen').onchange = e => { S.pipeLen = Math.max(10, +e.target.value || 1000); };
+  $('#cLen').onchange = e => { S.pipeLen = Math.max(10, +e.target.value || 1000); }; }
   if ($('#cClrAct')) $('#cClrAct').onclick = () => { S.active = null; refresh(); };
   L.querySelectorAll('[data-ins]').forEach(b => b.onclick = () => { const [g, i] = b.dataset.ins.split(':').map(Number); const it = CAT[g].items[i]; insert(it[0], it[1]); if (innerWidth < 768) closeDrawers(); });
   L.querySelectorAll('[data-sel]').forEach(b => b.onclick = () => { S.sel = b.dataset.sel; refresh(); if (innerWidth < 768) openDrawer('right'); });
-  $('#sbGo').onclick = () => {
+  if ($('#sbGo')) $('#sbGo').onclick = () => {
     const c = { label: $('#sbN').value.trim() || 'Componente', od: +$('#sbOd').value, len: +$('#sbL').value, wt: +$('#sbT').value, ends: $('#sbE').value, std: $('#sbS').value, material: $('#sbM').value };
     if (!(c.od > 5 && c.len > 1 && c.wt > 0 && c.wt < c.od / 2)) { toast('Confira Ø, comprimento e espessura.', 'er'); return; }
     const l = store.get(LIBK, []); l.push(c); store.set(LIBK, l); toast(`"${c.label}" salvo no catálogo pessoal.`, 'ok'); renderLeft();
@@ -1680,7 +1924,8 @@ function renderRight() {
   const dnOpts = (cur, f = () => true) => DNS.filter(f).map(d => `<option value="${d}" ${d == cur ? 'selected' : ''}>${DIM[d].nps} · DN ${d}</option>`).join('');
   const flTypes = ['flange', 'valve', 'strainer', 'expjoint', 'sightglass', 'psv'];
   let par = '';
-  if (pc.type !== 'custom') par += `<label class="f">Diâmetro<select class="in" id="pDn">${dnOpts(pc.dn)}</select></label>`;
+  if (T.civil) for (const [k, l, opts, lab] of T.fields) par += opts ? `<label class="f">${l}<select class="in" data-cf="${k}">${opts.map(o => `<option value="${o}" ${o == pc[k] ? 'selected' : ''}>${lab ? lab(o) : o}</option>`).join('')}</select></label>` : `<label class="f">${l}<input class="in" type="number" min="1" data-cf="${k}" value="${pc[k]}"></label>`;
+  if (pc.type !== 'custom' && !T.civil) par += `<label class="f">Diâmetro<select class="in" id="pDn">${dnOpts(pc.dn)}</select></label>`;
   if (flTypes.includes(pc.type)) par += `<label class="f">Classe<select class="in" id="pCls">${CLASSES.map(c => `<option value="${c}" ${c == pc.cls ? 'selected' : ''}>${(FLANGE_STDS[pr.meta.fstd] || FLANGE_STDS['ASME B16.5'])[c]}</option>`).join('')}</select></label>`;
   if (pc.type === 'pipe' || pc.type === 'custom') par += `<label class="f">Comprimento (mm)<input class="in" id="pLen" type="number" step="1" value="${TP.r1(pc.len)}"></label>`;
   if (pc.type === 'elbow') par += `<label class="f">Ângulo (°)<input class="in" id="pAng" type="number" min="1" max="180" step="0.5" value="${pc.angle}"></label><label class="f">Raio<select class="in" id="pRad"><option value="LR" ${pc.radius !== 'SR' ? 'selected' : ''}>Longo 1,5D</option><option value="SR" ${pc.radius === 'SR' ? 'selected' : ''}>Curto 1D</option></select></label>`;
@@ -1691,7 +1936,7 @@ function renderRight() {
   if (pc.type === 'valve') par += `<label class="f">Tipo<select class="in" id="pSub">${Object.entries(VALVE_SUBS).map(([k, l]) => `<option value="${k}" ${pc.sub === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
   const ports = Object.keys(pc.conn).map(k => {
     const c = pc.conn[k], o = c && pr.get(c.id), isAct = S.active && S.active.id === pc.id && S.active.port === k;
-    return `<div class="pt"><span><b class="mono">${k}</b> <span class="mut">${DIM[w[k].dn]?.nps || 'Ø' + TP.r1(w[k].od)} · ${{ BW: 'solda topo', SW: 'solda encaixe', FL: 'flange', TH: 'rosca' }[w[k].end]}</span><br>${o ? `<span class="chip ok">→ ${esc(o.tag)} ${c.port}</span>` : '<span class="chip am">livre</span>'}</span>
+    return `<div class="pt"><span><b class="mono">${k}</b> <span class="mut">${w[k].end === 'CV' ? (w[k].dir.y > 0.9 ? 'apoio superior' : w[k].dir.y < -0.9 ? 'apoio inferior' : 'ligação lateral') : (DIM[w[k].dn]?.nps || 'Ø' + TP.r1(w[k].od)) + ' · ' + { BW: 'solda topo', SW: 'solda encaixe', FL: 'flange', TH: 'rosca' }[w[k].end]}</span><br>${o ? `<span class="chip ok">→ ${esc(o.tag)} ${c.port}</span>` : '<span class="chip am">livre</span>'}</span>
       ${o ? `<button class="ib sm" data-unl="${k}">soltar</button>` : `<button class="ib sm ${isAct ? 'on' : ''}" data-act="${k}">${isAct ? 'ativa' : 'continuar aqui'}</button>`}</div>`;
   }).join('');
   const pv = w[piv].pos;
@@ -1702,13 +1947,13 @@ function renderRight() {
     <div class="grid2" style="margin-top:8px"><label class="f">TAG<input class="in" id="pTag" value="${esc(pc.tag)}"></label>${par}</div></div>
     <div class="sec"><h3>Orientação</h3><div class="mut" style="margin-bottom:6px">Pivô: face ${piv}${upc ? ' em ' + esc(upc.tag) : ''} · E ${fmt(pv.x)} N ${fmt(-pv.z)} EL ${fmt(pv.y)}</div>
       <div class="row" style="margin-bottom:6px"><label class="f" style="flex:1">Passo (°)<input class="in" id="oStep" type="number" value="${S.step}"></label></div>
-      <div class="btns">
+      ${T.civil ? `<div class="btns"><button class="ib" data-o="${pc.type === 'wall' ? 'th' : 'roll'}:90">Girar 90° ⟲</button><button class="ib" data-o="${pc.type === 'wall' ? 'th' : 'roll'}:-90">Girar 90° ⟳</button><button class="ib" data-o="${pc.type === 'wall' ? 'th' : 'roll'}:s">+passo</button><button class="ib" data-o="${pc.type === 'wall' ? 'th' : 'roll'}:-s">−passo</button></div>` : `<div class="btns">
         <button class="ib" data-o="roll:90">Girar no eixo +90°</button><button class="ib" data-o="roll:-90">−90°</button>
         <button class="ib" data-o="roll:s">Girar +passo</button><button class="ib" data-o="roll:-s">−passo</button>
         <button class="ib" data-o="tv:s">Inclinar ↑</button><button class="ib" data-o="tv:-s">Inclinar ↓</button>
         <button class="ib" data-o="th:s">Desviar ⟲</button><button class="ib" data-o="th:-s">Desviar ⟳</button>
         <button class="ib" data-o="up">Em pé</button><button class="ib" data-o="flat">Deitado</button><button class="ib" data-o="flip">Inverter direção</button>
-      </div><div class="mut" style="margin-top:6px;font-size:11px">"Girar no eixo" mantém a junta perfeita. "Inclinar/Desviar" gira na face mas cria junta em ângulo (avisado em vermelho) — para trechos inclinados prefira curvas com ângulo.</div></div>
+      </div>`}<div class="mut" style="margin-top:6px;font-size:11px">${T.civil ? 'Gira em planta em torno do apoio; tudo o que está apoiado nesta peça acompanha.' : ''}${T.civil ? '</div><div style="display:none">' : ''}"Girar no eixo" mantém a junta perfeita. "Inclinar/Desviar" gira na face mas cria junta em ângulo (avisado em vermelho) — para trechos inclinados prefira curvas com ângulo.</div></div>
     <div class="sec"><h3>Mover grupo conectado</h3><div class="row" style="margin-bottom:6px"><label class="f" style="flex:1">Passo (mm)<input class="in" id="mStep" type="number" value="${S.move}"></label></div>
       <div class="grid3">${[['E+', 'x', 1], ['N+', 'z', -1], ['EL+', 'y', 1], ['E−', 'x', -1], ['N−', 'z', 1], ['EL−', 'y', -1]].map(([l, a, s]) => `<button class="ib" data-mv="${a}:${s}">${l}</button>`).join('')}</div></div>
     <div class="sec"><h3>Portas</h3><div class="ports">${ports}</div></div>
@@ -1724,6 +1969,7 @@ function renderRight() {
   if ($('#pDn2')) $('#pDn2').onchange = e => setParam(p => { p.dn2 = +e.target.value; });
   if ($('#pEcc')) $('#pEcc').onchange = e => setParam(p => { p.ecc = e.target.value === '1'; });
   if ($('#pSub')) $('#pSub').onchange = e => setParam(p => { p.sub = e.target.value; });
+  Rt.querySelectorAll('[data-cf]').forEach(i => i.onchange = () => { const k = i.dataset.cf, v = i.tagName === 'SELECT' && isNaN(+i.value) ? i.value : +i.value; if (typeof v === 'number' && !(v > 0)) return; setParam(p => { p[k] = v; }); });
   $('#oStep').onchange = e => { S.step = +e.target.value || 15; };
   $('#mStep').onchange = e => { S.move = +e.target.value || 100; };
   Rt.querySelectorAll('[data-o]').forEach(b => b.onclick = () => {
@@ -1759,7 +2005,7 @@ function flip(id) {
 /* ======================= STATUS ======================= */
 function computeMis() {
   const out = [];
-  for (const j of TP.joints(pr)) { const a = TP.worldPort(j.a, j.ap), b = TP.worldPort(j.b, j.bp); const d = a.dir.dot(b.dir); if (d > -0.9998) out.push({ a: j.a.id, b: j.b.id, deg: Math.acos(Math.max(-1, Math.min(1, -d))) * 180 / Math.PI, ta: j.a.tag, tb: j.b.tag }); }
+  for (const j of TP.joints(pr)) { if (j.type === 'civil') continue; const a = TP.worldPort(j.a, j.ap), b = TP.worldPort(j.b, j.bp); const d = a.dir.dot(b.dir); if (d > -0.9998) out.push({ a: j.a.id, b: j.b.id, deg: Math.acos(Math.max(-1, Math.min(1, -d))) * 180 / Math.PI, ta: j.a.tag, tb: j.b.tag }); }
   return out;
 }
 function renderStatus() {
@@ -1997,7 +2243,19 @@ function renderBom() {
   const per = 10, pages = Math.max(1, Math.ceil(an.welds.length / per)); S.weldPage = Math.min(S.weldPage, pages - 1);
   const wp = an.welds.slice(S.weldPage * per, S.weldPage * per + per);
   const tn = TP.testNotes(pr);
-  $('#bomw').innerHTML = `
+  const hasPipe = [...pr.pieces.values()].some(p => !TYPES[p.type].civil);
+  const sumU = (re, unit) => items.filter(g => g.unit === unit && re.test(g.desc)).reduce((a, g) => a + g.qty, 0);
+  const civCards = `<div class="card"><div class="v">${fmt(sumU(/^Concreto/, 'm³'), 2)}</div><div class="l">Concreto (m³)</div></div><div class="card"><div class="v">${fmt(sumU(/^Aço/, 'kg'), 0)}</div><div class="l">Aço CA-50 (kg)</div></div><div class="card"><div class="v">${fmt(sumU(/^Forma/, 'm²'), 1)}</div><div class="l">Forma (m²)</div></div><div class="card"><div class="v">${fmt(sumU(/^Alvenaria/, 'm²'), 1)}</div><div class="l">Alvenaria (m²)</div></div>`;
+  $('#bomw').innerHTML = !hasPipe ? `
+  <div class="cards"><div class="card"><div class="v">${pr.pieces.size}</div><div class="l">Elementos</div></div>${civCards}<div class="card"><div class="v">${fmt(totW / 1000, 1)}</div><div class="l">Peso total (t)</div></div></div>
+  <h2>Lista de materiais <button class="ib sm" id="bCsv">Copiar CSV</button><button class="ib sm" id="bCsvD">Baixar CSV</button></h2>
+  <div class="tw"><table class="t"><thead><tr><th>It</th><th>Descrição</th><th>Norma</th><th>Material</th><th>Qtd</th><th>Peso total (kg)</th><th>Elementos</th></tr></thead><tbody>
+  ${items.map(g => `<tr><td class="n">${g.item}</td><td>${esc(g.desc)}</td><td>${esc(g.std)}</td><td>${esc(g.mat)}</td><td class="n">${(g.unit === 'pç' || g.unit === 'un') ? fmt(g.qty) + ' un' : fmt(g.qty, 2) + ' ' + g.unit}</td><td class="n">${g.w ? fmt(g.w, 1) : '—'}</td><td class="mono" style="font-size:11px;color:var(--mu)">${esc(g.tags.join(', '))}</td></tr>`).join('') || '<tr><td colspan="7" class="mut">Sem itens</td></tr>'}
+  </tbody></table></div>
+  <div class="mut" style="margin:-8px 0 16px;font-size:12px">Aço estimado por taxa de armadura (fundação 80, pilar 120, viga 110, laje 70 kg/m³). Blocos e telhas com 5% de perda.</div>
+  <h2>Exportações</h2>
+  <div class="btns" style="max-width:720px;margin-bottom:8px"><button class="ib" id="eJsC">Copiar projeto (.json)</button><button class="ib" id="eJsD">Baixar projeto (.json)</button><label class="ib" style="position:relative">Importar projeto<input type="file" accept=".json,application/json" id="eImp" style="position:absolute;inset:0;opacity:0"></label></div>
+  <textarea class="code" readonly id="pcfTxt" style="display:none"></textarea>` : `
   <div class="cards">
     <div class="card"><div class="v">${pr.pieces.size}</div><div class="l">Peças</div></div>
     <div class="card"><div class="v">${fmt(totW, 1)}</div><div class="l">Peso total (kg)</div></div>
@@ -2006,6 +2264,7 @@ function renderBom() {
     <div class="card"><div class="v">${sw}/${fw}</div><div class="l">Soldas oficina/campo</div></div>
     <div class="card"><div class="v">${an.bolted.length}</div><div class="l">Juntas flangeadas</div></div>
     <div class="card"><div class="v" style="color:${S.clashes.length ? 'var(--er)' : 'var(--ok)'}">${S.clashes.length}</div><div class="l">Interferências</div></div>
+    ${[...pr.pieces.values()].some(p => TYPES[p.type].civil) ? civCards : ''}
   </div>
   <h2>Dados de projeto</h2>
   <div class="grid2" style="max-width:640px;grid-template-columns:repeat(3,1fr)"><label class="f">Pressão de projeto (bar)<input class="in" type="number" data-mb="designP" value="${m.designP}"></label>
@@ -2014,7 +2273,7 @@ function renderBom() {
   <div class="mut" style="margin-top:8px">Teste hidrostático: <b class="mono">${fmt(tn.Pt, 1)} bar</b> (1,5 × P) · ${tn.rows.map(r => `${r.nps}: Barlow ${fmt(r.Pallow)} bar <span class="chip ${r.ok ? 'ok' : 'er'}">${r.ok ? 'OK' : 'revisar'}</span>`).join(' · ')}</div>
   <h2>Lista de materiais <button class="ib sm" id="bCsv">Copiar CSV</button><button class="ib sm" id="bCsvD">Baixar CSV</button></h2>
   <div class="tw"><table class="t"><thead><tr><th>It</th><th>Descrição</th><th>DN</th><th>Classe</th><th>Norma</th><th>Material</th><th>Qtd</th><th>Peso un.</th><th>Peso total</th><th>TAGs</th></tr></thead><tbody>
-  ${items.map(g => `<tr><td class="n">${g.item}</td><td>${esc(g.desc)}</td><td class="n">${g.dn}${g.nps ? ' · ' + g.nps : ''}</td><td>${esc(g.cls)}</td><td>${esc(g.std)}</td><td>${esc(g.mat)}</td><td class="n">${g.unit === 'm' ? fmt(g.qty, 2) + ' m' : fmt(g.qty)}</td><td class="n">${fmt(g.w / (g.qty || 1), 2)}</td><td class="n">${fmt(g.w, 1)}</td><td class="mono" style="font-size:11px;color:var(--mu)">${esc(g.tags.join(', '))}</td></tr>`).join('') || '<tr><td colspan="10" class="mut">Sem itens</td></tr>'}
+  ${items.map(g => `<tr><td class="n">${g.item}</td><td>${esc(g.desc)}</td><td class="n">${g.dn}${g.nps ? ' · ' + g.nps : ''}</td><td>${esc(g.cls)}</td><td>${esc(g.std)}</td><td>${esc(g.mat)}</td><td class="n">${(g.unit === 'pç' || g.unit === 'un') ? fmt(g.qty) + (g.unit === 'un' ? ' un' : '') : fmt(g.qty, 2) + ' ' + g.unit}</td><td class="n">${g.w ? fmt(g.w / (g.qty || 1), 2) : '—'}</td><td class="n">${fmt(g.w, 1)}</td><td class="mono" style="font-size:11px;color:var(--mu)">${esc(g.tags.join(', '))}</td></tr>`).join('') || '<tr><td colspan="10" class="mut">Sem itens</td></tr>'}
   </tbody></table></div>
   <h2>Registro de soldagem <span class="chip">toque no tipo para alternar oficina/campo</span></h2>
   <div class="tw"><table class="t"><thead><tr><th>Solda</th><th>Tipo</th><th>Spool</th><th>Entre</th><th>DN</th><th>Esp. (mm)</th><th>END</th></tr></thead><tbody>
@@ -2031,11 +2290,11 @@ function renderBom() {
   <div class="mut" style="margin-bottom:6px">PCF compatível com CAESAR II / ISOGEN (coordenadas E, N, EL em mm).</div>
   <textarea class="code" readonly id="pcfTxt"></textarea>`;
   $('#pcfTxt').value = TP.pcf(pr);
-  const csv = () => ['Item;Descrição;DN;Classe;Norma;Material;Qtd;Unid;Peso total (kg);TAGs', ...items.map(g => [g.item, g.desc, g.dn, g.cls, g.std, g.mat, g.unit === 'm' ? g.qty.toFixed(2).replace('.', ',') : g.qty, g.unit, g.w.toFixed(2).replace('.', ','), g.tags.join(' ')].join(';'))].join('\n');
+  const csv = () => ['Item;Descrição;DN;Classe;Norma;Material;Qtd;Unid;Peso total (kg);TAGs', ...items.map(g => [g.item, g.desc, g.dn, g.cls, g.std, g.mat, (g.unit === 'pç' || g.unit === 'un') ? Math.round(g.qty) : g.qty.toFixed(2).replace('.', ','), g.unit, g.w.toFixed(2).replace('.', ','), g.tags.join(' ')].join(';'))].join('\n');
   $('#bCsv').onclick = () => copy(csv(), 'CSV');
   $('#bCsvD').onclick = () => download(`${m.line || 'TP'}-BOM.csv`, '﻿' + csv(), 'text/csv');
-  $('#ePcfC').onclick = () => copy(TP.pcf(pr), 'PCF');
-  $('#ePcfD').onclick = () => download(`${m.line || 'TP'}.pcf`, TP.pcf(pr), 'text/plain');
+  if ($('#ePcfC')) { $('#ePcfC').onclick = () => copy(TP.pcf(pr), 'PCF');
+  $('#ePcfD').onclick = () => download(`${m.line || 'TP'}.pcf`, TP.pcf(pr), 'text/plain'); }
   $('#eJsC').onclick = () => copy(JSON.stringify(pr.toJSON()), 'Projeto');
   $('#eJsD').onclick = () => download(`${m.line || 'TP'}.tecplan.json`, JSON.stringify(pr.toJSON(), null, 1), 'application/json');
   $('#eImp').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const o = JSON.parse(await f.text()); if (!o.pieces) throw 0; mutate(() => { const n = TP.Project.fromJSON(o); pr.pieces = n.pieces; pr.meta = n.meta; pr.seq = n.seq; pr.nextId = n.nextId; pr.fieldWelds = n.fieldWelds; S.sel = null; S.active = null; }); toast('Projeto importado.', 'ok'); } catch { toast('Arquivo inválido.', 'er'); } };
@@ -2092,10 +2351,32 @@ function demo() {
   TP.autoConnect(pr);
 }
 
+function demoCivil(off) {
+  const sp = 4000, add = (t, p) => pr.create(t, p || {});
+  const fH = 350 + 350 + 250, cols = {};
+  for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+    const f = add('footing'); f.pos = off.add(new V3(i * sp, -fH, j * sp));
+    const c = add('column'); attach(c, 'BASE', f, 'TOP'); cols[i + ',' + j] = c;
+  }
+  const beam = (a, b, rot) => { const v = add('beam', { L: sp }); attach(v, 'A', cols[a], 'TOPO'); if (rot) TP.roll(pr, v.id, rot); return v; };
+  beam('0,0', '1,0'); beam('0,1', '1,1'); beam('0,0', '0,1', -90); beam('1,0', '1,1', -90);
+  TP.autoConnect(pr);
+  const top = 3000 + 450;
+  const sl = add('slab', { L: sp + 300, W: sp + 300, e: 120 }); sl.pos = off.add(new V3(-150, top, -150));
+  const w1 = add('wall', { L: sp - 300, H: 3000, t: 140, kind: 'bloco' }); w1.pos = off.add(new V3(150, 0, 0));
+  const w2 = add('wall', { L: sp - 300, H: 3000, t: 140, kind: 'ceramico' }); w2.pos = off.add(new V3(0, 0, 150)); w2.q = Q.axisAngle(TP.UP, -Math.PI / 2);
+  const w3 = add('wall', { L: sp - 300, H: 3000, t: 140, kind: 'tijolo' }); w3.pos = off.add(new V3(sp, 0, 150)); w3.q = Q.axisAngle(TP.UP, -Math.PI / 2);
+  const rf = add('roof', { L: sp + 300, S: sp + 300, slope: 30, ov: 500, kind: 'ceramica' }); rf.pos = off.add(new V3(-150, top + 120, sp / 2));
+}
+function demoFor() {
+  if (has('TB')) demo();
+  if (has('CL')) { const b = bbox(); demoCivil(b ? new V3(b.mn.x, 0, b.mx.z + 3000) : new V3()); pr.meta.title = has('TB') ? 'Exemplo: tubulação + estrutura' : 'Exemplo: estrutura em concreto'; }
+}
 function init() {
   pr = new TP.Project();
   R.init($('#v3d'));
   document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => setTab(b.dataset.t));
+  if (!has('TB')) { document.querySelector('#tabs [data-t="iso"]').style.display = 'none'; $('#bClash').style.display = 'none'; }
   document.querySelectorAll('[data-cam]').forEach(b => b.onclick = () => R.view(b.dataset.cam));
   $('#bFit').onclick = () => R.fit();
   $('#bPorts').onclick = e => { S.ports = !S.ports; e.currentTarget.classList.toggle('on', S.ports); R.sync(); };
@@ -2171,7 +2452,8 @@ window.TPApp = {
   start(user, cloud) {
     USER = user; CLOUD = cloud || null; KEY = 'tecplan.project.v1:' + String(user.email || '').toLowerCase();
     if (typeof THREE === 'undefined') { document.body.innerHTML = '<div style="padding:40px;color:#ddd;font-family:sans-serif">Não foi possível carregar o motor 3D (Three.js). Verifique a conexão e recarregue.</div>'; return; }
-    if (!has('TB')) { modulesOnly(); return; }
+    if (!has('TB') && !has('CL')) { modulesOnly(); return; }
+    if (!has('TB')) S.clashOn = false;
     init();
   }
 };
