@@ -109,11 +109,19 @@ details summary::-webkit-details-marker{display:none}
   aside.open{transform:none!important}
   .back.on{display:block;position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:15}
   .hdr-extra{display:none}
-  .tabs button{padding:7px 8px}
+  .tabs button{padding:7px 6px}.tabs{margin-left:2px}
   .tabs .lg{display:none}.tabs .sm{display:inline}
   #bRedo{display:none}
   .hint{display:none}
+  header{gap:6px;padding:0 6px}
+  #bUndo{display:none}
+  #userchip{padding:0 6px}#userchip .chip{display:none}#userchip::before{content:'👤'}
+  .dk{display:none!important}.mb{display:inline!important}
+  .ovl.tr{top:44px;left:8px;right:auto}
+  .ovl .ib.sm{padding:0 6px}
+  .mobonly{display:inline-flex!important}
 }
+.mb,.mobonly{display:none}
 </style>
 </head>
 <body>
@@ -141,10 +149,10 @@ details summary::-webkit-details-marker{display:none}
     <section id="center">
       <div class="view on" id="v3d">
         <div class="ovl tl">
-          <button class="ib sm" data-cam="iso">Iso</button><button class="ib sm" data-cam="top">Topo</button><button class="ib sm" data-cam="front">Frente</button><button class="ib sm" data-cam="side">Lado</button><button class="ib sm" id="bFit">Enquadrar</button>
+          <button class="ib sm" data-cam="iso">Iso</button><button class="ib sm" data-cam="top">Topo</button><button class="ib sm" data-cam="front">Frente</button><button class="ib sm" data-cam="side">Lado</button><button class="ib sm" id="bFit">Enquadrar</button><button class="ib sm mobonly" id="bUndo2">↶</button>
         </div>
-        <div class="ovl tr"><button class="ib sm on" id="bPorts">Portas</button><button class="ib sm on" id="bClash">Clash</button></div>
-        <div class="hint" id="hint3d">Arraste: girar · 2 dedos/botão direito: mover · roda/pinça: zoom · toque numa esfera âmbar para continuar a linha dali</div>
+        <div class="ovl tr"><button class="ib sm on" id="bGz" title="Setas para mover e anéis para girar a peça selecionada">Gizmo</button><select class="ib sm" id="gzSnap" title="Encaixe na grade"><option value="10">10 mm</option><option value="50" selected>50 mm</option><option value="100">100 mm</option><option value="500">500 mm</option></select><select class="ib sm" id="gzAng" title="Passo de giro"><option value="5">5°</option><option value="15" selected>15°</option><option value="45">45°</option><option value="90">90°</option></select><button class="ib sm on" id="bPorts">Portas</button><button class="ib sm on" id="bClash">Clash</button></div>
+        <div class="hint" id="hint3d">Arraste o fundo: girar a vista · 2 dedos/botão direito: deslocar · pinça/roda: zoom · peça selecionada: puxe as setas para mover e os anéis para girar · esfera âmbar: continuar a linha</div>
       </div>
       <div class="view" id="viso">
         <div id="isobar"></div>
@@ -1417,7 +1425,7 @@ function toast(msg, kind = '') {
 
 /* ======================= ESTADO ======================= */
 let pr;
-const S = { sel: null, active: null, tab: '3d', dn: 100, cls: 150, pipeLen: 1000, hist: [], fut: [], clashes: [], mis: [], ports: true, clashOn: true, step: 15, move: 100, sheet: { size: 'A3', spool: 'ALL', zoom: 1, carimbo: false }, weldPage: 0, hover: null };
+const S = { sel: null, active: null, tab: '3d', dn: 100, cls: 150, pipeLen: 1000, hist: [], fut: [], clashes: [], mis: [], ports: true, clashOn: true, step: 15, move: 100, sheet: { size: 'A3', spool: 'ALL', zoom: 1, carimbo: false }, weldPage: 0, hover: null, gizmo: true, snap: 50, snapAng: 15, gzInfo: null };
 let KEY = 'tecplan.project.v1';
 let USER = { modules: ['TB','CL','EL','ES','HV'], MODULES: {} };
 const has = m => (USER.modules || []).includes(m);
@@ -1643,6 +1651,7 @@ const R = (() => {
     scene.add(ax);
     root = new THREE.Group(); scene.add(root);
     clashG = new THREE.Group(); scene.add(clashG);
+    buildGizmo();
     bindInput();
     new ResizeObserver(resize).observe(container); resize();
     updateCam();
@@ -1652,7 +1661,7 @@ const R = (() => {
     const s = Math.sin(cam.ph);
     camera.position.set(cam.t.x + cam.d * s * Math.sin(cam.th), cam.t.y + cam.d * Math.cos(cam.ph), cam.t.z + cam.d * s * Math.cos(cam.th));
     camera.near = Math.max(1, cam.d / 2000); camera.far = cam.d * 60; camera.updateProjectionMatrix();
-    camera.lookAt(cam.t); render();
+    camera.lookAt(cam.t); updateGizmo(); render();
   }
   function render() { if (pend) return; pend = true; requestAnimationFrame(() => { pend = false; if (renderer) renderer.render(scene, camera); }); }
 
@@ -1712,7 +1721,7 @@ const R = (() => {
       const em = pc.id === S.sel ? 0x6a4300 : clashIds.has(pc.id) ? 0x7a0d0d : 0x000000;
       o.mats.forEach((m, i) => { if (i !== 1) m.emissive.setHex(em); });
     }
-    buildBolts(); buildMarkers(); buildClash(); render();
+    buildBolts(); buildMarkers(); buildClash(); updateGizmo(); render();
   }
   function buildBolts() {
     const list = [];
@@ -1778,12 +1787,119 @@ const R = (() => {
     onPieceTap(null);
   }
   function groundAt(e) { const rc = new THREE.Raycaster(); rc.setFromCamera(ndc(e), camera); const p = new THREE.Vector3(); return rc.ray.intersectPlane(new THREE.Plane(UPY, 0), p) ? p : null; }
+
+  /* ---------------- GIZMO (mover / girar com dedo ou mouse) ---------------- */
+  let gz = null, gzPick = [], drag = null;
+  const AXC = { x: 0xef4444, y: 0x22c55e, z: 0x3b82f6 };
+  const AXV = { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 1, 0), z: new THREE.Vector3(0, 0, -1) };
+  function buildGizmo() {
+    gz = new THREE.Group(); gz.renderOrder = 20;
+    const mk = (geo, color, op) => { const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, depthTest: false, transparent: true, opacity: op ?? 1 })); m.renderOrder = 20; return m; };
+    const inv = new THREE.MeshBasicMaterial({ visible: false });
+    for (const a of ['x', 'y', 'z']) {
+      const dir = AXV[a], q = new THREE.Quaternion().setFromUnitVectors(UPY, dir);
+      const shaft = mk(new THREE.CylinderGeometry(0.018, 0.018, 0.78, 8), AXC[a]); shaft.position.copy(dir).multiplyScalar(0.39); shaft.quaternion.copy(q);
+      const cone = mk(new THREE.ConeGeometry(0.07, 0.22, 14), AXC[a]); cone.position.copy(dir).multiplyScalar(0.89); cone.quaternion.copy(q);
+      const pick = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 1.05, 8), inv); pick.position.copy(dir).multiplyScalar(0.52); pick.quaternion.copy(q);
+      pick.userData.gz = { t: 'move', a }; shaft.userData.vis = a + 'm'; cone.userData.vis = a + 'm';
+      gz.add(shaft, cone, pick); gzPick.push(pick);
+      const ring = mk(new THREE.TorusGeometry(0.62, 0.012, 6, 64), AXC[a], 0.85), rp = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.07, 6, 48), inv);
+      for (const r of [ring, rp]) { if (a === 'x') r.rotation.y = Math.PI / 2; if (a === 'y') r.rotation.x = Math.PI / 2; }
+      rp.userData.gz = { t: 'rot', a }; ring.userData.vis = a + 'r';
+      gz.add(ring, rp); gzPick.push(rp);
+    }
+    gz.add(mk(new THREE.SphereGeometry(0.05, 12, 8), 0xf59e0b));
+    gz.visible = false; scene.add(gz);
+  }
+  function gizmoCenter() {
+    const pc = S.sel && pr.get(S.sel); if (!pc) return null;
+    const ws = Object.values(TP.worldPorts(pc)); if (!ws.length) return v(pc.pos);
+    const c = ws.reduce((a, p) => a.add(p.pos), new V3()).scale(1 / ws.length); return v(c);
+  }
+  function updateGizmo() {
+    if (!gz) return;
+    const c = drag ? (drag.Cshow || drag.C3) : gizmoCenter();
+    gz.visible = !!(c && S.gizmo);
+    if (!gz.visible) return;
+    gz.position.copy(c);
+    gz.scale.setScalar(Math.max(1, camera.position.distanceTo(c) * 0.16));
+  }
+  function rayFrom(e) { const rc = new THREE.Raycaster(); rc.setFromCamera(ndc(e), camera); return rc.ray; }
+  function axisParam(ray, C, a) {
+    const w0 = C.clone().sub(ray.origin), b = a.dot(ray.direction), den = 1 - b * b;
+    if (den < 1e-4) return null;
+    return (b * ray.direction.dot(w0) - a.dot(w0)) / den;
+  }
+  function planeVec(ray, C, n) { const pl = new THREE.Plane().setFromNormalAndCoplanarPoint(n, C), p = new THREE.Vector3(); if (!ray.intersectPlane(pl, p)) return null; return p.sub(C); }
+  function gizmoDown(e) {
+    if (!gz || !gz.visible) return false;
+    const rc = new THREE.Raycaster(); rc.setFromCamera(ndc(e), camera);
+    const h = rc.intersectObjects(gzPick, false); if (!h.length) return false;
+    const info = h[0].object.userData.gz, C3 = gz.position.clone(), a = AXV[info.a].clone(), ray = rayFrom(e);
+    const ids = [...TP.component(pr, S.sel)];
+    const base = ids.map(id => { const p = pr.get(id); return { id, pos: p.pos, q: p.q }; });
+    drag = { info, C3, a, ids, base, before: snapshot(), t0: info.t === 'move' ? axisParam(ray, C3, a) : null, v0: info.t === 'rot' ? planeVec(ray, C3, a) : null, val: 0 };
+    if ((info.t === 'move' && drag.t0 == null) || (info.t === 'rot' && !drag.v0)) { drag = null; return false; }
+    gz.children.forEach(m => { if (m.userData.vis) m.material.opacity = m.userData.vis === info.a + (info.t === 'move' ? 'm' : 'r') ? 1 : 0.18; });
+    render();
+    return true;
+  }
+  function gizmoMove(e) {
+    if (!drag) return;
+    const ray = rayFrom(e), C = new V3(drag.C3.x, drag.C3.y, drag.C3.z), A = new V3(drag.a.x, drag.a.y, drag.a.z);
+    if (drag.info.t === 'move') {
+      const t = axisParam(ray, drag.C3, drag.a); if (t == null) return;
+      const st = S.snap || 50, d = Math.round((t - drag.t0) / st) * st; if (d === drag.val) return; drag.val = d;
+      for (const b of drag.base) pr.get(b.id).pos = b.pos.add(A.scale(d));
+      drag.Cshow = drag.C3.clone().addScaledVector(drag.a, d);
+      S.gzInfo = `${{ x: 'E', y: 'EL', z: 'N' }[drag.info.a]} ${d >= 0 ? '+' : ''}${d} mm`;
+    } else {
+      const v1 = planeVec(ray, drag.C3, drag.a); if (!v1) return;
+      let ang = Math.atan2(drag.a.dot(drag.v0.clone().cross(v1)), drag.v0.dot(v1)) * 180 / Math.PI;
+      const st = S.snapAng || 15; ang = Math.round(ang / st) * st; if (ang === drag.val) return; drag.val = ang;
+      const R = Q.axisAngle(A, ang * Math.PI / 180);
+      for (const b of drag.base) { const p = pr.get(b.id); p.pos = C.add(R.rot(b.pos.sub(C))); p.q = R.mul(b.q).normalize(); }
+      S.gzInfo = `Giro ${{ x: 'E', y: 'vertical', z: 'N' }[drag.info.a]} ${ang >= 0 ? '+' : ''}${ang}°`;
+    }
+    sync(); renderStatus();
+  }
+  function gizmoUp() {
+    if (!drag) return false;
+    const d = drag; drag = null; S.gzInfo = null;
+    gz.children.forEach(m => { if (m.userData.vis) m.material.opacity = m.userData.vis.endsWith('r') ? 0.85 : 1; });
+    if (d.val === 0) { updateGizmo(); render(); renderStatus(); return true; }
+    let msg = null;
+    outer: for (const id of d.ids) {
+      const pc = pr.get(id), w = TP.worldPorts(pc);
+      for (const k in w) {
+        if (pc.conn[k]) continue;
+        const thr = Math.max(60, (w[k].od || 150) * 0.8);
+        for (const o of pr.pieces.values()) {
+          if (d.ids.includes(o.id)) continue;
+          const ow = TP.worldPorts(o);
+          for (const ok in ow) if (!o.conn[ok] && ow[ok].pos.dist(w[k].pos) <= thr && ow[ok].dir.dot(w[k].dir) < -0.5 && TP.compatible(w[k], ow[ok], pc, o).ok) {
+            const r = TP.acoplar(pr, id, thr * 1.5); if (r.ok) { msg = r.msg; break outer; }
+          }
+        }
+      }
+    }
+    S.hist.push(d.before); if (S.hist.length > 80) S.hist.shift(); S.fut = [];
+    save(); refresh();
+    if (msg) toast(msg, 'ok');
+    return true;
+  }
   function bindInput() {
     const c = renderer.domElement, P = new Map();
     let moved = false, start = null, pinch = null, hovReq = false;
     c.addEventListener('contextmenu', e => e.preventDefault());
-    c.addEventListener('pointerdown', e => { c.setPointerCapture(e.pointerId); P.set(e.pointerId, { x: e.clientX, y: e.clientY, b: e.button, sh: e.shiftKey }); moved = false; start = { x: e.clientX, y: e.clientY, n: P.size }; if (P.size === 2) pinch = null; });
+    let gzId = null;
+    const gzEnd = e => { if (gzId !== null && e.pointerId === gzId) { gzId = null; gizmoUp(); return true; } return false; };
+    c.addEventListener('pointerdown', e => {
+      if (P.size === 0 && gzId === null && e.button === 0 && gizmoDown(e)) { c.setPointerCapture(e.pointerId); gzId = e.pointerId; return; }
+      if (gzId !== null) return;
+      c.setPointerCapture(e.pointerId); P.set(e.pointerId, { x: e.clientX, y: e.clientY, b: e.button, sh: e.shiftKey }); moved = false; start = { x: e.clientX, y: e.clientY, n: P.size }; if (P.size === 2) pinch = null; });
     c.addEventListener('pointermove', e => {
+      if (gzId !== null) { if (e.pointerId === gzId) gizmoMove(e); return; }
       if (!P.has(e.pointerId)) {
         if (!hovReq) { hovReq = true; requestAnimationFrame(() => { hovReq = false; const g = groundAt(e); S.hover = g; renderStatus(); }); }
         return;
@@ -1802,12 +1918,13 @@ const R = (() => {
       }
     });
     const up = e => {
+      if (gzEnd(e)) return;
       const had = P.has(e.pointerId); P.delete(e.pointerId);
       if (P.size < 2) pinch = null;
       if (had && !moved && start && start.n === 1 && P.size === 0) pick(e);
       if (P.size === 0) start = null;
     };
-    c.addEventListener('pointerup', up); c.addEventListener('pointercancel', e => { P.delete(e.pointerId); pinch = null; });
+    c.addEventListener('pointerup', up); c.addEventListener('pointercancel', e => { if (gzEnd(e)) return; P.delete(e.pointerId); pinch = null; });
     c.addEventListener('wheel', e => { e.preventDefault(); cam.d = Math.min(5e5, Math.max(60, cam.d * Math.exp(e.deltaY * 0.0012))); updateCam(); }, { passive: false });
   }
   function pan(dx, dy) {
@@ -2010,7 +2127,7 @@ function computeMis() {
 }
 function renderStatus() {
   const h = S.hover, n = pr.pieces.size;
-  $('#status').innerHTML = `<span>${h ? `E ${fmt(h.x)} · N ${fmt(-h.z)} · EL 0` : 'E — · N — · EL —'}</span><span>${n} peças</span>
+  $('#status').innerHTML = `<span class="${S.gzInfo ? 'am' : ''}">${S.gzInfo ? esc(S.gzInfo) : h ? `E ${fmt(h.x)} · N ${fmt(-h.z)} · EL 0` : 'E — · N — · EL —'}</span><span>${n} peças</span>
     <span class="${S.clashes.length ? 'er' : ''}">${S.clashOn ? (S.clashes.length ? `⚠ ${S.clashes.length} interferência(s)` : '✓ sem interferências') : 'clash desligado'}</span>
     ${S.mis.length ? `<span class="am">∠ ${S.mis.length} junta(s) em ângulo</span>` : ''}<span style="margin-left:auto">${esc(pr.meta.title || 'Sem título')}</span><span class="${S.cloud === 'off' ? 'er' : S.cloud === 'ok' ? '' : 'am'}" title="Salvamento">${CLOUD ? ({ ok: '☁ salvo na nuvem', pend: '☁ alterações pendentes', saving: '☁ salvando…', off: '⚠ sem conexão — salvo no aparelho' }[S.cloud] || '☁') + (CLOUD.demo ? ' (demo)' : '') : '💾 salvo no aparelho'}</span>`;
 }
@@ -2379,10 +2496,14 @@ function init() {
   if (!has('TB')) { document.querySelector('#tabs [data-t="iso"]').style.display = 'none'; $('#bClash').style.display = 'none'; }
   document.querySelectorAll('[data-cam]').forEach(b => b.onclick = () => R.view(b.dataset.cam));
   $('#bFit').onclick = () => R.fit();
+  $('#bGz').onclick = e => { S.gizmo = !S.gizmo; e.currentTarget.classList.toggle('on', S.gizmo); R.sync(); };
+  $('#gzSnap').onchange = e => { S.snap = +e.target.value; };
+  $('#gzAng').onchange = e => { S.snapAng = +e.target.value; };
   $('#bPorts').onclick = e => { S.ports = !S.ports; e.currentTarget.classList.toggle('on', S.ports); R.sync(); };
   $('#bClash').onclick = e => { S.clashOn = !S.clashOn; e.currentTarget.classList.toggle('on', S.clashOn); refresh(); };
   $('#bUndo').onclick = undo; $('#bRedo').onclick = redo;
-  $('#bNew').textContent = 'Projetos'; $('#bNew').classList.remove('hdr-extra'); $('#bNew').onclick = projectsModal;
+  $('#bNew').innerHTML = '<span class="dk">Projetos</span><span class="mb">📁</span>';
+  $('#bUndo2').onclick = undo; $('#bNew').classList.remove('hdr-extra'); $('#bNew').onclick = projectsModal;
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushCloud(); });
   window.addEventListener('pagehide', () => flushCloud());
   $('#bLeft').onclick = () => $('#left').classList.contains('open') ? closeDrawers() : openDrawer('left');
@@ -2809,7 +2930,7 @@ function headerExtras() {
   chip.onclick = () => confirmBox('Sair da conta?', `${esc(ME.email)}<br>Seus projetos continuam salvos neste aparelho.`, 'Sair', async () => { await B.signOut(); location.reload(); });
   hdr.insertBefore(chip, anchor);
   if (ME.role === 'admin' || ME.role === 'moderator') {
-    const b = document.createElement('button'); b.className = 'ib'; b.id = 'bAdm'; b.textContent = 'Painel';
+    const b = document.createElement('button'); b.className = 'ib'; b.id = 'bAdm'; b.innerHTML = '<span class="dk">Painel</span><span class="mb">🛡</span>';
     b.onclick = () => { const a = $('#adm'); if (a.classList.contains('on')) a.classList.remove('on'); else { a.classList.add('on'); renderAdmin(); } b.classList.toggle('on', a.classList.contains('on')); };
     hdr.insertBefore(b, chip);
     const adm = document.createElement('div'); adm.id = 'adm'; document.body.appendChild(adm);
