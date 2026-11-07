@@ -34,6 +34,10 @@ aside{background:var(--p1);overflow-y:auto;min-height:0;scrollbar-width:thin;scr
 aside#left{border-right:1px solid var(--ln)}
 aside#right{border-left:1px solid var(--ln)}
 .sec{border-bottom:1px solid var(--ln);padding:10px 12px}
+.colh{cursor:pointer;user-select:none;margin:0!important;padding:2px 0}
+.colh+*{margin-top:8px}
+.colh:hover{color:var(--tx)}
+.chev{color:var(--am);font-size:13px;width:12px;text-align:center}
 .sec h3{margin:0 0 8px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mu);font-weight:600;display:flex;align-items:center;justify-content:space-between}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
@@ -114,6 +118,7 @@ details summary::-webkit-details-marker{display:none}
   #bRedo{display:none}
   .hint{display:none}
   header{gap:6px;padding:0 6px}
+  header .logo{display:none}
   #bUndo{display:none}
   #userchip{padding:0 6px}#userchip .chip{display:none}#userchip::before{content:'👤'}
   .dk{display:none!important}.mb{display:inline!important}
@@ -1970,7 +1975,9 @@ const CAT = [
     ['wall', { kind: 'bloco' }, 'Parede bloco concreto', 'wallB'], ['wall', { kind: 'ceramico' }, 'Parede bloco cerâmico', 'wallB'], ['wall', { kind: 'tijolo' }, 'Parede tijolo maciço', 'wallT'],
     ['roof', { kind: 'ceramica' }, 'Telhado cerâmico', 'roof'], ['roof', { kind: 'fibrocimento' }, 'Telhado fibrocimento', 'roof'], ['roof', { kind: 'metalica' }, 'Telhado metálico', 'roof']] },
 ];
-const LIBK = 'tecplan.lib.v1';
+const LIBK = 'tecplan.lib.v1', COLK = 'tecplan.ui.collapsed';
+const isCol = k => (store.get(COLK, []) || []).includes(k);
+const colH = (k, label, extra = '') => `<h3 class="colh" data-col="${esc(k)}"><span>${label}</span><span class="row" style="gap:6px">${extra}<span class="chev">${isCol(k) ? '▸' : '▾'}</span></span></h3>`;
 function renderLeft() {
   const lib = store.get(LIBK, []);
   const act = S.active && pr.get(S.active.id);
@@ -1980,23 +1987,28 @@ function renderLeft() {
     <label class="f">Classe<select class="in" id="cCls">${opts(CLASSES, S.cls, c => (FLANGE_STDS[pr.meta.fstd] || FLANGE_STDS['ASME B16.5'])[c])}</select></label></div>
     <label class="f" style="margin-top:6px">Comprimento do tubo (mm)<input class="in" id="cLen" type="number" min="10" step="10" value="${S.pipeLen}"></label>` : ''}
     <div class="mut" style="margin-top:8px">${act ? `Próxima peça entra em <span class="chip ok">${esc(act.tag)} · ${S.active.port}</span> <button class="ib sm" id="cClrAct">soltar</button>` : 'Sem porta ativa: a peça entra solta. Toque numa esfera âmbar no 3D para continuar uma linha.'}</div></div>`;
-  for (const g of CAT.filter(g => has(g.mod))) h += `<div class="sec"><h3>${g.g}</h3><div class="grid3">${g.items.map((it, i) => `<button class="cat" data-ins="${CAT.indexOf(g)}:${i}"><svg viewBox="0 0 26 26">${ICON[it[3]]}</svg>${it[2]}</button>`).join('')}</div></div>`;
-  if (has('TB')) h += `<div class="sec"><details ${lib.length ? '' : ''}><summary><h3>Smart Builder <span class="chip">${lib.length}</span></h3></summary>
+  const cats = CAT.filter(g => has(g.mod));
+  if (cats.length > 1) h += `<div class="sec" style="padding:6px 12px"><div class="row" style="justify-content:flex-end;gap:6px"><button class="ib sm" id="colAll">Recolher tudo</button><button class="ib sm" id="expAll">Expandir tudo</button></div></div>`;
+  for (const g of cats) h += `<div class="sec">${colH(g.g, g.g, `<span class="chip">${g.items.length}</span>`)}${isCol(g.g) ? '' : `<div class="grid3">${g.items.map((it, i) => `<button class="cat" data-ins="${CAT.indexOf(g)}:${i}"><svg viewBox="0 0 26 26">${ICON[it[3]]}</svg>${it[2]}</button>`).join('')}</div>`}</div>`;
+  if (has('TB')) h += `<div class="sec">${colH('Smart Builder', 'Smart Builder', `<span class="chip">${lib.length}</span>`)}${isCol('Smart Builder') ? '' : `<div>
     <div class="grid2" style="margin-top:6px"><label class="f" style="grid-column:1/3">Nome<input class="in" id="sbN" placeholder="Ex.: Carretel especial"></label>
     <label class="f">Ø externo (mm)<input class="in" id="sbOd" type="number" value="114.3"></label><label class="f">Comprimento<input class="in" id="sbL" type="number" value="500"></label>
     <label class="f">Espessura<input class="in" id="sbT" type="number" value="6.02"></label><label class="f">Extremidade<select class="in" id="sbE"><option value="BW">Solda topo</option><option value="FL">Flangeada</option><option value="TH">Rosca</option></select></label>
     <label class="f">Norma<input class="in" id="sbS" value="ASME B36.10"></label><label class="f">Material<input class="in" id="sbM" value="ASTM A106 Gr.B"></label></div>
     <button class="ib am" id="sbGo" style="width:100%;margin-top:8px">Criar e salvar no catálogo</button>
     <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px">${lib.map((c, i) => `<div class="row"><button class="ib sm" style="flex:1;justify-content:flex-start" data-lib="${i}">${esc(c.label)} · Ø${c.od}×${c.len}</button><button class="ib sm" data-libdel="${i}">✕</button></div>`).join('')}</div>
-    </details></div>`;
+    </div>`}</div>`;
   const pcs = [...pr.pieces.values()], clashIds = new Set(S.clashes.flatMap(c => [c.a, c.b]));
-  h += `<div class="sec"><h3>Modelo <span class="chip">${pcs.length} peças</span></h3><div class="tree">${pcs.map(p => `<button data-sel="${p.id}" class="${p.id === S.sel ? 'on' : ''}"><span>${esc(p.tag)}</span><span class="${clashIds.has(p.id) ? 'er' : 'mut'}">${clashIds.has(p.id) ? '⚠ ' : ''}${TYPES[p.type].name}${DIM[p.dn] && p.type !== 'custom' ? ' ' + DIM[p.dn].nps : ''}</span></button>`).join('') || '<span class="mut">Vazio</span>'}</div></div>
+  h += `<div class="sec">${colH('Modelo', 'Modelo', `<span class="chip">${pcs.length} peças</span>`)}${isCol('Modelo') ? '' : `<div class="tree">${pcs.map(p => `<button data-sel="${p.id}" class="${p.id === S.sel ? 'on' : ''}"><span>${esc(p.tag)}</span><span class="${clashIds.has(p.id) ? 'er' : 'mut'}">${clashIds.has(p.id) ? '⚠ ' : ''}${TYPES[p.type].name}${DIM[p.dn] && p.type !== 'custom' ? ' ' + DIM[p.dn].nps : ''}</span></button>`).join('') || '<span class="mut">Vazio</span>'}</div>`}</div>
     ${(() => { const o = (USER.modules || []).filter(m => m !== 'TB' && m !== 'CL'); return o.length ? `<div class="sec"><h3>Outras disciplinas do seu pacote</h3><div class="mut">${o.map(m => esc(USER.MODULES[m] || m)).join(', ')} — em desenvolvimento, chegam nas próximas versões.</div></div>` : ''; })()}`;
   const L = $('#left'); const st = L.scrollTop; L.innerHTML = h; L.scrollTop = st;
   if ($('#cDn')) { $('#cDn').onchange = e => { S.dn = +e.target.value; };
   $('#cCls').onchange = e => { S.cls = +e.target.value; };
   $('#cLen').onchange = e => { S.pipeLen = Math.max(10, +e.target.value || 1000); }; }
   if ($('#cClrAct')) $('#cClrAct').onclick = () => { S.active = null; refresh(); };
+  L.querySelectorAll('[data-col]').forEach(hd => hd.onclick = () => { const k = hd.dataset.col, c = store.get(COLK, []) || []; store.set(COLK, c.includes(k) ? c.filter(x => x !== k) : c.concat(k)); renderLeft(); });
+  if ($('#colAll')) { $('#colAll').onclick = () => { store.set(COLK, [...new Set((store.get(COLK, []) || []).concat(CAT.filter(g => has(g.mod)).map(g => g.g), ['Smart Builder']))]); renderLeft(); };
+    $('#expAll').onclick = () => { const names = CAT.map(g => g.g).concat('Smart Builder'); store.set(COLK, (store.get(COLK, []) || []).filter(x => !names.includes(x))); renderLeft(); }; }
   L.querySelectorAll('[data-ins]').forEach(b => b.onclick = () => { const [g, i] = b.dataset.ins.split(':').map(Number); const it = CAT[g].items[i]; insert(it[0], it[1]); if (innerWidth < 768) closeDrawers(); });
   L.querySelectorAll('[data-sel]').forEach(b => b.onclick = () => { S.sel = b.dataset.sel; refresh(); if (innerWidth < 768) openDrawer('right'); });
   if ($('#sbGo')) $('#sbGo').onclick = () => {
