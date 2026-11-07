@@ -1947,6 +1947,20 @@ async function download(name, text, mime) {
 }
 async function copy(text, what) { try { await navigator.clipboard.writeText(text); toast(`${what} copiado.`, 'ok'); } catch { toast('Não foi possível copiar automaticamente.', 'er'); } }
 let lastSVG = '';
+function printSheet() {
+  if (!lastSVG) return;
+  const sz = S.sheet.size === 'A4' ? 'A4' : 'A3', [w, h] = sz === 'A4' ? [297, 210] : [420, 297];
+  let st = document.getElementById('printcss'); if (!st) { st = document.createElement('style'); st.id = 'printcss'; document.head.appendChild(st); }
+  st.textContent = `@page{size:${sz} landscape;margin:0}
+@media print{html,body{overflow:visible!important;height:auto!important;background:#fff!important}
+body>*{display:none!important}#printarea{display:block!important}
+#printarea svg{width:${w}mm!important;height:${h}mm!important;display:block}}
+#printarea{display:none}`;
+  let pa = document.getElementById('printarea'); if (!pa) { pa = document.createElement('div'); pa.id = 'printarea'; document.body.appendChild(pa); }
+  pa.innerHTML = lastSVG;
+  try { window.print(); toast(`Escolha "Salvar como PDF" ou a impressora — papel ${sz} paisagem.`); }
+  catch { toast('Este navegador bloqueou a impressão aqui. Abra o app pelo link do GitHub para imprimir.', 'er'); }
+}
 function renderSheet() {
   const an = TP.analyze(pr);
   if (S.sheet.spool !== 'ALL' && !an.spools.find(s => s.name === S.sheet.spool)) S.sheet.spool = 'ALL';
@@ -1955,7 +1969,7 @@ function renderSheet() {
     <select class="in" id="shSp" style="width:auto"><option value="ALL">Linha completa</option>${an.spools.map(s => `<option ${S.sheet.spool === s.name ? 'selected' : ''}>${s.name}</option>`).join('')}</select>
     <button class="ib sm" id="shZo">−</button><button class="ib sm" id="shZi">+</button>
     <button class="ib sm ${S.sheet.carimbo ? 'on' : ''}" id="shCar">Carimbo</button><span style="flex:1"></span>
-    <button class="ib sm" id="shCopy">Copiar SVG</button><button class="ib sm am" id="shDl">Baixar SVG</button>`;
+    <button class="ib sm am" id="shPrint">Imprimir / PDF</button><button class="ib sm" id="shCopy">Copiar SVG</button><button class="ib sm" id="shDl">Baixar SVG</button>`;
   const fields = [['title', 'Título do projeto'], ['line', 'Linha'], ['sheet', 'Folha'], ['designer', 'Projetista'], ['approver', 'Aprovador'], ['date', 'Data'], ['rev', 'Revisão'], ['fluid', 'Fluido']];
   $('#carimbo').className = S.sheet.carimbo ? 'on' : '';
   $('#carimbo').innerHTML = fields.map(([k, l]) => `<label class="f">${l}<input class="in" data-m="${k}" value="${esc(m[k])}"></label>`).join('');
@@ -1965,6 +1979,7 @@ function renderSheet() {
   $('#shZo').onclick = () => { S.sheet.zoom = Math.max(0.4, S.sheet.zoom / 1.25); renderSheet(); };
   $('#shZi').onclick = () => { S.sheet.zoom = Math.min(5, S.sheet.zoom * 1.25); renderSheet(); };
   $('#shCar').onclick = () => { S.sheet.carimbo = !S.sheet.carimbo; renderSheet(); };
+  $('#shPrint').onclick = printSheet;
   $('#shCopy').onclick = () => copy(lastSVG, 'SVG da prancha');
   $('#shDl').onclick = () => download(`${(m.line || 'TP')}-${S.sheet.spool}-${S.sheet.size}.svg`, lastSVG, 'image/svg+xml');
   const wrap = $('#sheetwrap');
