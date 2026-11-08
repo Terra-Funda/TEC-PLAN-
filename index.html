@@ -371,6 +371,138 @@ function handwheel(x, h, f, od) {
     cyl(new V3(x - f.fod * 0.42, h, 0), new V3(x + f.fod * 0.42, h, 0), Math.max(3, od * 0.025), null, ACC)];
 }
 
+/* ---------------- Geometria detalhada de válvulas ---------------- */
+// rev: perfil de revolução [[raio, altura]...] ao longo de "dir" a partir de "o"
+const rev = (o, dir, pts, extra) => Object.assign({ k: 'rev', o, dir: dir.norm(), pts }, extra || {});
+const VB = { mat: 'vbody' }, VBn = { mat: 'vbody', clash: false }, WH = { mat: 'wheel', clash: false }, ST = { mat: 'stem', clash: false };
+const hexNut = (c, dir, s, extra) => cyl(c.sub(dir.scale(s * 0.42)), c.add(dir.scale(s * 0.42)), s * 0.95, null, Object.assign({ seg: 6, mat: 'stem', clash: false }, extra || {}));
+// flanges integrais com face com ressalto (RF) e pescoço
+function vFlanges(L, f, R) {
+  const rf = R + (f.fod / 2 - R) * 0.38, out = [];
+  for (const [x0, s] of [[0, 1], [L, -1]]) {
+    out.push(cyl(new V3(x0 + s * 1.6, 0, 0), new V3(x0 + s * f.ft, 0, 0), f.fod / 2, null, VB), cyl(new V3(x0, 0, 0), new V3(x0 + s * 1.6, 0, 0), rf, null, VB));
+    out.push(rev(new V3(x0 + s * f.ft, 0, 0), new V3(s, 0, 0), [[f.fod * 0.36, 0], [R * 1.3, f.ft * 0.9]], VB));
+  }
+  return out;
+}
+// castelo: pescoço + flange do castelo com parafusos + corpo do castelo; retorna altura do topo
+function bonnet(m, R, f, y0, hBody, n) {
+  const out = [], bf = Math.max(f.ft * 0.85, 10), rb = R * 1.5;
+  out.push(rev(new V3(m, 0, 0), UP, [[R * 1.12, 0], [R * 1.12, y0 - bf * 0.2], [R * 1.25, y0]], VBn));
+  out.push(cyl(new V3(m, y0, 0), new V3(m, y0 + bf, 0), rb, null, VBn));
+  const nb = n || (R > 60 ? 12 : 8), rc = rb - Math.max(10, R * 0.16), bs = Math.max(5, R * 0.09);
+  for (let i = 0; i < nb; i++) { const a = (i + 0.5) / nb * Math.PI * 2, c = new V3(m + rc * Math.cos(a), y0 + bf + bs * 0.45, rc * Math.sin(a)); out.push(hexNut(c, UP, bs)); }
+  const y1 = y0 + bf;
+  out.push(rev(new V3(m, y1, 0), UP, [[R * 1.18, 0], [R * 1.1, hBody * 0.3], [R * 0.85, hBody * 0.72], [R * 0.5, hBody * 0.95], [R * 0.45, hBody]], VBn));
+  return { out, top: y1 + hBody };
+}
+// arcada (yoke) + haste ascendente + volante com raios
+function yokeWheel(m, R, yb, yokeH, wheelR, stemUp) {
+  const out = [], aw = Math.max(10, R * 0.2), ad = Math.max(14, R * 0.34), sx = Math.max(R * 0.6, 28), yt = yb + yokeH;
+  out.push(box(new V3(m - sx, yb + yokeH / 2, 0), [aw, yokeH, ad], VBn), box(new V3(m + sx, yb + yokeH / 2, 0), [aw, yokeH, ad], VBn));
+  out.push(box(new V3(m, yt, 0), [2 * sx + aw, Math.max(10, R * 0.2), ad], VBn), cyl(new V3(m, yt - R * 0.1, 0), new V3(m, yt + R * 0.35, 0), Math.max(9, R * 0.26), null, VBn));
+  const stemR = Math.max(3.5, R * 0.08), yw = yt + R * 0.35 + Math.max(8, R * 0.12);
+  out.push(cyl(new V3(m, yb - R * 0.2, 0), new V3(m, yw + (stemUp || R * 0.9), 0), stemR, null, ST));
+  out.push(...wheel(new V3(m, yw, 0), UP, wheelR));
+  return { out, top: yw };
+}
+function wheel(c, n, Rw) {
+  const t = Math.max(4, Rw * 0.07), u = Math.abs(n.dot(AX)) > 0.9 ? AZ : AX, v = n.cross(u).norm(), out = [arc(c, Rw, t, u, v, Math.PI * 2, WH), cyl(c.sub(n.scale(t * 1.3)), c.add(n.scale(t * 1.3)), Math.max(8, Rw * 0.16), null, WH)];
+  for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2 + Math.PI / 4, d = u.scale(Math.cos(a)).add(v.scale(Math.sin(a))); out.push(cyl(c.add(d.scale(Rw * 0.12)), c.add(d.scale(Rw * 0.96)), t * 0.55, null, WH)); }
+  return out;
+}
+function gearOp(m, R, y0, side) { // operador de engrenagem com volante lateral
+  const g = Math.max(70, R * 0.9), out = [box(new V3(m, y0 + g * 0.45, 0), [g * 1.1, g * 0.9, g * 1.1], { mat: 'vbody', edges: true, clash: false })];
+  out.push(cyl(new V3(m, y0 + g * 0.45, g * 0.55), new V3(m, y0 + g * 0.45, g * 0.55 + g * 0.6), Math.max(5, R * 0.07), null, ST));
+  out.push(...wheel(new V3(m, y0 + g * 0.45, g * 0.55 + g * 0.6), AZ, Math.max(80, R * 1.1)));
+  return out;
+}
+function lever(m, y, L, R) {
+  const w = Math.max(18, R * 0.3), t = Math.max(6, R * 0.08), out = [box(new V3(m + L * 0.45, y + L * 0.04, 0), [L * 0.95, t, w], { mat: 'wheel', clash: false, rq: Q.axisAngle(AZ, 0.08) })];
+  out.push(box(new V3(m + L * 0.88, y + L * 0.075, 0), [L * 0.28, t * 2.6, w * 1.15], { mat: 'grip', clash: false, rq: Q.axisAngle(AZ, 0.08) }), cyl(new V3(m, y - t * 2, 0), new V3(m, y + t * 1.6, 0), w * 0.6, null, { mat: 'stem', clash: false, seg: 6 }));
+  return out;
+}
+function valvePrims(p, L) {
+  const f = flg(p.dn, p.cls), od = odOf(p.dn), R = od / 2, m = L / 2, pr = [];
+  const Rw = Math.max(70, Math.min(420, f.fod * 0.45));
+  if (p.sub === 'butterfly') {
+    const rb = R * 1.32;
+    pr.push(cyl(new V3(0, 0, 0), new V3(L, 0, 0), rb, null, VB));
+    for (const a of [Math.PI / 4, 3 * Math.PI / 4, 5 * Math.PI / 4, 7 * Math.PI / 4]) pr.push(box(new V3(m, Math.sin(a) * (f.bc / 2), Math.cos(a) * (f.bc / 2)), [L * 0.9, Math.max(20, f.bd * 2.2), Math.max(20, f.bd * 2.2)], VBn));
+    pr.push(cyl(new V3(m, -R * 0.06, 0), new V3(m, R * 0.06, 0), R * 0.94, null, { mat: 'stem', clash: false, rq: null }));
+    pr.push(rev(new V3(m, rb * 0.9, 0), UP, [[R * 0.3, 0], [R * 0.3, R * 0.75], [R * 0.4, R * 0.8]], VBn), box(new V3(m, rb * 0.9 + R * 0.86, 0), [R * 0.9, Math.max(8, R * 0.1), R * 0.9], VBn));
+    const y0 = rb * 0.9 + R * 0.92;
+    if (p.dn >= 200) pr.push(...gearOp(m, R, y0));
+    else { pr.push(box(new V3(m + R * 0.35, y0 + 4, 0), [R * 0.8, 8, R * 0.9], { mat: 'stem', clash: false })); pr.push(...lever(m, y0 + Math.max(14, R * 0.15), Math.max(160, f.fod * 1.0), R)); }
+    return pr;
+  }
+  pr.push(...vFlanges(L, f, R));
+  const neck = f.ft * 0.9;
+  if (p.sub === 'gate' || p.sub === 'globe') {
+    const glb = p.sub === 'globe';
+    pr.push(rev(new V3(neck, 0, 0), AX, glb ? [[R * 1.3, 0], [R * 1.5, L * 0.12], [R * 1.95, m - neck], [R * 1.5, L - 2 * neck - L * 0.12], [R * 1.3, L - 2 * neck]] : [[R * 1.3, 0], [R * 1.4, L * 0.1], [R * 1.62, m - neck - L * 0.12], [R * 1.7, m - neck], [R * 1.62, m - neck + L * 0.12], [R * 1.4, L - 2 * neck - L * 0.1], [R * 1.3, L - 2 * neck]], VB));
+    if (glb) pr.push(sph(new V3(m, 0, 0), R * 1.85, VB));
+    const bn = bonnet(m, R, f, glb ? R * 1.7 : R * 1.65, glb ? R * 1.3 + 30 : R * 1.9 + 40);
+    pr.push(...bn.out);
+    const yw = yokeWheel(m, R, bn.top, glb ? R * 1.4 + 70 : R * 2.0 + 90, Rw, glb ? R * 0.6 : R * 1.2);
+    pr.push(...yw.out);
+    return pr;
+  }
+  if (p.sub === 'ball') {
+    pr.push(rev(new V3(neck, 0, 0), AX, [[R * 1.25, 0], [R * 1.25, L * 0.08], [R * 1.7, m - neck - L * 0.14], [R * 1.78, m - neck], [R * 1.7, m - neck + L * 0.14], [R * 1.25, L - 2 * neck - L * 0.08], [R * 1.25, L - 2 * neck]], VB));
+    const xr = m + L * 0.13; pr.push(cyl(new V3(xr - f.ft * 0.35, 0, 0), new V3(xr + f.ft * 0.35, 0, 0), R * 1.9, null, VBn));
+    const nb = R > 60 ? 8 : 6; for (let i = 0; i < nb; i++) { const a = (i + 0.5) / nb * Math.PI * 2; pr.push(hexNut(new V3(xr + f.ft * 0.45, Math.sin(a) * R * 1.68, Math.cos(a) * R * 1.68), AX, Math.max(5, R * 0.09))); }
+    pr.push(rev(new V3(m, R * 1.5, 0), UP, [[R * 0.55, 0], [R * 0.55, R * 0.45], [R * 0.72, R * 0.5], [R * 0.72, R * 0.62]], VBn));
+    const y0 = R * 2.12;
+    if (p.dn >= 200) pr.push(...gearOp(m, R, y0)); else pr.push(...lever(m, y0 + Math.max(10, R * 0.12), Math.max(180, f.fod * 1.15), R));
+    return pr;
+  }
+  if (p.sub === 'check') {
+    pr.push(rev(new V3(neck, 0, 0), AX, [[R * 1.3, 0], [R * 1.45, L * 0.12], [R * 1.6, m - neck], [R * 1.45, L - 2 * neck - L * 0.12], [R * 1.3, L - 2 * neck]], VB));
+    const d = new V3(0.28, 1, 0).norm(), c0 = new V3(m - R * 0.15, 0, 0), h = R * 1.55;
+    pr.push(rev(c0, d, [[R * 1.15, 0], [R * 1.15, h], [R * 1.35, h]], VBn));
+    const cf = c0.add(d.scale(h)), bf = Math.max(f.ft * 0.8, 10);
+    pr.push(cyl(cf, cf.add(d.scale(bf)), R * 1.45, null, VBn), cyl(cf.add(d.scale(bf)), cf.add(d.scale(bf * 1.8)), R * 1.05, null, VBn));
+    const u = AZ, v = d.cross(u).norm(), nb = R > 60 ? 10 : 8, rc = R * 1.28;
+    for (let i = 0; i < nb; i++) { const a = (i + 0.5) / nb * Math.PI * 2; pr.push(hexNut(cf.add(d.scale(bf + Math.max(5, R * 0.09) * 0.45)).add(u.scale(rc * Math.cos(a))).add(v.scale(rc * Math.sin(a))), d, Math.max(5, R * 0.09))); }
+    pr.push(cyl(new V3(m - R * 0.3, R * 0.95, -R * 1.62), new V3(m - R * 0.3, R * 0.95, R * 1.62), Math.max(6, R * 0.14), null, { mat: 'stem', clash: false, seg: 6 }));
+    pr.push(box(new V3(m + R * 0.45, R * 0.2, 0), [R * 0.9, 4, 4], { mat: 'flow', clash: false }));
+    return pr;
+  }
+  if (p.sub === 'plug') {
+    pr.push(rev(new V3(neck, 0, 0), AX, [[R * 1.25, 0], [R * 1.5, m - neck], [R * 1.25, L - 2 * neck]], VB));
+    pr.push(rev(new V3(m, -R * 1.25, 0), UP, [[R * 0.9, 0], [R * 1.2, R * 0.6], [R * 1.45, R * 1.6], [R * 1.25, R * 2.55], [R * 0.6, R * 2.75]], VBn));
+    pr.push(cyl(new V3(m, R * 1.5, 0), new V3(m, R * 1.5 + Math.max(25, R * 0.4), 0), Math.max(10, R * 0.22), null, { mat: 'stem', clash: false, seg: 4 }));
+    pr.push(...lever(m, R * 1.5 + Math.max(25, R * 0.4), Math.max(200, f.fod * 1.2), R));
+    return pr;
+  }
+  if (p.sub === 'needle') {
+    pr.push(box(new V3(m, 0, 0), [L - 2 * neck, R * 2.3, R * 2.1], { mat: 'stem', edges: true }));
+    pr.push(rev(new V3(m, R * 1.15, 0), UP, [[R * 0.5, 0], [R * 0.5, R * 0.9], [R * 0.35, R * 1.0], [R * 0.3, R * 2.2]], { mat: 'stem', clash: false }));
+    const yt = R * 1.15 + R * 2.3; pr.push(cyl(new V3(m, R * 1.15, 0), new V3(m, yt + 10, 0), Math.max(3, R * 0.1), null, ST), cyl(new V3(m - Math.max(45, R * 1.1), yt, 0), new V3(m + Math.max(45, R * 1.1), yt, 0), Math.max(5, R * 0.12), null, WH));
+    return pr;
+  }
+  if (p.sub === 'diaphragm') {
+    pr.push(rev(new V3(neck, 0, 0), AX, [[R * 1.25, 0], [R * 1.4, L * 0.15], [R * 1.4, L - 2 * neck - L * 0.15], [R * 1.25, L - 2 * neck]], VB));
+    pr.push(box(new V3(m, R * 1.2, 0), [L * 0.62, R * 0.25, R * 2.6], VBn));
+    pr.push(rev(new V3(m, R * 1.32, 0), UP, [[R * 1.25, 0], [R * 1.1, R * 0.5], [R * 0.75, R * 0.95], [R * 0.3, R * 1.15]], VBn));
+    pr.push(...yokeWheel(m, R, R * 2.4, R * 0.5 + 20, Math.max(60, Rw * 0.7), R * 0.4).out.slice(3));
+    return pr;
+  }
+  return pr;
+}
+function strainerPrims(p, L) {
+  const f = flg(p.dn, p.cls), od = odOf(p.dn), R = od / 2, m = L / 2, pr = vFlanges(L, f, R), neck = f.ft * 0.9;
+  pr.push(rev(new V3(neck, 0, 0), AX, [[R * 1.25, 0], [R * 1.35, L * 0.15], [R * 1.4, m - neck], [R * 1.35, L - 2 * neck - L * 0.15], [R * 1.25, L - 2 * neck]], VB));
+  const d = new V3(0.55, -0.83, 0).norm(), c0 = new V3(m - R * 0.6, -R * 0.3, 0), h = R * 3.3;
+  pr.push(rev(c0, d, [[R * 0.95, 0], [R * 1.0, h * 0.85], [R * 1.15, h]], VBn));
+  const cf = c0.add(d.scale(h)), bf = Math.max(f.ft * 0.8, 10);
+  pr.push(cyl(cf, cf.add(d.scale(bf)), R * 1.3, null, VBn), cyl(cf.add(d.scale(bf)), cf.add(d.scale(bf + R * 0.35)), R * 0.35, null, { mat: 'stem', clash: false, seg: 6 }));
+  const u = AZ, v = d.cross(u).norm(), nb = 8, rc = R * 1.12;
+  for (let i = 0; i < nb; i++) { const a = (i + 0.5) / nb * Math.PI * 2; pr.push(hexNut(cf.add(d.scale(bf + 3)).add(u.scale(rc * Math.cos(a))).add(v.scale(rc * Math.sin(a))), d, Math.max(5, R * 0.08))); }
+  return pr;
+}
+
 const TYPES = {
   pipe: {
     name: 'Tubo', prefix: 'TB', spool: true,
@@ -441,7 +573,8 @@ const TYPES = {
       const f = flg(p.dn, p.cls), L = this.len(p), od = odOf(p.dn);
       if (p.sub === 'BL') return [cyl(new V3(0, 0, 0), new V3(L, 0, 0), f.fod / 2)];
       const hub = p.sub === 'WN' ? [cyl(new V3(0, 0, 0), new V3(L - f.ft, 0, 0), od / 2, od / 2 * 1.3 + 4)] : [cyl(new V3(0, 0, 0), new V3(L - f.ft, 0, 0), od / 2 + 6)];
-      return [...hub, cyl(new V3(L - f.ft, 0, 0), new V3(L, 0, 0), f.fod / 2)];
+      const rf = od / 2 + (f.fod / 2 - od / 2) * 0.38;
+      return [...hub, cyl(new V3(L - f.ft, 0, 0), new V3(L - 1.6, 0, 0), f.fod / 2), cyl(new V3(L - 1.6, 0, 0), new V3(L, 0, 0), rf)];
     },
     weight(p) { const f = flg(p.dn, p.cls), od = odOf(p.dn); const disc = Math.PI * (f.fod ** 2 - (p.sub === 'BL' ? 0 : od ** 2)) / 4 * f.ft * STEEL; return disc * (p.sub === 'WN' ? 1.3 : 1.1); },
     keys: (p, w) => w.P2 ? ({ pts: [w.P1, w.P2], key: [w.P2] }) : ({ pts: [w.P1], key: [w.P1] }),
@@ -453,24 +586,7 @@ const TYPES = {
     len: p => valveLen(p),
     ports(p) { const L = this.len(p); return [P('P1', new V3(0, 0, 0), AX.neg(), 'FL', p.dn), P('P2', new V3(L, 0, 0), AX, 'FL', p.dn)]; },
     boltFaces(p) { if (p.sub === 'butterfly') return []; const f = flg(p.dn, p.cls), L = this.len(p); return [{ x: 0, s: -1, T: f.ft }, { x: L, s: 1, T: f.ft }]; },
-    prims(p) {
-      const f = flg(p.dn, p.cls), L = this.len(p), od = odOf(p.dn), m = L / 2;
-      if (p.sub === 'butterfly') {
-        return [cyl(new V3(0, 0, 0), new V3(L, 0, 0), od / 2 * 1.25), cyl(new V3(m, 0, 0), new V3(m, od * 0.9, 0), od * 0.15, null, { clash: false }),
-          box(new V3(m + f.fod * 0.3, od * 0.9 + 8, 0), [f.fod * 0.7, 10, 18], ACC)];
-      }
-      const pr = endFlanges(L, f);
-      if (p.sub === 'gate') pr.push(cyl(new V3(f.ft, 0, 0), new V3(L - f.ft, 0, 0), od / 2 * 1.25), cyl(new V3(m, 0, 0), new V3(m, od * 1.6 + 40, 0), od * 0.38, od * 0.3, { clash: false }), ...handwheel(m, od * 2.4 + 90, f, od));
-      if (p.sub === 'globe') pr.push(sph(new V3(m, 0, 0), od * 0.85), cyl(new V3(m, 0, 0), new V3(m, od * 1.3 + 30, 0), od * 0.3, null, { clash: false }), ...handwheel(m, od * 1.9 + 70, f, od));
-      if (p.sub === 'ball') pr.push(cyl(new V3(f.ft, 0, 0), new V3(L - f.ft, 0, 0), od / 2 * 1.15), sph(new V3(m, 0, 0), od * 0.78), cyl(new V3(m, 0, 0), new V3(m, od * 0.95 + 15, 0), od * 0.12 + 4, null, { clash: false }),
-        box(new V3(m + f.fod * 0.55, od * 0.95 + 20, 0), [f.fod * 1.3, 10, 22], ACC));
-      if (p.sub === 'plug') pr.push(cyl(new V3(f.ft, 0, 0), new V3(L - f.ft, 0, 0), od / 2 * 1.2), cyl(new V3(m, -od * 0.6, 0), new V3(m, od * 0.9, 0), od * 0.55, od * 0.4, { clash: false }), box(new V3(m + f.fod * 0.45, od * 0.95 + 12, 0), [f.fod * 1.1, 10, 24], ACC));
-      if (p.sub === 'needle') pr.push(cyl(new V3(f.ft, 0, 0), new V3(L - f.ft, 0, 0), od / 2 * 1.15), cyl(new V3(m, 0, 0), new V3(m, od * 1.1 + 40, 0), od * 0.18 + 4, null, { clash: false }), cyl(new V3(m - od * 0.5 - 20, od * 1.1 + 40, 0), new V3(m + od * 0.5 + 20, od * 1.1 + 40, 0), 6, null, ACC));
-      if (p.sub === 'diaphragm') pr.push(cyl(new V3(f.ft, 0, 0), new V3(L - f.ft, 0, 0), od / 2 * 1.2), sph(new V3(m, od * 0.55, 0), od * 0.6, { clash: false }), ...handwheel(m, od * 1.4 + 50, f, od));
-      if (p.sub === 'check') pr.push(cyl(new V3(f.ft, 0, 0), new V3(L - f.ft, 0, 0), od / 2 * 1.25), cyl(new V3(m, 0, 0), new V3(m + od * 0.2, od * 0.95, 0), od * 0.42, od * 0.36, { clash: false }),
-        cyl(new V3(m + od * 0.2, od * 0.95, 0), new V3(m + od * 0.22, od * 1.05, 0), od * 0.45, null, ACC));
-      return pr;
-    },
+    prims(p) { return valvePrims(p, this.len(p)); },
     weight(p) { const f = flg(p.dn, p.cls); const disc = Math.PI * f.fod ** 2 / 4 * f.ft * STEEL; return disc * ({ gate: 4.4, globe: 5.2, ball: 4, butterfly: 1.2, check: 4, plug: 4.2, needle: 2.6, diaphragm: 4.6 }[p.sub] || 4); },
     keys: (p, w) => ({ pts: [w.P1, w.P2], key: [w.P1, w.P2] }),
   },
@@ -480,7 +596,7 @@ const TYPES = {
     len: p => DIM[p.dn].globe,
     ports(p) { const L = this.len(p); return [P('P1', new V3(0, 0, 0), AX.neg(), 'FL', p.dn), P('P2', new V3(L, 0, 0), AX, 'FL', p.dn)]; },
     boltFaces(p) { const f = flg(p.dn, p.cls), L = this.len(p); return [{ x: 0, s: -1, T: f.ft }, { x: L, s: 1, T: f.ft }]; },
-    prims(p) { const f = flg(p.dn, p.cls), L = this.len(p), od = odOf(p.dn); return [...endFlanges(L, f), cyl(new V3(f.ft, 0, 0), new V3(L - f.ft, 0, 0), od / 2 * 1.2), cyl(new V3(L * 0.4, 0, 0), new V3(L * 0.4 + od * 0.9, -od * 1.2, 0), od * 0.38, null, { clash: false }), cyl(new V3(L * 0.4 + od * 0.9, -od * 1.2, 0), new V3(L * 0.4 + od * 0.98, -od * 1.31, 0), od * 0.45, null, ACC)]; },
+    prims(p) { return strainerPrims(p, this.len(p)); },
     weight(p) { const f = flg(p.dn, p.cls); return Math.PI * f.fod ** 2 / 4 * f.ft * STEEL * 4.8; },
     keys: (p, w) => ({ pts: [w.P1, w.P2], key: [w.P1, w.P2] }),
   },
@@ -1585,6 +1701,7 @@ function capsules(pc) {
         out.push({ a: worldPt(pc, a), b: worldPt(pc, b), r: pr.r });
       }
     } else if (pr.k === 'sph') { const c = worldPt(pc, pr.c); out.push({ a: c, b: c, r: pr.r }); }
+    else if (pr.k === 'rev') { const r = Math.max(...pr.pts.map(q => q[0])), h0 = pr.pts[0][1], h1 = pr.pts[pr.pts.length - 1][1], L = h1 - h0, tr = Math.min(r * 0.5, L * 0.2); out.push({ a: worldPt(pc, pr.o.add(pr.dir.scale(h0 + tr))), b: worldPt(pc, pr.o.add(pr.dir.scale(h1 - tr))), r }); }
   }
   return out;
 }
@@ -1868,7 +1985,7 @@ function testNotes(pr) {
 }
 
 const fmtQty = g => (g.unit === 'pç' || g.unit === 'un') ? String(Math.round(g.qty)) : (Math.round(g.qty * 100) / 100).toFixed(2) + ' ' + g.unit;
-const TP = { extraOf, WIN_T, DOOR_T, FIN_T, PAINT, FLOOR_T, CEIL_T, PMAT, DISC, PIPING, PROFILES, profSec, fieldsOf, INLINE, inlineLen, insertInline, WALL_K, ROOF_K, V3, Q, UP, AX, AZ, D2R, DNS, DIM, CLASSES, FLANGE_STDS, flg, TYPES, VALVE_SUBS, Project, localPorts, worldPorts, worldPort, worldPt,
+const TP = { valvePrims, extraOf, WIN_T, DOOR_T, FIN_T, PAINT, FLOOR_T, CEIL_T, PMAT, DISC, PIPING, PROFILES, profSec, fieldsOf, INLINE, inlineLen, insertInline, WALL_K, ROOF_K, V3, Q, UP, AX, AZ, D2R, DNS, DIM, CLASSES, FLANGE_STDS, flg, TYPES, VALVE_SUBS, Project, localPorts, worldPorts, worldPort, worldPt,
   compatible, jointType, snapPose, component, branch, applyRigid, pivotPort, rotateBranch, roll, tilt, orient, moveGroup, updateParams, autoConnect, acoplar,
   segSegDist, capsules, detectClashes, ISO_AXES, PLANES, latticeToScreen, screenToLattice, snapLattice, classifyIso, isoDelta, isoTo3D, buildFromIso,
   joints, analyze, bom, fmtQty, pcf, testNotes, nextDown, nextUp, odOf, r1, C30, S30 };
@@ -1903,6 +2020,7 @@ function geomOf(pc) { // primitivas em coordenadas do mundo
     else if (p.k === 'section') { const s = p.sec, pts = []; for (const x of [0, p.L]) for (const a of [-1, 1]) for (const b of [-1, 1]) pts.push(worldPt(pc, new V3(x, a * s.d / 2, b * s.bf / 2))); out.push({ k: 'hull', pts }); }
     else if (p.k === 'gusset') { const pts = []; for (const z of [-p.t / 2, p.t / 2]) for (const [x, y] of [[0, 0], [p.a, 0], [0, p.b]]) pts.push(worldPt(pc, new V3(x, y, z))); out.push({ k: 'hull', pts }); }
     else if (p.k === 'loft') { const pts = []; for (const [x, [w, h]] of [[p.x0, p.a], [p.x0 + p.L, p.b]]) for (const a of [-1, 1]) for (const b of [-1, 1]) pts.push(worldPt(pc, new V3(x, a * h / 2, b * w / 2))); out.push({ k: 'hull', pts }); }
+    else if (p.k === 'rev') { const r = Math.max(...p.pts.map(q => q[0])); out.push({ k: 'seg', a: worldPt(pc, p.o.add(p.dir.scale(p.pts[0][1]))), b: worldPt(pc, p.o.add(p.dir.scale(p.pts[p.pts.length - 1][1]))), r: r * 0.85, rmax: r, center: p.clash !== false }); }
     else if (p.k === 'lathe') out.push({ k: 'seg', a: worldPt(pc, new V3(0, 0, 0)), b: worldPt(pc, new V3(0, p.h, 0)), r: p.ro, rmax: p.ro, center: true });
     else if (p.k === 'prism') { const pts = []; for (const y of [p.y0, p.y1]) for (const [x, z] of p.pts) pts.push(worldPt(pc, new V3(x, y, z))); out.push({ k: 'hull', pts }); }
     else if (p.mat && (p.k === 'box' || p.k === 'cbox')) {
@@ -2413,6 +2531,7 @@ const R = (() => {
     fiber: { draw: (g, n, b) => { noise(g, n, 1200, '#9aa0a3', 30, b); for (let x = 0; x < n; x++) { const v = Math.sin(x / n * Math.PI * 2 * 6); g.fillStyle = b ? `rgb(${128 + v * 110 | 0},${128 + v * 110 | 0},${128 + v * 110 | 0})` : `rgba(${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${Math.abs(v) * 0.18})`; g.fillRect(x, 0, 1, n); } }, u: 1100, v: 1100, rough: 0.85, metal: 0 },
     metal: { draw: (g, n, b) => { g.fillStyle = b ? '#808080' : '#c7ccd1'; g.fillRect(0, 0, n, n); for (let x = 0; x < n; x += n / 4) { g.fillStyle = b ? '#f0f0f0' : 'rgba(255,255,255,.25)'; g.fillRect(x, 0, n / 16, n); g.fillStyle = b ? '#404040' : 'rgba(0,0,0,.15)'; g.fillRect(x + n / 16, 0, 3, n); } }, u: 1000, v: 1000, rough: 0.35, metal: 0.7 },
     rebar: { color: 0x5b4636, rough: 0.6, metal: 0.6 },
+    vbody: { color: 0x56616c, rough: 0.55, metal: 0.35 }, wheel: { color: 0xa81e1e, rough: 0.45, metal: 0.25 }, stem: { color: 0xd9dde2, rough: 0.22, metal: 0.92 }, grip: { color: 0x161616, rough: 0.85, metal: 0 }, flow: { color: 0xf59e0b, rough: 0.5, metal: 0 },
     pCS: { color: 0x7b838c, rough: 0.42, metal: 0.65 }, pSS: { color: 0xd2d7dc, rough: 0.22, metal: 0.92 }, pGALV: { color: 0xb3bac0, rough: 0.38, metal: 0.8 },
     insul: { draw: (g, n, b) => { g.fillStyle = b ? '#808080' : '#d7dbdf'; g.fillRect(0, 0, n, n); g.fillStyle = b ? '#303030' : 'rgba(0,0,0,.18)'; for (let x = 0; x < n; x += n / 2) g.fillRect(x, 0, 3, n); for (let i = 0; i < 40; i++) { g.fillStyle = 'rgba(255,255,255,.06)'; g.fillRect(0, rnd() * n, n, 2); } }, u: 1000, v: 1000, rough: 0.3, metal: 0.85 },
     plaster: { draw: (g, n, b) => noise(g, n, 7000, '#cfc8bb', 40, b), u: 800, v: 800, rough: 0.95, metal: 0 },
@@ -2481,7 +2600,7 @@ const R = (() => {
     let g, m;
     if (p.k === 'cyl') {
       const a = v(p.a), d = v(p.b).sub(a), L = d.length(); if (L < 0.01) return null;
-      g = new THREE.CylinderGeometry(p.r2, p.r, L, Math.max(p.r, p.r2) > 70 ? 32 : Math.max(p.r, p.r2) > 15 ? 22 : 12, 1, false);
+      g = new THREE.CylinderGeometry(p.r2, p.r, L, p.seg || (Math.max(p.r, p.r2) > 70 ? 32 : Math.max(p.r, p.r2) > 15 ? 22 : 12), 1, false);
       m = new THREE.Mesh(g, mat); m.position.copy(a).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(UPY, d.normalize());
     } else if (p.k === 'arc') {
       g = new THREE.TorusGeometry(p.R, p.r, p.r > 15 ? 16 : 8, Math.max(8, Math.ceil(p.ang / (Math.PI / 18))), p.ang);
@@ -2515,6 +2634,9 @@ const R = (() => {
       g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(tri.flat(), 3));
       g.setAttribute('uv', new THREE.Float32BufferAttribute(tri.flatMap(q => [q[0], q[1] + q[2]]), 2)); g.computeVertexNormals();
       mat.side = THREE.DoubleSide; m = new THREE.Mesh(g, mat);
+    } else if (p.k === 'rev') {
+      g = new THREE.LatheGeometry(p.pts.map(q => new THREE.Vector2(Math.max(0.01, q[0]), q[1])), 32); m = new THREE.Mesh(g, mat);
+      m.quaternion.setFromUnitVectors(UPY, v(p.dir).normalize()); m.position.copy(v(p.o));
     } else if (p.k === 'lathe') {
       const pts = p.ri > 0 ? [[p.ri, 0], [p.ro, 0], [p.ro, p.h], [p.ri, p.h], [p.ri, 0]] : [[0, 0], [p.ro, 0], [p.ro, p.h], [0, p.h]];
       g = new THREE.LatheGeometry(pts.map(q => new THREE.Vector2(q[0], q[1])), 40); m = new THREE.Mesh(g, mat);
