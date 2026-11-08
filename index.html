@@ -26,6 +26,7 @@ header{display:flex;align-items:center;gap:10px;padding:0 10px;background:var(--
 .ib:disabled{opacity:.4}
 .ib.am{background:var(--am);color:#111;border-color:var(--am);font-weight:600}
 .ib.sm{height:26px;font-size:12px;padding:0 7px}
+.lbl{display:flex;gap:8px;align-items:center;padding:7px 0;border-top:1px solid rgba(255,255,255,.06)}.ib.rec{background:#b42318;color:#fff;border-color:#b42318}
 .bolt{border:1px solid var(--ln,#2a2f36);border-radius:8px;padding:6px 8px;margin-bottom:6px;background:rgba(255,255,255,.02)}.bolt summary{cursor:pointer;font-size:12.5px}.bt{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:6px}.bt td{padding:3px 4px;border-top:1px solid rgba(255,255,255,.06);vertical-align:top}.bt td:first-child{color:var(--mu,#8b949e);width:62px}.bp{margin:0;padding-left:16px;font-size:11px;line-height:1.5}
 .swr{display:flex;flex-wrap:wrap;gap:6px}.sw{width:26px;height:26px;border-radius:6px;border:1px solid rgba(255,255,255,.25);cursor:pointer;padding:0}.sw.on{outline:2px solid var(--am);outline-offset:2px}input[type=color].in{padding:2px;height:32px;cursor:pointer}
 .mob{display:none}
@@ -4233,16 +4234,17 @@ const VK = (() => {
     const parts = (t.match(/[^.!?…]+[.!?…]*/g) || [t]).map(x => x.trim()).filter(Boolean).reduce((a, x) => { if (a.length && (a[a.length - 1] + ' ' + x).length < 140) a[a.length - 1] += ' ' + x; else a.push(x); return a; }, []);
     let at = ctx.currentTime + 0.05, next = NEU.synth(parts[0], VC.nvoice);
     for (let i = 0; i < parts.length; i++) {
-      const buf = await next; if (tok !== NEU.tok) return;
+      let buf = await next; if (tok !== NEU.tok) return; if ((VC.semi || 0) !== 0 || (VC.formant || 1) !== 1) buf = applyChar(ctx, buf, VC);
       if (i + 1 < parts.length) next = NEU.synth(parts[i + 1], VC.nvoice);
       at = Math.max(at, ctx.currentTime + 0.02);
       const { src, dur } = fxGraph(ctx, buf, VC, ctx.destination, at); NEU.srcs.push(src); at += dur + 0.12;
     }
   }
-  function speak(html) {
+  function speak(html, clip) {
     if (!voiceOn) return;
     const t = clean(html); if (!t) return;
     stopVoice();
+    if (clip) { const tok = NEU.tok; clipIndex().then(idx => { if (!idx[clip]) return speak(html); return clipBuf(clip).then(b => { if (tok !== NEU.tok) return; if (!b) return speak(html); NEU.ac(); const ctx = NEU.ac(); const { src } = fxGraph(ctx, b, Object.assign({}, VC, { grave: 0 }), ctx.destination, ctx.currentTime + 0.03); NEU.srcs.push(src); }); }).catch(() => speak(html)); return; }
     if (VC.engine === 'neural' && !NEU.failed && (window.AudioContext || window.webkitAudioContext)) {
       const first = !NEU.lib;
       if (first) { speakBrowser(t); NEU.load().then(() => { }).catch(() => { }); return; }
@@ -4287,6 +4289,144 @@ const VK = (() => {
   function say(html, sug) { add('vk', html); speak(html); chips(sug && sug.length ? sug : SUGG); }
   function toggle(force) { open = typeof force === 'boolean' ? force : !open; $('#vkPanel').classList.toggle('on', open); $('#vkBtn').classList.toggle('hide', open); if (open) setTimeout(() => innerWidth > 767 && $('#vkQ').focus(), 50); else stopVoice(); }
 
+  /* ======== Laboratório de voz: sua voz → personagem (TD-PSOLA: tom e timbre independentes, sem mudar a velocidade) ======== */
+  function detectPeriods(x, sr) {
+    const dec = Math.max(1, Math.floor(sr / 8000)), sr2 = sr / dec, n2 = Math.floor(x.length / dec), y = new Float32Array(n2);
+    for (let i = 0; i < n2; i++) { let s = 0; for (let k = 0; k < dec; k++) s += x[i * dec + k]; y[i] = s / dec; }
+    const hop = Math.round(sr2 * 0.01), win = Math.round(sr2 * 0.035), minL = Math.floor(sr2 / 420), maxL = Math.ceil(sr2 / 65);
+    let peak = 0; for (let i = 0; i < n2; i++) peak = Math.max(peak, Math.abs(y[i]));
+    const per = [];
+    for (let s = 0; s + win + maxL < n2; s += hop) {
+      let e0 = 0; for (let i = 0; i < win; i++) e0 += y[s + i] * y[s + i];
+      if (e0 / win < (peak * 0.04) ** 2) { per.push(0); continue; }
+      let best = 0; const rs = new Float32Array(maxL + 1);
+      for (let L = minL; L <= maxL; L++) { let c = 0, e1 = 0; for (let i = 0; i < win; i++) { c += y[s + i] * y[s + i + L]; e1 += y[s + i + L] * y[s + i + L]; } const r = c / Math.sqrt(e0 * e1 + 1e-12); rs[L] = r; if (r > best) best = r; }
+      let bl = 0; for (let L = minL + 1; L < maxL; L++) if (rs[L] >= 0.88 * best && rs[L] >= rs[L - 1] && rs[L] >= rs[L + 1]) { bl = L; break; } // primeiro pico forte = período (evita erro de oitava)
+      per.push(best > 0.55 && bl ? bl * dec : 0);
+    }
+    // suaviza (mediana de 5) para evitar saltos de oitava
+    const sm = per.map((v, i) => { const w = per.slice(Math.max(0, i - 2), i + 3).filter(Boolean).sort((a, b) => a - b); return v && w.length ? w[w.length >> 1] : 0; });
+    return { per: sm, hop: hop * dec };
+  }
+  function psola(ctx, buf, p, f) {
+    if (Math.abs(p - 1) < 0.01 && Math.abs(f - 1) < 0.01) return buf;
+    const sr = buf.sampleRate, x = buf.getChannelData(0), N = x.length, { per, hop } = detectPeriods(x, sr);
+    const perAt = t => per[Math.min(per.length - 1, Math.max(0, Math.floor(t / hop)))] || 0;
+    const marks = []; for (let t = 0; t < N;) { const P = perAt(t); marks.push([t, P]); t += P || hop; }
+    const y = new Float32Array(N), w = new Float32Array(N);
+    let mi = 0;
+    for (let to = 0; to < N;) {
+      while (mi + 1 < marks.length && Math.abs(marks[mi + 1][0] - to) <= Math.abs(marks[mi][0] - to)) mi++;
+      const [m, P] = marks[mi], L = P || hop, step = P ? P / p : hop, Lo = Math.round(L / f);
+      for (let i = -Lo; i <= Lo; i++) {
+        const o = Math.round(to) + i; if (o < 0 || o >= N) continue;
+        const src = m + i * f, s0 = Math.floor(src), fr = src - s0; if (s0 < 0 || s0 + 1 >= N) continue;
+        const hw = 0.5 + 0.5 * Math.cos(Math.PI * i / (Lo + 1));
+        y[o] += (x[s0] * (1 - fr) + x[s0 + 1] * fr) * hw; w[o] += hw;
+      }
+      to += Math.max(8, step);
+    }
+    const out = ctx.createBuffer(1, N, sr), d = out.getChannelData(0);
+    for (let i = 0; i < N; i++) d[i] = w[i] > 0.05 ? y[i] / Math.max(1, w[i]) : y[i];
+    return out;
+  }
+  const charOf = c => ({ p: Math.pow(2, (c.semi || 0) / 12), f: c.formant || 1 });
+  function applyChar(ctx, buf, c) { const { p, f } = charOf(c); return psola(ctx, buf, p, f); }
+  async function renderFx(buf, c) { // efeitos (metálico, eco…) gravados num buffer — usado no pré-teste e para salvar as falas
+    const extra = Math.ceil(buf.sampleRate * (0.3 + (c.eco || 0) * 0.8));
+    const oc = new OfflineAudioContext(1, buf.length + extra, buf.sampleRate); fxGraph(oc, buf, Object.assign({}, c, { grave: 0 }), oc.destination, 0); return oc.startRendering();
+  }
+  async function recordMic(btn, maxS = 25) {
+    const st = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    const mime = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
+    const rec = new MediaRecorder(st, mime ? { mimeType: mime } : {}), parts = [];
+    rec.ondataavailable = e => e.data.size && parts.push(e.data);
+    return new Promise((res, rej) => {
+      let t0 = Date.now(), iv;
+      const stop = () => { clearInterval(iv); try { rec.stop(); } catch { } };
+      rec.onstop = async () => { st.getTracks().forEach(t => t.stop()); try { const ab = await new Blob(parts, { type: rec.mimeType }).arrayBuffer(); res(await NEU.ac().decodeAudioData(ab)); } catch (e) { rej(e); } };
+      rec.start(); const old = btn.textContent; btn.classList.add('rec');
+      iv = setInterval(() => { const s = (Date.now() - t0) / 1000; btn.textContent = `■ Parar (${s.toFixed(0)}s)`; if (s >= maxS) stop(); }, 200);
+      btn.onclick = () => { stop(); btn.textContent = old; btn.classList.remove('rec'); };
+    });
+  }
+  function trim(ctx, buf) { // corta silêncio do começo e do fim
+    const x = buf.getChannelData(0); let pk = 0; for (let i = 0; i < x.length; i++) pk = Math.max(pk, Math.abs(x[i])); const th = pk * 0.03;
+    let a = 0, b = x.length - 1; while (a < b && Math.abs(x[a]) < th) a++; while (b > a && Math.abs(x[b]) < th) b--;
+    a = Math.max(0, a - Math.round(buf.sampleRate * 0.08)); b = Math.min(x.length, b + Math.round(buf.sampleRate * 0.15));
+    const out = ctx.createBuffer(1, Math.max(1, b - a), buf.sampleRate); out.getChannelData(0).set(x.subarray(a, b)); const g = 0.9 / Math.max(1e-3, pk); const d = out.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] *= g; return out;
+  }
+  async function encode(buf) { // comprime em opus/aac tocando o buffer num gravador silencioso (não sai no alto-falante)
+    const ctx = NEU.ac(), dst = ctx.createMediaStreamDestination(), src = ctx.createBufferSource(); src.buffer = buf; src.connect(dst);
+    const mime = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find(t => MediaRecorder.isTypeSupported(t)) || '';
+    const rec = new MediaRecorder(dst.stream, Object.assign(mime ? { mimeType: mime } : {}, { audioBitsPerSecond: 32000 })), parts = [];
+    rec.ondataavailable = e => e.data.size && parts.push(e.data);
+    const done = new Promise(r => rec.onstop = r); rec.start(); src.start(); await new Promise(r => src.onended = r); await new Promise(r => setTimeout(r, 120)); rec.stop(); await done;
+    const blob = new Blob(parts, { type: rec.mimeType }); const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
+    return { data: b64, dur: buf.duration };
+  }
+  function playBuf(buf) { stopVoice(); const ctx = NEU.ac(); const s = ctx.createBufferSource(); s.buffer = buf; s.connect(ctx.destination); s.start(); NEU.srcs.push(s); }
+  /* falas gravadas (tour etc.): salvas na nuvem; todos os usuários ouvem */
+  const CLIPS = { idx: null, cache: new Map() };
+  const slug = t => N(t).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  async function clipIndex() { if (CLIPS.idx) return CLIPS.idx; try { CLIPS.idx = (CLOUD && CLOUD.getSetting && await CLOUD.getSetting('vikron_clips')) || {}; } catch { CLIPS.idx = {}; } return CLIPS.idx; }
+  async function clipBuf(key) {
+    if (CLIPS.cache.has(key)) return CLIPS.cache.get(key);
+    const idx = await clipIndex(); if (!idx[key]) return null;
+    const v = await CLOUD.getSetting('vikron_clip:' + key); if (!v || !v.data) return null;
+    const ab = await (await fetch(v.data)).arrayBuffer(); const b = await NEU.ac().decodeAudioData(ab); CLIPS.cache.set(key, b); return b;
+  }
+  async function playClip(key) { try { const b = await clipBuf(key); if (!b) return false; playBuf(b); return true; } catch { return false; } }
+  function labScript() { const s = steps(); s[0] = Object.assign({}, s[0], { x: 'Olá! Eu sou o Vikron, seu assistente. Vou te mostrar rapidamente como o TEC PLAN funciona.' }); return s.map(st => ({ key: 'tour:' + slug(st.t), t: st.t, x: clean(st.x) })); }
+  function voiceLab() {
+    const m = document.createElement('div'); m.className = 'modal'; let raw = null, out = null;
+    const C = Object.assign({ semi: -4, formant: 0.86, metal: 0.25, eco: 0.2, peso: 0.35, sat: 0.1 }, { semi: VC.semi ?? -4, formant: VC.formant ?? 0.86, metal: VC.metal, eco: VC.eco, peso: VC.peso, sat: VC.sat });
+    const PRE = { gigante: { semi: -7, formant: 0.78, metal: 0.1, eco: 0.35, peso: 0.6, sat: 0.1 }, ia: { semi: -4, formant: 0.86, metal: 0.4, eco: 0.3, peso: 0.45, sat: 0.2 }, robo: { semi: 0, formant: 1, metal: 0.85, eco: 0.15, peso: 0.2, sat: 0.35 }, pequeno: { semi: 6, formant: 1.25, metal: 0.2, eco: 0.05, peso: 0, sat: 0 }, anciao: { semi: -2, formant: 0.92, metal: 0, eco: 0.45, peso: 0.3, sat: 0.25 } };
+    const R2 = (id, l, v, mn, mx, st, fmt) => `<label class="f" style="margin-top:8px">${l} <span id="${id}l">${fmt(v)}</span><input type="range" id="${id}" min="${mn}" max="${mx}" step="${st}" value="${v}"></label>`;
+    const pct = v => Math.round(v * 100) + '%', semi = v => (v > 0 ? '+' : '') + v + ' semitons', form = v => (v < 1 ? 'maior ' : v > 1 ? 'menor ' : '') + Math.round(Math.abs(1 - v) * 100) + '%';
+    const lines = labScript();
+    const render = async () => {
+      const idx = await clipIndex();
+      m.innerHTML = `<div class="box" style="max-height:90vh;overflow:auto;max-width:560px"><h3 style="margin:0 0 4px">🎙 Laboratório de voz</h3>
+        <div class="mut" style="font-size:12px;margin-bottom:10px">Grave sua voz e transforme num personagem. Só o resultado transformado é salvo — sua voz original não sai do aparelho.</div>
+        <div class="sec" style="padding:0;border:0"><h3>1 · Grave uma amostra</h3><div class="mut" style="font-size:11.5px">Leia em voz alta, com calma: <i>"Olá. Eu sou o Vikron, assistente do TEC PLAN. Precisão em cada movimento."</i></div>
+        <div class="btns" style="margin-top:8px"><button class="ib am" id="lbRec">● Gravar</button><button class="ib" id="lbOrig" ${raw ? '' : 'disabled'}>▶ Original</button><button class="ib" id="lbChar" ${raw ? '' : 'disabled'}>▶ Personagem</button></div></div>
+        <div class="sec" style="padding:0;border:0;margin-top:12px"><h3>2 · Monte o personagem</h3>
+        <div class="btns">${[['gigante', 'Gigante'], ['ia', 'IA sombria'], ['robo', 'Robô'], ['anciao', 'Ancião'], ['pequeno', 'Pequeno']].map(([k, l]) => `<button class="ib sm" data-lp="${k}">${l}</button>`).join('')}</div>
+        ${R2('lbS', 'Tom', C.semi, -12, 12, 1, semi)}${R2('lbF', 'Timbre (tamanho da voz)', C.formant, 0.7, 1.35, 0.01, form)}
+        ${R2('lbM', 'Metálico', C.metal, 0, 1, 0.05, pct)}${R2('lbK', 'Peso (corpo)', C.peso, 0, 1, 0.05, pct)}${R2('lbC', 'Eco (armadura)', C.eco, 0, 1, 0.05, pct)}${R2('lbX', 'Saturação', C.sat, 0, 1, 0.05, pct)}
+        <div class="mut" style="font-size:11px;margin-top:6px">O <b>Timbre</b> é o que mais disfarça a voz verdadeira. O personagem também é aplicado na voz neural das respostas livres.</div></div>
+        <div class="sec" style="padding:0;border:0;margin-top:12px"><h3>3 · Grave as falas do tour com o personagem</h3>
+        ${lines.map((l, i) => `<div class="lbl"><div style="flex:1"><b style="font-size:12px">${i + 1}. ${esc(l.t)}</b><div class="mut" style="font-size:11.5px">${esc(l.x)}</div></div><div class="btns" style="flex:none"><button class="ib sm" data-lr="${i}">● Gravar</button>${idx[l.key] ? `<button class="ib sm" data-lpl="${i}">▶</button><button class="ib sm" data-ld="${i}" title="Apagar">✕</button>` : ''}</div></div>`).join('')}</div>
+        <div class="btns" style="margin-top:14px"><button class="ib" data-x>Fechar</button><button class="ib am" id="lbSave">Salvar personagem para todos</button></div></div>`;
+      bind();
+    };
+    const g = id => +m.querySelector('#' + id).value;
+    const read = () => { Object.assign(C, { semi: g('lbS'), formant: g('lbF'), metal: g('lbM'), peso: g('lbK'), eco: g('lbC'), sat: g('lbX') }); m.querySelector('#lbSl').textContent = semi(C.semi); m.querySelector('#lbFl').textContent = form(C.formant); for (const id of ['lbM', 'lbK', 'lbC', 'lbX']) m.querySelector('#' + id + 'l').textContent = pct(g(id)); out = null; };
+    const build = async src => { const ctx = NEU.ac(); return renderFx(applyChar(ctx, src, C), C); };
+    function bind() {
+      m.querySelectorAll('input[type=range]').forEach(i => i.oninput = read);
+      m.querySelectorAll('[data-lp]').forEach(b => b.onclick = () => { const p = PRE[b.dataset.lp]; m.querySelector('#lbS').value = p.semi; m.querySelector('#lbF').value = p.formant; m.querySelector('#lbM').value = p.metal; m.querySelector('#lbK').value = p.peso; m.querySelector('#lbC').value = p.eco; m.querySelector('#lbX').value = p.sat; read(); if (raw) m.querySelector('#lbChar').click(); });
+      m.querySelector('#lbRec').onclick = async e => { const b = e.currentTarget; try { NEU.ac(); raw = trim(NEU.ac(), await recordMic(b, 15)); out = null; toast('Amostra gravada. Toque em ▶ Personagem.'); render(); } catch (err) { toast('Não consegui usar o microfone: ' + (err.message || err), 'er'); render(); } };
+      const po = m.querySelector('#lbOrig'); if (po) po.onclick = () => raw && playBuf(raw);
+      const pc = m.querySelector('#lbChar'); if (pc) pc.onclick = async () => { if (!raw) return; pc.disabled = true; pc.textContent = 'Processando…'; try { out = out || await build(raw); playBuf(out); } catch (e) { toast('Erro ao processar: ' + e.message, 'er'); } pc.disabled = false; pc.textContent = '▶ Personagem'; };
+      m.querySelectorAll('[data-lr]').forEach(b => b.onclick = async e => {
+        const l = lines[+b.dataset.lr], bt = e.currentTarget;
+        try {
+          const r = trim(NEU.ac(), await recordMic(bt, 30)); bt.textContent = 'Salvando…'; bt.disabled = true;
+          const pr2 = applyChar(NEU.ac(), r, C); const enc = await encode(pr2);
+          await CLOUD.setSetting('vikron_clip:' + l.key, Object.assign(enc, { t: l.t }), { role: USER.role, email: USER.email });
+          const idx = await clipIndex(); idx[l.key] = Date.now(); await CLOUD.setSetting('vikron_clips', idx, { role: USER.role, email: USER.email });
+          CLIPS.cache.delete(l.key); toast('Fala salva: ' + l.t, 'ok'); render();
+        } catch (err) { toast('Não foi possível gravar/salvar: ' + (err.message || err), 'er'); render(); }
+      });
+      m.querySelectorAll('[data-lpl]').forEach(b => b.onclick = async () => { const l = lines[+b.dataset.lpl]; const buf = await clipBuf(l.key); if (buf) playBuf(await renderFx(buf, C)); });
+      m.querySelectorAll('[data-ld]').forEach(b => b.onclick = async () => { const l = lines[+b.dataset.ld]; const idx = await clipIndex(); delete idx[l.key]; CLIPS.cache.delete(l.key); try { await CLOUD.setSetting('vikron_clips', idx, { role: USER.role, email: USER.email }); await CLOUD.setSetting('vikron_clip:' + l.key, {}, { role: USER.role, email: USER.email }); } catch { } render(); });
+      m.querySelector('#lbSave').onclick = async () => { read(); VC = Object.assign({}, VC, { semi: C.semi, formant: C.formant, metal: C.metal, peso: C.peso, eco: C.eco, sat: C.sat, grave: 0 }); try { await CLOUD.setSetting('vikron_voice', VC, { role: USER.role, email: USER.email }); toast('Personagem salvo — vale para todos os usuários.', 'ok'); } catch (e) { toast('Não foi possível salvar: ' + e.message, 'er'); } };
+    }
+    m.onclick = e => { if (e.target === m || e.target.dataset.x !== undefined) { stopVoice(); m.remove(); } };
+    document.body.appendChild(m); render();
+  }
   function voiceCfg() {
     const m = document.createElement('div'); m.className = 'modal';
     const list = () => speechSynthesis.getVoices().slice().sort((a, b) => (/pt/i.test(b.lang) - /pt/i.test(a.lang)) || a.name.localeCompare(b.name));
@@ -4308,6 +4448,7 @@ const VK = (() => {
           <label class="f" style="margin-top:8px">Velocidade <span id="vcRl">${VC.rate.toFixed(2)}</span><input type="range" id="vcR" min="0.6" max="1.6" step="0.02" value="${VC.rate}"></label>
           ${sl('vcB', 'Pausas robóticas', VC.robot)}
         </div>
+        <button class="ib" id="vcLab" style="width:100%;margin-top:12px">🎙 Laboratório de voz — criar personagem com a sua voz</button>
         <div class="btns" style="margin-top:14px"><button class="ib" data-x>Cancelar</button><button class="ib" id="vcT">▶ Testar</button><button class="ib am" id="vcS">Salvar para todos</button></div></div>`;
       const g = id => +m.querySelector('#' + id).value;
       const rd = () => {
@@ -4326,6 +4467,7 @@ const VK = (() => {
         try { await speakNeural(clean(txt)); } catch (e) { toast('Voz neural indisponível neste navegador/página (' + e.message + '). No GitHub Pages ela funciona; aqui o Vikron usa a voz do navegador.', 'er'); speakBrowser(clean(txt)); }
         bt.textContent = '▶ Testar'; bt.disabled = false;
       };
+      m.querySelector('#vcLab').onclick = () => { m.remove(); voiceLab(); };
       m.querySelector('#vcS').onclick = async () => { rd(); try { await CLOUD.setSetting('vikron_voice', VC, { role: USER.role, email: USER.email }); toast('Voz do Vikron salva para todos os usuários.', 'ok'); m.remove(); } catch (e) { toast('Não foi possível salvar: ' + e.message, 'er'); } };
     };
     m.onclick = e => { if (e.target === m || e.target.dataset.x !== undefined) { m.remove(); loadVoice(); } };
@@ -4370,7 +4512,7 @@ const VK = (() => {
     if (vis) { const below = r.bottom + 14, above = r.top - 14; const th = 190; if (below + th < innerHeight) y = below; else if (above - th > 0) y = above - th; else y = Math.max(12, innerHeight - th - 40); x = Math.min(Math.max(12, r.left + r.width / 2 - tw / 2), innerWidth - tw - 12); }
     tip.style.left = x + 'px'; tip.style.top = y + 'px';
     $('#vkSkip').onclick = endTour; $('#vkNext').onclick = () => { if (tourI >= tourS.length - 1) return endTour(); tourI++; show(); }; if ($('#vkPrev')) $('#vkPrev').onclick = () => { tourI--; show(); };
-    speak(st.x);
+    speak(st.x, 'tour:' + slug(st.t));
   }
   function endTour() { const ov = $('#vkTourOv'); if (ov) ov.style.display = 'none'; stopVoice(); markTour(); }
   const TKEY = () => 'tecplan.tour.done:' + String(USER.email || '').toLowerCase();
@@ -4393,7 +4535,7 @@ const VK = (() => {
       wait();
     });
   }
-  return { boot, tour, reply, toggle, _fx: fxGraph };
+  return { boot, tour, reply, toggle, _fx: fxGraph, _psola: (ctx, b, p, f) => psola(ctx, b, p, f), _det: detectPeriods };
 })();
 
 /* ======================= ISOMÉTRICO "JOGO" — vista 2D isométrica do MESMO modelo ======================= */
@@ -4856,7 +4998,7 @@ const GEN = (() => {
 
 window.GEN = GEN;
 window.ISOM = ISOM;
-window.__VKfx = (...a) => VK._fx(...a);
+window.__VKfx = (...a) => VK._fx(...a); window.__VK = VK;
 window.TPApp = {
   start(user, cloud) {
     USER = user; CLOUD = cloud || null; KEY = 'tecplan.project.v1:' + String(user.email || '').toLowerCase();
