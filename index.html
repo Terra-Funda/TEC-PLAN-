@@ -3945,6 +3945,7 @@ const VK = (() => {
     { t: 'Inserir peças', k: ['inserir', 'inserir peca', 'adicionar peca', 'catalogo', 'colocar peca', 'como coloco'], a: 'Abra o <b>catálogo</b> (painel da esquerda, ou ☰ no celular), escolha o diâmetro e toque na peça. Se houver uma <b>esfera verde</b> (porta ativa), a peça nasce encaixada nela; senão, entra solta ao lado do modelo. Você também pode me pedir: <i>"insira uma válvula gaveta de 4 polegadas"</i>.' },
     { t: 'Continuar uma linha', k: ['continuar', 'esfera', 'porta ativa', 'esfera ambar', 'esfera verde', 'continuar linha', 'porta livre'], a: 'As <b>esferas âmbar</b> são portas livres. Toque numa delas e ela fica <b>verde</b>: a próxima peça do catálogo encaixa exatamente ali, face a face. Depois de inserir, a porta ativa passa sozinha para a ponta nova, então dá para ir tocando tubo → curva → tubo em sequência.' },
     { t: 'Girar e inclinar sem desconectar', k: ['girar', 'inclinar', 'rotacionar', 'desconecta', 'solta', 'girar no eixo', 'virar curva', 'desviar'], a: '<b>Girar no eixo</b> gira a peça em torno da face da conexão e leva junto tudo o que vem depois — a junta continua perfeita. É assim que você vira uma curva para cima, para baixo ou para os lados. <b>Inclinar/Desviar</b> também gira na face, mas cria uma junta em ângulo (aparece aviso vermelho). Para trechos inclinados de verdade, mude o <b>ângulo da curva</b>.' },
+    { t: 'Gerar projeto', k: ['gerar projeto', 'gerar casa', 'fazer uma casa', 'gerar predio', 'gerar galpao', 'projeto automatico', 'casa pronta', 'gerador'], a: 'Eu monto rascunhos completos com as peças do app. Exemplos: <i>"gere uma casa de 8 por 10 com 3 quartos e 2 banheiros"</i>, <i>"crie uma casa 10x12 com laje"</i>, <i>"faça um sobrado 7x12"</i>, <i>"gere um prédio de 5 andares 12x15"</i>, <i>"monte um galpão 30x20 com altura 9 m"</i>, <i>"gere uma linha de 4 polegadas de 15 m com 2 válvulas gaveta e filtro"</i>. Tudo fica editável e um <b>desfazer</b> remove o projeto inteiro.' },
     { t: 'Parafusos e torque', k: ['parafuso', 'parafusos', 'estojo', 'estojos', 'torque', 'aperto', 'porca', 'chave', 'junta espiralada', 'sequencia de aperto'], a: 'O TEC PLAN recomenda o parafusamento de cada junta flangeada pela ASME B16.5: quantidade e bitola dos estojos (A193 B7), comprimento comercial, porcas pesadas A194 2H, chave, junta espiralada e <b>torque de referência</b> com a <b>sequência em cruz</b> (ASME PCC-1). Selecione uma flange ou válvula e veja <b>Parafusos e aperto</b> no painel da direita — ou me pergunte "quais parafusos dessa flange?". Tudo também sai somado na BOM.' },
     { t: 'Pintar peças', k: ['pintar', 'pintura', 'cor', 'cores', 'mudar cor', 'colorir', 'nbr 6493', 'cor da tubulacao', 'cor da parede'], a: 'Selecione a peça e use o bloco <b>Cor / pintura</b> no painel da direita: as amostras são as cores de identificação da <b>NBR 6493</b> (verde água, azul ar comprimido, amarelo gases, laranja químicos, vermelho incêndio, branco vapor…), ou escolha qualquer cor. Válvulas têm uma segunda cor para o <b>volante/alavanca</b>. <b>Pintar todas</b> aplica a todas as peças do mesmo tipo; <b>Pintar a linha conectada</b> pinta o trecho inteiro, mantendo as válvulas. Também pode me pedir: <i>"pinte todas as válvulas de vermelho"</i> ou <i>"pinte a linha de verde"</i>.' },
     { t: 'Gizmo', k: ['gizmo', 'arrastar', 'mover peca', 'setas', 'aneis', 'mover com dedo', 'mover com mouse'], a: 'Com uma peça selecionada aparecem <b>setas</b> (vermelha E, verde EL, azul N) e <b>anéis</b>. Puxe uma seta para mover e um anel para girar. O passo segue a grade escolhida (10 a 500 mm) e o ângulo (5° a 90°). Move o grupo conectado inteiro, e se você soltar perto de uma porta compatível, acopla sozinho.' },
@@ -3987,7 +3988,7 @@ const VK = (() => {
     { t: 'Guarda-corpo NR-12', k: ['nr 12', 'nr-12', 'altura guarda corpo', 'rodape'], a: 'NR-12/NBR 14718: guarda-corpo com travessão superior a <b>1,10 m</b>, travessão intermediário a ~0,70 m e rodapé de <b>0,20 m</b>; escada marinheiro com gaiola a partir de 3,5 m (degraus a cada 0,25–0,30 m).' },
     { t: 'Consumo de materiais de acabamento', k: ['consumo', 'rendimento', 'quanto gasta', 'argamassa colante', 'rejunte'], a: 'Referências: tinta acrílica ≈ 0,1 L/m² por demão (2 demãos = 0,2 L/m²); argamassa colante ≈ 5 kg/m² (até 6 em porcelanato); rejunte 0,3–0,5 kg/m²; emboço 20 mm ≈ 0,022 m³/m². Peça: <i>"tinta para 45 m²"</i>.' },
   ];
-  const SUGG = ['Fazer o tour de novo', 'Como continuar uma linha?', 'Como usar o gizmo?', 'Teste hidrostático de 10 bar', 'Inserir válvula gaveta', 'Tinta para 40 m²', 'Duto para 3000 m3/h', 'Como imprimir a prancha?'];
+  const SUGG = ['Gere uma casa de 8 por 10 com 2 quartos', 'Fazer o tour de novo', 'Como continuar uma linha?', 'Como usar o gizmo?', 'Teste hidrostático de 10 bar', 'Inserir válvula gaveta', 'Tinta para 40 m²', 'Duto para 3000 m3/h', 'Como imprimir a prancha?'];
   const SYN = { cotovelo: 'curva', joelho: 'curva', registro: 'gaveta', cano: 'tubo', tubulacao: 'tubo', canos: 'tubo', tampa: 'tampao', bujao: 'tampao', calha: 'eletrocalha', quadro: 'painel', ventilador: 'exaustor', reducao: 'red.', telha: 'telhado', escadas: 'escada', grade: 'grade', sapatas: 'sapata' };
 
   /* ---------- utilidades técnicas ---------- */
@@ -4043,6 +4044,51 @@ const VK = (() => {
     }));
     return best && best.sc >= 2 ? best : null;
   }
+  const NW = { um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9, dez: 10, doze: 12 };
+  const numOf = w => w == null ? null : NW[w] ?? parseFloat(String(w).replace(',', '.'));
+  const NUM = '(\\d+(?:[.,]\\d+)?|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|doze)';
+  const cnt = (q, re) => { const m = q.match(new RegExp(NUM + '\\s*' + re)); return m ? numOf(m[1]) : null; };
+  const mm = v => v == null ? null : v < 200 ? Math.round(v * 1000) : Math.round(v);
+  function dims(q) { const m = q.match(/(\d+(?:[.,]\d+)?)\s*m?\s*(?:x|×|por)\s*(\d+(?:[.,]\d+)?)/); return m ? [mm(numOf(m[1])), mm(numOf(m[2]))] : null; }
+  const fm = v => (v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+  function generate(q, what) {
+    const need = /linha|tubulacao/.test(what) ? 'TB' : /galpao|barracao|armazem/.test(what) ? 'ES' : 'CL';
+    const NAMES = { TB: 'Tubulação', ES: 'Estruturas metálicas', CL: 'Construção civil' };
+    if (!has(need)) return `Esse tipo de projeto usa o módulo <b>${NAMES[need]}</b>, que não está no seu pacote. Fale com o administrador para liberar.`;
+    const d = dims(q);
+    if (/casa|residencia|sobrado/.test(what)) {
+      if (/sobrado/.test(what) || (cnt(q, '(andares|pavimentos)') || 1) > 1) {
+        const n = cnt(q, '(andares|pavimentos)') || 2, r = GEN.predio({ W: d ? d[0] : 8000, D: d ? d[1] : 10000, n, fh: 3000 });
+        setTab('3d'); setTimeout(() => R.fit(), 50);
+        return `Pronto! Gerei a estrutura de um sobrado de <b>${r.n} pavimentos</b>, ${fm(r.W)} × ${fm(r.D)} m, com escada, lajes, fachadas com janelas e platibanda. Os cômodos internos ficam em planta livre — me peça uma casa térrea para ter a divisão de quartos automática. Tudo é editável e um "desfazer" remove o projeto inteiro.`;
+      }
+      const p = { W: d ? d[0] : 8000, D: d ? d[1] : 10000, q: cnt(q, 'quartos?') || 2, b: cnt(q, '(banheiros?|wcs?|banhos?)') || 1, pd: mm(numOf((q.match(/pe[ -]?direito\s*(?:de\s*)?(\d+(?:[.,]\d+)?)/) || [])[1])) || 2800, laje: /\blaje\b/.test(q) && !/telhado/.test(q) };
+      if (p.W < 5000 || p.D < 6000) return 'Para caber sala, cozinha, quartos e banheiro preciso de pelo menos <b>5 × 6 m</b>. Me diga as medidas, por exemplo "gere uma casa de 8 por 10 com 2 quartos".';
+      const r = GEN.casa(p);
+      setTab('3d'); setTimeout(() => R.fit(), 50);
+      return `Pronto! Gerei uma <b>casa térrea ${fm(r.W)} × ${fm(r.D)} m</b> (pé-direito ${fm(r.pd)} m) com ${r.cols} pilares sobre sapatas, vigas, paredes com portas e janelas, piso porcelanato, laje e ${r.laje ? 'platibanda (cobertura em laje)' : 'telhado cerâmico'}.<br>Cômodos: ${r.rooms.join(' · ')}.<br><span class="mut">Rascunho para ajustar — medidas por regras práticas; o dimensionamento final é do responsável técnico. Um "desfazer" remove tudo.</span>`;
+    }
+    if (/predio|edificio/.test(what)) {
+      const n = cnt(q, '(andares|pavimentos|pisos)') || 4, r = GEN.predio({ W: d ? d[0] : 12000, D: d ? d[1] : 15000, n, fh: 3000 });
+      setTab('3d'); setTimeout(() => R.fit(), 50);
+      return `Pronto! Gerei um <b>prédio de ${r.n} pavimento(s)</b>, ${fm(r.W)} × ${fm(r.D)} m: grelha de ${r.bays[0]} × ${r.bays[1]} vãos (~${fm(r.span[0])} × ${fm(r.span[1])} m), pilares sobre sapatas, vigas e lajes por andar, escada, fachadas com janelas, porta de entrada no térreo e platibanda.<br><span class="mut">Andares em planta livre (sem divisões internas). A escada aparece atravessando a laje — o vão dela ainda não é recortado. Rascunho para ajustar.</span>`;
+    }
+    if (/galpao|barracao|armazem/.test(what)) {
+      const h = mm(numOf((q.match(/(?:altura|pe[ -]?direito)\s*(?:de\s*)?(\d+(?:[.,]\d+)?)/) || [])[1])), sl = numOf((q.match(/(\d+(?:[.,]\d+)?)\s*%/) || [])[1]);
+      const r = GEN.galpao({ L: d ? Math.max(d[0], d[1]) : 30000, S: d ? Math.min(d[0], d[1]) : 20000, H: h || 8000, slope: sl || 10 });
+      setTab('3d'); setTimeout(() => R.fit(), 50);
+      return `Pronto! Gerei um <b>galpão metálico ${fm(r.L)} × ${fm(r.S)} m</b>, pé-direito ${fm(r.H)} m, ${r.nb} vãos de ${fm(r.bay)} m: pilares ${r.colSize} com chapas de base, vigas de cobertura ${r.rafSize} a ${r.slope}%, terças U 6", contraventamento nos vãos das pontas, telha metálica e piso em epóxi.<br><span class="mut">Perfis por regra prática conforme o vão — confirme no cálculo estrutural.</span>`;
+    }
+    // linha de tubulação
+    let dn = 100; const inch = q.match(/(\d+(?:[.,]\d+)?|\d\/\d)\s*(?:"|pol|polegada)/), dnm = q.match(/\bdn\s*(\d+)/);
+    if (dnm && TP.DIM[+dnm[1]]) dn = +dnm[1]; else if (inch) { const v = inch[1].includes('/') ? inch[1].split('/').reduce((a, b) => +a / +b) : numOf(inch[1]); const f = Object.entries(TP.DIM).find(([, x]) => Math.abs(x.inch - v) < 0.01); if (f) dn = +f[0]; }
+    const L = mm(numOf((q.match(/(\d+(?:[.,]\d+)?)\s*(?:m\b|metros)/) || [])[1])) || 12000;
+    const valves = []; const vm = q.match(new RegExp(NUM + '?\\s*valvulas?\\s*(?:de\\s*)?(gaveta|esfera|globo|borboleta|retencao|macho|agulha)?'));
+    if (vm) { const n = numOf(vm[1]) || 1, sub = { gaveta: 'gate', esfera: 'ball', globo: 'globe', borboleta: 'butterfly', retencao: 'check', macho: 'plug', agulha: 'needle' }[vm[2]] || 'gate'; for (let i = 0; i < Math.min(6, n); i++) valves.push(sub); }
+    const r = GEN.linha({ dn, len: L, valves, strainer: /filtro/.test(q), elbows: Math.min(6, cnt(q, 'curvas?') || (/curva/.test(q) ? 1 : 0)) });
+    setTab('3d'); setTimeout(() => R.fit(), 50);
+    return `Pronto! Gerei uma <b>linha ${TP.DIM[r.dn].nps}</b> de ~${fm(r.len)} m: ${r.seq.filter(t => t === 'pipe').length} tubos${valves.length ? `, ${valves.length} válvula(s)` : ''}${/filtro/.test(q) ? ', filtro Y' : ''}${r.seq.includes('elbow') ? `, ${r.seq.filter(t => t === 'elbow').length} curva(s)` : ''}, com flanges, juntas e parafusos calculados. Continue puxando pelas pontas âmbar.`;
+  }
   function command(q) {
     if (/^(oi|ola|bom dia|boa tarde|boa noite|e ai|hey)\b/.test(q)) return `Olá, ${esc((USER.name || '').split(' ')[0] || 'tudo bem')}! Sou o Vikron. Posso explicar qualquer função, fazer cálculos técnicos ou executar ações por você. Experimente uma sugestão abaixo.`;
     if (/tour|apresenta|me guia|mostra o app|tutorial/.test(q)) { setTimeout(tour, 300); return 'Vamos lá! Vou te mostrar cada parte da tela.'; }
@@ -4067,6 +4113,8 @@ const VK = (() => {
     }
     if (/(exclu|apag|delet|remov)/.test(q) && /(peca|isso|selecionad|essa|esse)/.test(q)) { if (!sel) return 'Selecione a peça que quer excluir.'; const tg = sel.tag; deleteSel(); return `Excluí ${esc(tg)}. Se foi engano, diga "desfazer".`; }
     if (/acopl/.test(q) && sel) { let r; mutate(() => { r = TP.acoplar(pr, sel.id); if (!r.ok) return false; }); return r.ok ? r.msg + '.' : r.msg; }
+    const gk = q.match(/\b(ger|cri|fa[cz]|monte|monta|desenh|projet|quero|construa|constroi|levant|modele|elabor)\w*\b.*?\b(casa|residencia|sobrado|predio|edificio|galpao|barracao|armazem|linha|tubulacao)\b/);
+    if (gk && !/^(como|o que|posso|da pra|consegue|voce consegue)\b/.test(q)) return generate(q, gk[2]);
     if (/parafus|estojo|torque|aperto|porca/.test(q) && sel && !/^(o que e|explique)/.test(q)) {
       const info = TP.boltedOf(pr, sel.id), all = info.joints.map(j => [j.other.tag || j.other.id, j.spec]).concat(info.free.map(f => ['face livre', f.spec]));
       if (all.length) return all.map(([w, b]) => `<b>${esc(sel.tag || sel.id)} × ${esc(w)}</b> (${b.nps} Cl.${b.cls}): ${b.n} estojos ${b.thread} × ${b.lenIn}" (${b.len} mm) A193 B7, ${b.n * 2} porcas pesadas A194 2H, chave ${b.nutLabel}. Torque ≈ <b>${Math.round(b.TnmLub)} N·m</b> lubrificado (${Math.round(b.TnmDry)} seco), em 3 passes de 30/60/100 % em cruz. Detalhes e sequência no painel da direita.`).join('<br>');
@@ -4422,6 +4470,15 @@ const ISOM = (() => {
   const hex = n => '#' + (n >>> 0).toString(16).padStart(6, '0').slice(-6);
   function shade(col, n, lift) { const c = typeof col === 'string' ? parseInt(col.slice(1), 16) : col; const kd = 0.42 + 0.48 * Math.max(0, dot3(n, L)) + 0.16 * Math.max(0, dot3(n, L2)) + (lift || 0); const f = x => Math.max(0, Math.min(255, Math.round(x * kd))); return `rgb(${f(c >> 16 & 255)},${f(c >> 8 & 255)},${f(c & 255)})`; }
 
+  // faces grandes são divididas em ladrilhos (~700 mm) para o algoritmo do pintor ordenar certo paredes × peças pequenas
+  function subdiv(f) {
+    if (f.length !== 4 || f.hole) return [f];
+    const [a, b, c, d] = f, la = Math.max(Math.hypot(...sub3(b, a)), Math.hypot(...sub3(c, d))), lb = Math.max(Math.hypot(...sub3(d, a)), Math.hypot(...sub3(c, b)));
+    const nu = Math.min(10, Math.ceil(la / 1000)), nv = Math.min(10, Math.ceil(lb / 1000)); if (nu * nv <= 1) return [f];
+    const at = (u, v) => add3(add3(sc3(a, (1 - u) * (1 - v)), sc3(b, u * (1 - v))), add3(sc3(c, u * v), sc3(d, (1 - u) * v)));
+    const out = []; for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) { const u0 = i / nu, u1 = (i + 1) / nu, v0 = j / nv, v1 = (j + 1) / nv; out.push([at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)]); }
+    return out;
+  }
   function rebuild() {
     faces = []; markers = []; centers = new Map();
     const selId = S.sel;
@@ -4430,7 +4487,7 @@ const ISOM = (() => {
       let prims; try { prims = TYPES[pc.type].prims(pc); } catch { continue; }
       for (const p of prims) {
         const col = R.primColor(pc, p, base);
-        for (const f of tess(p)) {
+        for (const f0 of tess(p)) for (const f of subdiv(f0)) {
           const W3 = f.map(v => add3(qrot(q, v), o)), hole = f.hole ? f.hole.map(v => add3(qrot(q, v), o)) : null;
           let n = norm3(cross3(sub3(W3[1], W3[0]), sub3(W3[2], W3[0]))); if (!isFinite(n[0])) n = [0, 1, 0];
           const S2 = W3.map(proj), Hs = hole ? hole.map(proj) : null;
@@ -4439,7 +4496,7 @@ const ISOM = (() => {
           if (dot3(n, vdir) < 0) n = sc3(n, -1);
           let z = 0, zmax = -1e18; for (const s of S2) { z += s[2]; if (s[2] > zmax) zmax = s[2]; } z /= S2.length;
           { const cc = centers.get(pc.id) || [0, 0, 0, 0]; for (const q of S2) { cc[0] += q[0]; cc[1] += q[1]; cc[3]++; } if (z > cc[2] || !cc[2]) cc[2] = z; centers.set(pc.id, cc); }
-          faces.push({ s: S2, h: Hs, z: z * 0.7 + zmax * 0.3, fill: shade(col, n, sel ? 0.08 : 0), pid: pc.id, sel });
+          const yAvg = W3.reduce((m, v) => m + v[1], 0) / W3.length; faces.push({ s: S2, h: Hs, z: z + 0.04 * yAvg + (pc.type === 'roof' ? 250 : 0), fill: shade(col, n, sel ? 0.08 : 0), pid: pc.id, sel });
         }
       }
       if (S.ports !== false) { let w; try { w = TP.worldPorts(pc); } catch { w = {}; } for (const k in w) if (!pc.conn[k] && !['CV', 'ES', 'EL', 'HV'].includes(w[k].end) && TP.DIM[w[k].dn]) markers.push({ pid: pc.id, port: k, p: P3(w[k].pos), d: P3(w[k].dir), dn: w[k].dn, s: proj(P3(w[k].pos)) }); }
@@ -4450,11 +4507,29 @@ const ISOM = (() => {
   function fit() { const b = bounds(); if (!b || !W) { view = { k: 0.08, x: W / 2, y: H / 2 }; return; } const bh = ($('#isombar')?.offsetHeight || 90) + 50, top = 50; const k = Math.min((W - 60) / Math.max(1, b.x1 - b.x0), (H - bh - top) / Math.max(1, b.y1 - b.y0), 1.2); view.k = k; view.x = W / 2 - (b.x0 + b.x1) / 2 * k; view.y = top + (H - bh - top) / 2 - (b.y0 + b.y1) / 2 * k; }
   function worldBox() { let mn = [1e18, 1e18, 1e18], mx = [-1e18, -1e18, -1e18]; for (const pc of pr.pieces.values()) { const p = P3(pc.pos); for (let i = 0; i < 3; i++) { mn[i] = Math.min(mn[i], p[i]); mx[i] = Math.max(mx[i], p[i]); } } return mn[0] > mx[0] ? null : { mn, mx }; }
 
-  function draw() {
+  /* desenho em 2 camadas: o modelo é "assado" numa imagem (pesado) e só é refeito quando algo muda ou o zoom para;
+     arrastar a vista apenas desloca a imagem — fica leve no celular mesmo com dezenas de milhares de faces */
+  let buf = null, bctx = null, baked = null, dirty = true, zoomT = 0;
+  function draw(full) {
     if (!inited || !$('#isom').classList.contains('on')) return;
-    cancelAnimationFrame(raf); raf = requestAnimationFrame(paint);
+    if (full !== false) dirty = true;
+    cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
   }
-  function paint() {
+  function frame() {
+    if (dirty || !baked) { bake(); dirty = false; }
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
+    const r = view.k / baked.k, dx = (view.x - baked.x * r) * dpr, dy = (view.y - baked.y * r) * dpr;
+    ctx.fillStyle = '#0e1115'; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.drawImage(buf, dx, dy, buf.width * r, buf.height * r);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); overlay();
+  }
+  const settle = () => { clearTimeout(zoomT); zoomT = setTimeout(() => draw(true), 160); };
+  function paint() { bake(); dirty = false; frame(); }
+  function bake() {
+    if (!buf) { buf = document.createElement('canvas'); bctx = buf.getContext('2d'); }
+    if (buf.width !== cv.width || buf.height !== cv.height) { buf.width = cv.width; buf.height = cv.height; }
+    baked = { k: view.k, x: view.x, y: view.y };
+    const ctx = bctx;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
     const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#13171c'); bg.addColorStop(1, '#0c0f12'); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
     // piso em losangos (grade isométrica do jogo)
@@ -4469,6 +4544,7 @@ const ISOM = (() => {
     }
     // faces (pintor: do fundo para a frente)
     for (const f of faces) {
+      const s0 = toS(f.s[0]), s2 = toS(f.s[2 % f.s.length]); if (!f.h && f.s.length === 4 && Math.abs(s0[0] - s2[0]) + Math.abs(s0[1] - s2[1]) < 0.6) continue;
       ctx.beginPath(); f.s.forEach((q, k) => { const p = toS(q); k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }); ctx.closePath();
       if (f.h) { f.h.forEach((q, k) => { const p = toS(q); k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }); ctx.closePath(); ctx.fillStyle = f.fill; ctx.fill('evenodd'); }
       else { ctx.fillStyle = f.fill; ctx.fill(); }
@@ -4486,6 +4562,8 @@ const ISOM = (() => {
         ctx.fillStyle = pc.id === S.sel ? '#f5a524' : 'rgba(220,226,232,.85)'; ctx.fillText(pc.tag, s[0], s[1] - 14);
       }
     }
+  }
+  function overlay() {
     // portas livres (losangos âmbar) — toque para ativar, arraste para puxar tubo
     for (const m of markers) {
       const s = toS(m.s), act = S.active && S.active.id === m.pid && S.active.port === m.port, r = act ? 10 : 7;
@@ -4521,10 +4599,10 @@ const ISOM = (() => {
     });
     cv.addEventListener('pointermove', e => {
       if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, pos(e));
-      if (pinch && pts.size === 2) { const [a, b] = [...pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), k2 = Math.max(0.005, Math.min(3, pinch.k * d / pinch.d)), r = k2 / pinch.k; view.k = k2; view.x = pinch.cx - (pinch.cx - pinch.x) * r + ((a[0] + b[0]) / 2 - pinch.cx); view.y = pinch.cy - (pinch.cy - pinch.y) * r + ((a[1] + b[1]) / 2 - pinch.cy); draw(); return; }
+      if (pinch && pts.size === 2) { const [a, b] = [...pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), k2 = Math.max(0.005, Math.min(3, pinch.k * d / pinch.d)), r = k2 / pinch.k; view.k = k2; view.x = pinch.cx - (pinch.cx - pinch.x) * r + ((a[0] + b[0]) / 2 - pinch.cx); view.y = pinch.cy - (pinch.cy - pinch.y) * r + ((a[1] + b[1]) / 2 - pinch.cy); draw(false); settle(); return; }
       const [x, y] = pos(e);
-      if (pull) { if (pull.mmpx === 0) return; const along = ((x - pull.x0) * pull.sd[0] + (y - pull.y0) * pull.sd[1]) * pull.mmpx; const g = Math.max(50, S.snap || 50); pull.len = Math.max(0, Math.round(along / g) * g); draw(); return; }
-      if (drag) { if (Math.hypot(x - drag.x, y - drag.y) > 6) drag.moved = true; view.x = drag.vx + x - drag.x; view.y = drag.vy + y - drag.y; draw(); }
+      if (pull) { if (pull.mmpx === 0) return; const along = ((x - pull.x0) * pull.sd[0] + (y - pull.y0) * pull.sd[1]) * pull.mmpx; const g = Math.max(50, S.snap || 50); pull.len = Math.max(0, Math.round(along / g) * g); draw(false); return; }
+      if (drag) { if (Math.hypot(x - drag.x, y - drag.y) > 6) drag.moved = true; view.x = drag.vx + x - drag.x; view.y = drag.vy + y - drag.y; draw(false); }
     });
     const up = e => {
       pts.delete(e.pointerId); if (pinch) { if (pts.size < 2) pinch = null; return; }
@@ -4536,10 +4614,11 @@ const ISOM = (() => {
         return;
       }
       if (drag && !drag.moved) { const id = pick(x, y); S.sel = id; if (id) { const pc = pr.get(id), ff = firstFree(pc); if (ff && (!S.active || S.active.id !== id)) S.active = ff; } refresh(); }
+      if (drag && drag.moved) draw(true);
       drag = null;
     };
     cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', e => { pts.delete(e.pointerId); pinch = null; pull = null; drag = null; draw(); });
-    cv.addEventListener('wheel', e => { e.preventDefault(); const [x, y] = pos(e), f = Math.exp(-e.deltaY * 0.0015), k2 = Math.max(0.005, Math.min(3, view.k * f)), r = k2 / view.k; view.x = x - (x - view.x) * r; view.y = y - (y - view.y) * r; view.k = k2; draw(); }, { passive: false });
+    cv.addEventListener('wheel', e => { e.preventDefault(); const [x, y] = pos(e), f = Math.exp(-e.deltaY * 0.0015), k2 = Math.max(0.005, Math.min(3, view.k * f)), r = k2 / view.k; view.x = x - (x - view.x) * r; view.y = y - (y - view.y) * r; view.k = k2; draw(false); settle(); }, { passive: false });
   }
   function bar() {
     const pip = has('TB');
@@ -4565,9 +4644,217 @@ const ISOM = (() => {
   }
   function update() { if (!inited || !$('#isom').classList.contains('on')) return; rebuild(); if (!fitted && faces.length && W) { fit(); fitted = true; } else follow(); bar(); draw(); }
   function show(onv) { init(); $('#isom').classList.toggle('on', onv); if (onv) { resize(); rebuild(); if (!fitted || !faces.length) { fit(); fitted = !!faces.length; } bar(); draw(); } }
-  return { show, update, resize, _tess: tess, _proj: proj, _markers: () => markers.map(m => ({ pid: m.pid, port: m.port, s: toS(m.s), tip: toS(proj(add3(m.p, sc3(m.d, 1000)))) })), _center: id => { const c = centers.get(id); return c ? toS([c[0] / c[3], c[1] / c[3]]) : null; } };
+  return { show, update, resize, _tess: tess, _proj: proj, _stats: () => { const t = performance.now(); rebuild(); const t1 = performance.now(); paint(); return { faces: faces.length, rebuild: Math.round(t1 - t), paint: Math.round(performance.now() - t1) }; }, _markers: () => markers.map(m => ({ pid: m.pid, port: m.port, s: toS(m.s), tip: toS(proj(add3(m.p, sc3(m.d, 1000)))) })), _center: id => { const c = centers.get(id); return c ? toS([c[0] / c[3], c[1] / c[3]]) : null; } };
 })();
 
+/* ======================= GERADORES DE PROJETO (Vikron) ======================= */
+/* Montam um RASCUNHO completo com as peças do próprio app (tudo editável depois). Uma geração = um único "desfazer". */
+const GEN = (() => {
+  const add = (t, p) => pr.create(t, p || {});
+  const rotY = a => Q.axisAngle(TP.UP, a), ALONG_Z = rotY(-Math.PI / 2);
+  const P = (o, x, y, z) => o.add(new V3(x, y, z));
+  function origin() { if (!pr.pieces.size) return new V3(0, 0, 0); const b = bbox(); return b ? new V3(Math.ceil((b.mx.x + 5000) / 1000) * 1000, 0, Math.floor(b.mn.z / 1000) * 1000) : new V3(0, 0, 0); }
+  function once(fn) { // agrupa tudo num único passo de desfazer
+    const h0 = S.hist.length; let out;
+    try { out = fn(); } finally { if (S.hist.length > h0 + 1) S.hist.splice(h0 + 1); }
+    return out;
+  }
+  const uniq = a => [...new Set(a.map(v => Math.round(v)))].sort((x, y) => x - y);
+  function split(a, b, max) { const n = Math.max(1, Math.ceil((b - a) / max - 1e-9)), out = []; for (let i = 0; i <= n; i++) out.push(a + (b - a) * i / n); return out; }
+  // paredes: ao longo de X (face A → +Z) e ao longo de Z (face A → −X)
+  function wallX(o, y, x0, x1, z, opt) { if (x1 - x0 < 300) return null; const w = add('wall', Object.assign({ L: Math.round(x1 - x0), H: 2800, t: 140, kind: 'bloco' }, opt)); w.pos = P(o, x0, y, z); return w; }
+  function wallZ(o, y, z0, z1, x, opt) { if (z1 - z0 < 300) return null; const w = add('wall', Object.assign({ L: Math.round(z1 - z0), H: 2800, t: 140, kind: 'bloco' }, opt)); w.pos = P(o, x, y, z0); w.q = ALONG_Z; return w; }
+  function footCol(o, x, z, y, H, sz, fsz) {
+    const f = add('footing', { L: fsz, W: fsz, cb: sz, ch: sz }); f.pos = P(o, x, y - 950, z);
+    const c = add('column', { b: sz, h: sz, H }); c.pos = P(o, x, y, z); return c;
+  }
+  function beamX(o, y, x0, x1, z, b, h) { const v = add('beam', { L: Math.round(x1 - x0), b, h }); v.pos = P(o, x0, y, z); return v; }
+  function beamZ(o, y, z0, z1, x, b, h) { const v = add('beam', { L: Math.round(z1 - z0), b, h }); v.pos = P(o, x, y, z0); v.q = ALONG_Z; return v; }
+  const WIN = { sala: { win: 'correr', winW: 2000, winH: 1200, winSill: 1000 }, quarto: { win: 'correr', winW: 1500, winH: 1200, winSill: 1000 }, cozinha: { win: 'correr', winW: 1200, winH: 1000, winSill: 1100 }, banho: { win: 'basculante', winW: 600, winH: 600, winSill: 1500 }, servico: { win: 'basculante', winW: 1000, winH: 800, winSill: 1200 } };
+
+  /* ---------------- CASA TÉRREA ---------------- */
+  function casa(o0, { W = 8000, D = 10000, q = 2, b = 1, pd = 2800, laje = false } = {}) {
+    const o = o0 || origin(), r50 = v => Math.round(v / 50) * 50;
+    q = Math.max(1, Math.min(6, q)); b = Math.max(1, Math.min(4, b));
+    const csz = 300, half = csz / 2, bh = 400, bb = 140, e = 100, fsz = 1200;
+    // ---- distribuição dos cômodos ----
+    const rooms = [], ints = []; // ints: paredes internas {d:'x'|'z', at, a, c, door?}
+    let Df, layout;
+    const bwN = Math.max(1700, Math.min(2400, W * 0.22));
+    const rowOK = (() => { const corr = q + b > 2 ? 1000 : 0, df = r50(Math.min(5500, Math.max(3500, (D - corr) * 0.45))); return (W - b * bwN) / q >= 2600 && D - df - corr <= 5600 && D - df - corr >= 2400; })();
+    if (rowOK || W < 6000) {
+      layout = 'row';
+      const corr = q + b > 2 ? 1000 : 0; Df = r50(Math.min(5500, Math.max(3500, (D - corr) * 0.45))); const Dc = Df + corr;
+      const list = []; for (let i = 0; i < q; i++) { list.push({ k: 'quarto', n: 'Quarto ' + (i + 1), w: 1 }); if (i === Math.floor((q - 1) / 2)) for (let j = 0; j < b; j++) list.push({ k: 'banho', n: 'Banheiro' + (b > 1 ? ' ' + (j + 1) : ''), w: bwN / ((W - b * bwN) / q) }); }
+      const tot = list.reduce((s, r) => s + r.w, 0); let x = 0;
+      list.forEach((r, i) => { const x1 = i === list.length - 1 ? W : r50(x + W * r.w / tot); rooms.push({ k: r.k, n: r.n, x0: x, x1, z0: Dc, z1: D }); x = x1; });
+      const back = rooms.slice();
+      if (corr) { ints.push({ d: 'x', at: Df, a: null, c: W, from: 'xs' }); for (const r of back) ints.push({ d: 'x', at: Dc, a: r.x0, c: r.x1, door: r.k === 'banho' ? 700 : 800 }); }
+      else for (const r of back) ints.push({ d: 'x', at: Df, a: r.x0, c: r.x1, door: 800 });
+      for (let i = 1; i < back.length; i++) ints.push({ d: 'z', at: back[i].x0, a: Dc, c: D });
+      if (corr) rooms.push({ k: 'circ', n: 'Circulação', x0: 0, x1: W, z0: Df, z1: Dc });
+    } else {
+      layout = 'central';
+      Df = r50(Math.min(5000, Math.max(3500, D * 0.36)));
+      const cx = r50(W / 2 - 500), cx2 = cx + 1000;
+      const L = [], Rr = []; for (let i = 0; i < q; i++) (i % 2 ? Rr : L).push({ k: 'quarto', n: 'Quarto ' + (i + 1), d: 3200 });
+      for (let j = 0; j < b; j++) Rr.unshift({ k: 'banho', n: 'Banheiro' + (b > 1 ? ' ' + (j + 1) : ''), d: 2200 });
+      if (L.length < Rr.length - 1 && Rr.some(r => r.k === 'quarto')) { const i = Rr.findIndex(r => r.k === 'quarto'); L.push(Rr.splice(i, 1)[0]); }
+      for (const [side, x0, x1] of [[L, 0, cx], [Rr, cx2, W]]) {
+        const fixed = side.filter(r => r.k === 'banho').reduce((s, r) => s + r.d, 0), totQ = side.filter(r => r.k !== 'banho').reduce((s, r) => s + r.d, 0) || 1, avail = D - Df - fixed; let z = Df;
+        side.forEach((r, i) => { const dz = r.k === 'banho' && totQ > 1 ? r.d : (totQ > 1 ? avail * r.d / totQ : (D - Df) / side.length); const z1 = i === side.length - 1 ? D : r50(z + dz); rooms.push({ k: r.k, n: r.n, x0, x1, z0: z, z1 }); if (i) ints.push({ d: 'x', at: z, a: x0, c: x1 }); ints.push({ d: 'z', at: x0 === 0 ? cx : cx2, a: z, c: z1, door: r.k === 'banho' ? 700 : 800 }); z = z1; });
+      }
+      ints.push({ d: 'x', at: Df, a: 0, c: cx }, { d: 'x', at: Df, a: cx2, c: W });
+      rooms.push({ k: 'circ', n: 'Circulação', x0: cx, x1: cx2, z0: Df, z1: D });
+      rooms.cx = cx; rooms.cx2 = cx2;
+    }
+    let xs = r50(W * 0.58); if (layout === 'central') xs = Math.min(W - 2500, Math.max(xs, rooms.cx2 + 600));
+    rooms.push({ k: 'sala', n: 'Sala', x0: 0, x1: xs, z0: 0, z1: Df }, { k: 'cozinha', n: 'Cozinha', x0: xs, x1: W, z0: 0, z1: Df });
+    ints.forEach(w => { if (w.from === 'xs') w.a = xs; });
+    ints.push({ d: 'z', at: xs, a: 0, c: Df, door: 800, doorAt: 'end' });
+    const roomAt = (x, z) => (x < 0 || z < 0 || x > W || z > D) ? { k: 'ext' } : rooms.find(r => x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1) || { k: 'circ' };
+    const FIN = r => r.k === 'ext' ? 'textura' : r.k === 'banho' ? 'azulejo' : 'pintura';
+    // ---- pilares: perímetro (cantos + encontros de paredes; vãos > 5 m subdivididos) e encontros internos principais ----
+    const pts = new Map(), put = (x, z) => pts.set(Math.round(x) + ',' + Math.round(z), [x, z]);
+    const fill = arr => { arr = uniq(arr); const out = [arr[0]]; for (let i = 1; i < arr.length; i++) { const a = arr[i - 1], c = arr[i]; if (c - a > 5000) { const n = Math.ceil((c - a) / 5000); for (let j = 1; j < n; j++) out.push(a + (c - a) * j / n); } out.push(c); } return out; };
+    const meets = (d, at) => ints.filter(w => w.d !== d && (Math.abs(w.a - at) < 1 || Math.abs(w.c - at) < 1)).map(w => w.at);
+    for (const xx of fill([0, W, xs])) put(xx, 0);
+    for (const xx of fill([0, W, ...meets('x', D)])) put(xx, D);
+    for (const xx of [0, W]) for (const zz of fill([0, D, Df, ...meets('z', xx)])) put(xx, zz);
+    for (const w of ints.filter(w => w.d === 'z' && Math.abs(w.a - Df) < 1)) put(w.at, Df);
+    for (const [px, pz] of pts.values()) footCol(o, px, pz, 0, pd, csz, fsz);
+    const onZ = zz => [...pts.values()].filter(p => Math.abs(p[1] - zz) < 1).map(p => p[0]).sort((a, c) => a - c);
+    const onX = xx => [...pts.values()].filter(p => Math.abs(p[0] - xx) < 1).map(p => p[1]).sort((a, c) => a - c);
+    for (const zz of [0, D, Df]) { const A = onZ(zz); for (let i = 0; i + 1 < A.length; i++) beamX(o, pd, A[i], A[i + 1], zz, bb, bh); }
+    for (const xx of [0, W]) { const A = onX(xx); for (let i = 0; i + 1 < A.length; i++) beamZ(o, pd, A[i], A[i + 1], xx, bb, bh); }
+    // ---- paredes externas (trecho a trecho entre pilares), com porta/janela conforme o cômodo ----
+    const segsOf = arr => arr.slice(0, -1).map((v, i) => [v + half, arr[i + 1] - half]);
+    const winFor = (k, L) => (WIN[k] && L >= WIN[k].winW + 300) ? Object.assign({}, WIN[k], { winX: L / 2 }) : {};
+    let frontDoor = false, svcDoor = false;
+    const ext = (pIn, pOut, L, opt) => Object.assign({ kind: 'bloco', color: 'areia' }, opt);
+    for (const [a, c] of segsOf(onZ(0))) {
+      const r = roomAt((a + c) / 2, 10), L = c - a, opt = { finA: FIN(r), finB: 'textura' };
+      if (r.k === 'sala' && !frontDoor && L >= 1800) { frontDoor = true; Object.assign(opt, { door: 'abrir', doorW: 900, doorX: Math.min(900, L / 2) }); if (L >= 3400) { const ww = Math.min(2000, L - 2300); Object.assign(opt, WIN.sala, { winW: ww, winX: L - ww / 2 - 300 }); } }
+      else Object.assign(opt, winFor(r.k, L));
+      wallX(o, 0, a, c, 0, ext(0, 0, L, opt));
+    }
+    for (const [a, c] of segsOf(onZ(D))) { const r = roomAt((a + c) / 2, D - 10), L = c - a; wallX(o, 0, a, c, D, ext(0, 0, L, Object.assign({ finA: 'textura', finB: FIN(r) }, r.k === 'circ' ? {} : winFor(r.k, L)))); }
+    for (const xx of [0, W]) for (const [a, c] of segsOf(onX(xx))) {
+      const r = roomAt(xx === 0 ? 10 : W - 10, (a + c) / 2), L = c - a, opt = xx === 0 ? { finA: 'textura', finB: FIN(r) } : { finA: FIN(r), finB: 'textura' };
+      if (r.k === 'cozinha' && !svcDoor && L >= 1500) { svcDoor = true; Object.assign(opt, { door: 'aluminio', doorW: 800, doorX: L / 2 }); }
+      else if (r.k !== 'circ') Object.assign(opt, winFor(r.k, L));
+      wallZ(o, 0, a, c, xx, ext(0, 0, L, opt));
+    }
+    // ---- paredes internas, acabamento de cada face pelo cômodo daquele lado ----
+    for (const w of ints) {
+      const isP = (x, z) => [...pts.values()].some(p => Math.abs(p[0] - x) < 1 && Math.abs(p[1] - z) < 1);
+      const tr = (x, z) => (isP(x, z) ? half : (x <= 0 || x >= W || z <= 0 || z >= D) ? 70 : 60);
+      const base = { kind: 'ceramico', t: 115, color: 'branco' };
+      if (w.d === 'x') { const a = w.a + tr(w.a, w.at), c = w.c - tr(w.c, w.at), L = c - a; if (L < 300) continue; const opt = Object.assign(base, { finA: FIN(roomAt((a + c) / 2, w.at + 30)), finB: FIN(roomAt((a + c) / 2, w.at - 30)) }); if (w.door) Object.assign(opt, { door: 'abrir', doorW: w.door, doorX: Math.min(L - w.door / 2 - 100, Math.max(w.door / 2 + 100, L / 2)) }); wallX(o, 0, a, c, w.at, opt); }
+      else { const a = w.a + tr(w.at, w.a), c = w.c - tr(w.at, w.c), L = c - a; if (L < 300) continue; const opt = Object.assign(base, { finA: FIN(roomAt(w.at - 30, (a + c) / 2)), finB: FIN(roomAt(w.at + 30, (a + c) / 2)) }); if (w.door) Object.assign(opt, { door: 'abrir', doorW: w.door, doorX: w.doorAt === 'end' ? Math.max(w.door / 2 + 100, L - w.door / 2 - 300) : Math.min(L - w.door / 2 - 100, Math.max(w.door / 2 + 100, L / 2)) }); wallZ(o, 0, a, c, w.at, opt); }
+    }
+    // ---- piso, laje e cobertura ----
+    const g = add('slab', { L: W + csz, W: D + csz, e, floor: 'porcelanato' }); g.pos = P(o, -half, -e, -half);
+    const s = add('slab', { L: W + csz, W: D + csz, e, ceil: 'pintura', floor: laje ? 'contrapiso' : 'none' }); s.pos = P(o, -half, pd + bh, -half);
+    if (laje) { const yt = pd + bh + e, pl = { H: 900, kind: 'bloco', color: 'areia', finA: 'textura', finB: 'textura' }; wallX(o, yt, -half, W + half, -half + 70, pl); wallX(o, yt, -half, W + half, D + half - 70, pl); wallZ(o, yt, -half + 140, D + half - 140, -half + 70, pl); wallZ(o, yt, -half + 140, D + half - 140, W + half - 70, pl); }
+    else { const rf = add('roof', { L: W + csz, S: D + csz, slope: 30, ov: 600, kind: 'ceramica' }); rf.pos = P(o, -half, pd + bh + e, D / 2); }
+    TP.autoConnect(pr);
+    const ord = { sala: 0, cozinha: 1, quarto: 2, banho: 3 }, list = rooms.filter(r => r.k !== 'circ').sort((a, c) => ord[a.k] - ord[c.k] || a.n.localeCompare(c.n)).map(r => `${r.n} ${fmt(r.x1 - r.x0)} × ${fmt(r.z1 - r.z0)} m`);
+    return { rooms: list, W, D, pd, cols: pts.size, laje, layout };
+  }
+  const fmt = v => (v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+
+  /* ---------------- PRÉDIO (planta livre, estrutura em grelha) ---------------- */
+  function predio(o0, { W = 12000, D = 15000, n = 3, fh = 3000 } = {}) {
+    const o = o0 || origin(); n = Math.max(1, Math.min(12, n));
+    const xsA = split(0, W, 5000), zsA = split(0, D, 5000), bh = 500, bb = 200, e = 120, csz = Math.min(600, 300 + 50 * n), fsz = 1400 + 250 * n, half = csz / 2;
+    const ch = fh - bh - e;
+    for (let k = 0; k < n; k++) {
+      const y = k * fh;
+      for (const x of xsA) for (const z of zsA) { if (k === 0) footCol(o, x, z, 0, ch, csz, fsz); else { const c = add('column', { b: csz, h: csz, H: ch }); c.pos = P(o, x, y, z); } }
+      for (const z of zsA) for (let i = 0; i + 1 < xsA.length; i++) beamX(o, y + ch, xsA[i], xsA[i + 1], z, bb, bh);
+      for (const x of xsA) for (let i = 0; i + 1 < zsA.length; i++) beamZ(o, y + ch, zsA[i], zsA[i + 1], x, bb, bh);
+      const s = add('slab', { L: W + csz, W: D + csz, e, ceil: 'gesso', floor: k === n - 1 ? 'contrapiso' : 'porcelanato' }); s.pos = P(o, -half, y + ch + bh, -half);
+      const ext = { kind: 'bloco', H: ch, color: 'gelo' };
+      const mid = Math.floor((xsA.length - 1) / 2);
+      for (let i = 0; i + 1 < xsA.length; i++) {
+        const a = xsA[i] + half, c = xsA[i + 1] - half, L = c - a, w = Math.min(2400, L - 600);
+        const front = Object.assign({}, ext, { finA: 'pintura', finB: 'textura' });
+        if (k === 0 && i === mid) Object.assign(front, { door: 'aluminio', doorW: Math.min(1600, L - 400), doorH: 2400, doorX: L / 2 }); else if (w >= 800) Object.assign(front, { win: 'correr', winW: w, winH: 1300, winSill: 900, winX: L / 2 });
+        wallX(o, y, a, c, 0, front);
+        wallX(o, y, a, c, D, Object.assign({}, ext, { finA: 'textura', finB: 'pintura' }, w >= 800 ? { win: 'correr', winW: w, winH: 1300, winSill: 900, winX: L / 2 } : {}));
+      }
+      for (let i = 0; i + 1 < zsA.length; i++) {
+        const a = zsA[i] + half, c = zsA[i + 1] - half, L = c - a, w = Math.min(2400, L - 600), win = w >= 800 ? { win: 'correr', winW: w, winH: 1300, winSill: 900, winX: L / 2 } : {};
+        wallZ(o, y, a, c, 0, Object.assign({}, ext, { finA: 'textura', finB: 'pintura' }, win));
+        wallZ(o, y, a, c, W, Object.assign({}, ext, { finA: 'pintura', finB: 'textura' }, win));
+      }
+      if (n > 1 && k < n - 1) { // escada dentro do prédio, no sentido do maior lado, encostada no canto do fundo
+        const st = add('stair', { W: 1200, Ht: fh, floor: 'granilite' }); const Ls = TYPES.stair.prims(st).reduce((m, p) => Math.max(m, p.c ? p.c.x + (p.s ? p.s[0] / 2 : 0) : 0), 0) + 20;
+        if (D >= W) { st.q = ALONG_Z; st.pos = P(o, W - half - 200, y, Math.max(half + 200, D - half - 200 - Ls)); }
+        else st.pos = P(o, Math.max(half + 200, W - half - 200 - Ls), y, D - half - 200 - 1200);
+      }
+    }
+    const g = add('slab', { L: W + csz, W: D + csz, e, floor: 'porcelanato' }); g.pos = P(o, -half, -e, -half);
+    // platibanda na cobertura
+    const yt = n * fh, pl = { H: 1000, kind: 'bloco', color: 'gelo', finA: 'textura', finB: 'textura' };
+    wallX(o, yt, -half, W + half, -half + 70, pl); wallX(o, yt, -half, W + half, D + half - 70, pl);
+    wallZ(o, yt, -half + 140, D + half - 140, -half + 70, pl); wallZ(o, yt, -half + 140, D + half - 140, W + half - 70, pl);
+    TP.autoConnect(pr);
+    return { W, D, n, fh, bays: [(xsA.length - 1), (zsA.length - 1)], span: [Math.round(W / (xsA.length - 1)), Math.round(D / (zsA.length - 1))] };
+  }
+
+  /* ---------------- GALPÃO METÁLICO (pórticos de alma cheia) ---------------- */
+  function galpao(o0, { L = 30000, S = 20000, H = 8000, slope = 10 } = {}) {
+    const o = o0 || origin();
+    const nb = Math.max(2, Math.ceil(L / 6000)), bay = L / nb, rise = S / 2 * slope / 100, colSize = S > 25000 ? 'W310x97' : S > 15000 ? 'W250x73' : 'W200x46,1', rafSize = S > 25000 ? 'W460x52' : S > 15000 ? 'W410x38,8' : 'W360x32,9';
+    const prof = (fam, size, len, pos, q) => { const p = add('profile', { fam, size, len: Math.round(len) }); p.pos = pos; p.q = q; return p; };
+    const colQ = Q.axisAngle(TP.AZ, Math.PI / 2);
+    const dirQ = d => { d = d.norm(); let up = TP.UP.sub(d.scale(TP.UP.dot(d))).norm(); return Q.fromBasis(d, up, d.cross(up)); };
+    for (let i = 0; i <= nb; i++) {
+      const x = i * bay;
+      for (const z of [0, S]) { const bp = add('baseplate', { B: 450, t: 25, bolt: 25, n: 4 }); bp.pos = P(o, x, 0, z); prof('H', colSize, H, P(o, x, 25, z), colQ); }
+      const a = P(o, x, H + 25, 0), m = P(o, x, H + 25 + rise, S / 2), c = P(o, x, H + 25, S);
+      prof('W', rafSize, m.sub(a).len(), a, dirQ(m.sub(a)));
+      prof('W', rafSize, m.sub(c).len(), c, dirQ(m.sub(c)));
+    }
+    // terças (U) ao longo do comprimento, ~1,5 m na inclinação
+    const half = S / 2, sl = Math.hypot(half, rise), np = Math.max(2, Math.ceil(sl / 1500));
+    for (const side of [0, 1]) for (let j = 0; j <= np; j++) {
+      const t = j / np, z = side ? S - t * half : t * half, y = H + 25 + 400 + t * rise;
+      if (side && j === np) continue;
+      prof('U', 'U 6"', L, P(o, 0, y, z), new Q());
+    }
+    // contraventamento nos vãos das extremidades (laterais)
+    for (const x0 of [0, L - bay]) for (const z of [0, S]) { const br = add('bracing', { W: Math.round(bay), H: Math.round(H), rod: 19 }); br.pos = P(o, x0, 0, z); }
+    const rf = add('roof', { L: L + 600, S, slope, ov: 400, kind: 'metalica' }); rf.pos = P(o, -300, H + 25 + 480, S / 2);
+    const g = add('slab', { L: L + 1000, W: S + 1000, e: 150, floor: 'epoxi' }); g.pos = P(o, -500, -150, -500);
+    TP.autoConnect(pr, 2);
+    return { L, S, H, slope, nb, bay: Math.round(bay), colSize, rafSize };
+  }
+
+  /* ---------------- LINHA DE TUBULAÇÃO ---------------- */
+  function linha({ dn = 100, len = 12000, valves = [], strainer = false, elbows = 0 } = {}) {
+    const items = [...valves.map(v => ['valve', { sub: v }]), ...(strainer ? [['strainer', {}]] : [])];
+    const nSeg = items.length + elbows + 1, seg = Math.max(300, Math.round(len / nSeg / 50) * 50);
+    const seq = []; let ie = 0, ii = 0;
+    for (let k = 0; k < nSeg; k++) { seq.push(['pipe', { len: seg }]); if (k < nSeg - 1) { const useElbow = ie < elbows && (ii >= items.length || (k % 2 === 1)); if (useElbow) { seq.push(['elbow', { angle: 90 }]); ie++; } else if (ii < items.length) seq.push(items[ii++]); else if (ie < elbows) { seq.push(['elbow', { angle: 90 }]); ie++; } } }
+    const oldDn = S.dn; S.dn = dn; S.active = null;
+    let rolls = 0;
+    for (const [t, p] of seq) { insert(t, p); if (t === 'elbow') { const id = S.sel, deg = [90, -90, 0, 180][rolls++ % 4]; if (deg) mutate(() => { TP.roll(pr, id, deg); }); } }
+    S.dn = oldDn;
+    return { dn, len: seg * nSeg, seq: seq.map(s => s[0]) };
+  }
+
+  return {
+    casa: p => once(() => { let r; mutate(() => { r = casa(null, p); }); return r; }),
+    predio: p => once(() => { let r; mutate(() => { r = predio(null, p); }); return r; }),
+    galpao: p => once(() => { let r; mutate(() => { r = galpao(null, p); }); return r; }),
+    linha: p => once(() => linha(p))
+  };
+})();
+
+window.GEN = GEN;
 window.ISOM = ISOM;
 window.__VKfx = (...a) => VK._fx(...a);
 window.TPApp = {
