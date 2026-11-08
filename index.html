@@ -26,6 +26,7 @@ header{display:flex;align-items:center;gap:10px;padding:0 10px;background:var(--
 .ib:disabled{opacity:.4}
 .ib.am{background:var(--am);color:#111;border-color:var(--am);font-weight:600}
 .ib.sm{height:26px;font-size:12px;padding:0 7px}
+.bolt{border:1px solid var(--ln,#2a2f36);border-radius:8px;padding:6px 8px;margin-bottom:6px;background:rgba(255,255,255,.02)}.bolt summary{cursor:pointer;font-size:12.5px}.bt{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:6px}.bt td{padding:3px 4px;border-top:1px solid rgba(255,255,255,.06);vertical-align:top}.bt td:first-child{color:var(--mu,#8b949e);width:62px}.bp{margin:0;padding-left:16px;font-size:11px;line-height:1.5}
 .swr{display:flex;flex-wrap:wrap;gap:6px}.sw{width:26px;height:26px;border-radius:6px;border:1px solid rgba(255,255,255,.25);cursor:pointer;padding:0}.sw.on{outline:2px solid var(--am);outline-offset:2px}input[type=color].in{padding:2px;height:32px;cursor:pointer}
 .mob{display:none}
 main{position:relative;display:grid;grid-template-columns:260px 1fr 290px;min-height:0}
@@ -69,6 +70,8 @@ label.f{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mu
 .hint{position:absolute;bottom:8px;right:8px;font-size:11px;color:var(--mu);background:rgba(13,15,18,.8);padding:4px 8px;border-radius:5px;max-width:60%;pointer-events:none}
 footer{display:flex;align-items:center;gap:14px;padding:0 10px;background:var(--p1);border-top:1px solid var(--ln);font-family:var(--mono);font-size:11px;color:var(--mu);white-space:nowrap;overflow:hidden}
 footer .er{color:var(--er)}footer .am{color:var(--am)}
+#isom{position:absolute;inset:0;display:none;z-index:5;background:#0c0f12}#isom.on{display:block}#isomc{position:absolute;inset:0;width:100%;height:100%;touch-action:none}#isombar{position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;gap:6px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:rgba(22,25,31,.94);border-top:1px solid var(--ln);z-index:2;overflow-x:auto;scrollbar-width:none}#isombar .ibrow{flex-wrap:nowrap}#isombar .mq .ib{border-color:rgba(232,163,61,.45)}
+#isomode{position:absolute;top:8px;right:8px;z-index:7;display:flex;border:1px solid var(--ln);border-radius:9px;overflow:hidden;background:rgba(22,25,31,.95)}#isomode button{background:none;border:0;color:var(--mu,#8b949e);padding:6px 10px;font:600 12px system-ui;cursor:pointer}#isomode button.on{background:var(--am,#e8a33d);color:#141414}
 #isobar{position:absolute;top:0;left:0;right:0;display:flex;flex-direction:column;gap:6px;padding:8px;background:rgba(22,25,31,.95);border-bottom:1px solid var(--ln);overflow-x:auto;z-index:3;scrollbar-width:none}
 #isobar .ibrow{display:flex;gap:6px;align-items:center;overflow-x:auto;scrollbar-width:none}
 #isobar .ibrow>*{flex:none}
@@ -195,6 +198,8 @@ input[type=range]{accent-color:#f59e0b}
         <div id="isobar"></div>
         <canvas id="isoc"></canvas>
         <div id="isoinfo">—</div>
+        <div id="isom"><div id="isombar"></div><canvas id="isomc"></canvas></div>
+        <div id="isomode"><button data-im="draw">✏ Desenho</button><button data-im="model">🧊 Modelo</button></div>
       </div>
       <div class="view" id="vsheet">
         <div id="sheetbar"></div>
@@ -1935,10 +1940,10 @@ function bom(pr, filterIds) {
   for (const j of an.bolted) {
     if (filterIds && !filterIds.has(j.a.id) && !filterIds.has(j.b.id)) continue;
     const cls = j.a.cls || 150, f = flg(j.dn, cls);
-    const sl = Math.ceil((2 * f.ft + 3 + 2 * f.bd * 1.1 + 6) / 5) * 5;
-    const kd = `Estojo ${r1(f.bd)}×${sl} mm c/ 2 porcas|${cls}`;
-    if (!groups.has(kd)) groups.set(kd, { desc: `Estojo Ø${r1(f.bd)}×${sl} mm c/ 2 porcas sextavadas`, dn: j.dn, nps: DIM[j.dn].nps, cls: clsLabel(cls), std: 'ASME B18.2', mat: 'A193 B7 / A194 2H', qty: 0, unit: 'pç', w: 0, tags: [], type: 'bolt' });
-    const g = groups.get(kd); g.qty += f.nb; g.w += f.nb * Math.PI * (f.bd / 2) ** 2 * sl * STEEL * 1.4;
+    const bs = boltSpec(j.dn, cls), sl = bs.len;
+    const kd = `Estojo ${bs.dLabel}×${sl} mm c/ 2 porcas|${cls}`;
+    if (!groups.has(kd)) groups.set(kd, { desc: `Estojo ${bs.thread} × ${sl} mm (${bs.lenIn}") c/ 2 porcas sextavadas pesadas`, dn: j.dn, nps: DIM[j.dn].nps, cls: clsLabel(cls), std: 'ASME B18.2', mat: 'A193 B7 / A194 2H', qty: 0, unit: 'pç', w: 0, tags: [], type: 'bolt' });
+    const g = groups.get(kd); g.qty += f.nb; g.w += f.nb * Math.PI * (bs.dmm / 2) ** 2 * sl * STEEL * 1.4;
     const kg = `Junta|${j.dn}|${cls}`;
     if (!groups.has(kg)) groups.set(kg, { desc: `Junta espiralada ${DIM[j.dn].nps} inox 316/grafite c/ anel centralizador`, dn: j.dn, nps: DIM[j.dn].nps, cls: clsLabel(cls), std: 'ASME B16.20', mat: 'AISI 316 + grafite', qty: 0, unit: 'pç', w: 0, tags: [], type: 'gasket' });
     const gg = groups.get(kg); gg.qty += 1; gg.w += 0.1 + j.dn * 0.004;
@@ -1988,8 +1993,44 @@ function testNotes(pr) {
   return { P, Pt, rows };
 }
 
+/* ---------------- Parafusamento (estojos, porcas, junta, aperto) ---------------- */
+// Diâmetros de estojo em polegadas: [pol, rótulo, fios/pol, chave da porca pesada (pol), rótulo da chave]
+const BOLT_IN = [[0.5, '1/2"', 13, 0.875, '7/8"'], [0.625, '5/8"', 11, 1.0625, '1-1/16"'], [0.75, '3/4"', 10, 1.25, '1-1/4"'], [0.875, '7/8"', 9, 1.4375, '1-7/16"'], [1, '1"', 8, 1.625, '1-5/8"'], [1.125, '1-1/8"', 8, 1.8125, '1-13/16"'], [1.25, '1-1/4"', 8, 2, '2"'], [1.375, '1-3/8"', 8, 2.1875, '2-3/16"'], [1.5, '1-1/2"', 8, 2.375, '2-3/8"']];
+// Sequência de aperto em cruz (ASME PCC-1, padrão legado), posições numeradas no sentido horário
+const STAR = { 4: [1, 3, 2, 4], 8: [1, 5, 3, 7, 2, 6, 4, 8], 12: [1, 7, 4, 10, 2, 8, 5, 11, 3, 9, 6, 12], 16: [1, 9, 5, 13, 3, 11, 7, 15, 2, 10, 6, 14, 4, 12, 8, 16], 20: [1, 11, 6, 16, 3, 13, 8, 18, 2, 12, 7, 17, 4, 14, 9, 19, 5, 15, 10, 20], 24: [1, 13, 7, 19, 4, 16, 10, 22, 2, 14, 8, 20, 5, 17, 11, 23, 3, 15, 9, 21, 6, 18, 12, 24] };
+function boltSpec(dn, cls = 150, opt = {}) {
+  const f = flg(dn, cls), d = DIM[dn];
+  const b = BOLT_IN.reduce((a, x) => Math.abs(x[0] * 25.4 - f.bd) < Math.abs(a[0] * 25.4 - f.bd) ? x : a);
+  const [din, dlab, tpi, nutIn, nutLab] = b, dmm = din * 25.4;
+  const thread = (din <= 1 ? 'UNC' : '8UN') + ` ${dlab}-${tpi}`;
+  const gasketT = 3.3; // espiralada comprimida ≈ 3,2–4,5 mm
+  const raw = 2 * f.ft + 2 * 1.6 + gasketT + 2 * dmm + 2 * 2.5 * 25.4 / tpi + 10 + (opt.extra || 0); // flanges + ressalto RF + junta + porcas pesadas (altura = d) + sobra de rosca
+  const lenIn = Math.ceil(raw / 25.4 * 4 - 0.02) / 4, len = Math.round(lenIn * 25.4); // comprimentos comerciais em 1/4"
+  const As = 0.7854 * (din - 0.9743 / tpi) ** 2 * 645.16; // área resistente à tração, mm²
+  const stress = opt.stress || 345; // MPa ≈ 50 ksi — alvo típico p/ A193 B7 (≈ 50 % do escoamento)
+  const F = stress * As; // N
+  const Kl = 0.16, Kd = 0.2; // fator de porca: lubrificado (pasta de molibdênio) / seco
+  const Tl = Kl * F * dmm / 1000, Td = Kd * F * dmm / 1000;
+  const pats = STAR[f.nb] || Array.from({ length: f.nb }, (_, i) => i + 1);
+  return {
+    dn, cls, nps: d.nps, n: f.nb, dIn: din, dLabel: dlab, dmm, tpi, thread, len, lenIn,
+    nut: 'Porca sextavada pesada ASTM A194 2H', nutIn, nutLabel: nutLab, nutMm: Math.round(nutIn * 25.4),
+    stud: 'ASTM A193 B7', As, stress, F, TnmLub: Tl, TnmDry: Td, TftLub: Tl * 0.7376, TftDry: Td * 0.7376,
+    passes: [[0.3, 'Aperto à mão + 30 % em cruz'], [0.6, '60 % em cruz'], [1, '100 % em cruz'], [1, '100 % no sentido horário (até não girar mais)']].map(([k, t]) => ({ pct: k, nm: Math.round(Tl * k / 5) * 5, txt: t })),
+    seq: pats, bc: f.bc, fod: f.fod, ft: f.ft,
+    gasket: `Junta espiralada ${d.nps} ${opt.clsLabel || ('Cl.' + cls)} — inox 316/grafite c/ anel centralizador (ASME B16.20)`
+  };
+}
+function boltedOf(pr, id) {
+  const pc = pr.get(id); if (!pc) return { joints: [], free: [] };
+  const an = joints(pr).filter(j => j.type === 'bolted' && (j.a.id === id || j.b.id === id));
+  const w = worldPorts(pc), free = [];
+  for (const k in w) if (w[k].end === 'FL' && !(pc.conn && pc.conn[k])) free.push({ port: k, dn: w[k].dn });
+  return { joints: an.map(j => ({ key: j.key, other: j.a.id === id ? j.b : j.a, dn: j.dn, cls: j.a.cls || j.b.cls || 150, spec: boltSpec(j.dn, j.a.cls || 150) })), free: free.map(f => ({ ...f, cls: pc.cls || 150, spec: boltSpec(f.dn, pc.cls || 150) })) };
+}
+
 const fmtQty = g => (g.unit === 'pç' || g.unit === 'un') ? String(Math.round(g.qty)) : (Math.round(g.qty * 100) / 100).toFixed(2) + ' ' + g.unit;
-const TP = { valvePrims, extraOf, WIN_T, DOOR_T, FIN_T, PAINT, FLOOR_T, CEIL_T, PMAT, DISC, PIPING, PROFILES, profSec, fieldsOf, INLINE, inlineLen, insertInline, WALL_K, ROOF_K, V3, Q, UP, AX, AZ, D2R, DNS, DIM, CLASSES, FLANGE_STDS, flg, TYPES, VALVE_SUBS, Project, localPorts, worldPorts, worldPort, worldPt,
+const TP = { boltSpec, boltedOf, valvePrims, extraOf, WIN_T, DOOR_T, FIN_T, PAINT, FLOOR_T, CEIL_T, PMAT, DISC, PIPING, PROFILES, profSec, fieldsOf, INLINE, inlineLen, insertInline, WALL_K, ROOF_K, V3, Q, UP, AX, AZ, D2R, DNS, DIM, CLASSES, FLANGE_STDS, flg, TYPES, VALVE_SUBS, Project, localPorts, worldPorts, worldPort, worldPt,
   compatible, jointType, snapPose, component, branch, applyRigid, pivotPort, rotateBranch, roll, tilt, orient, moveGroup, updateParams, autoConnect, acoplar,
   segSegDist, capsules, detectClashes, ISO_AXES, PLANES, latticeToScreen, screenToLattice, snapLattice, classifyIso, isoDelta, isoTo3D, buildFromIso,
   joints, analyze, bom, fmtQty, pcf, testNotes, nextDown, nextUp, odOf, r1, C30, S30 };
@@ -2687,7 +2728,7 @@ const R = (() => {
     }
     return m;
   }
-  const pkey = pc => JSON.stringify([pc.type, pc.sub, pc.dn, pc.dn2, pc.cls, pc.len, pc.angle, pc.radius, pc.ecc, pc.od, pc.wt, pc.ends, ...TP.fieldsOf(pc).map(f => pc[f[0]]), ...TP.extraOf(pc).map(f => pc[f[0]]), pc.color, pc.color2]);
+  const pkey = pc => JSON.stringify([pc.type, pc.sub, pc.dn, pc.dn2, pc.cls, pc.len, pc.angle, pc.radius, pc.ecc, pc.od, pc.wt, pc.ends, ...TP.fieldsOf(pc).map(f => pc[f[0]]), ...TP.extraOf(pc).map(f => pc[f[0]]), pc.paint, pc.paint2]);
   function disposeObj(o) { o.group.traverse(c => { if (c.geometry) c.geometry.dispose(); }); o.mats.forEach(m => m.dispose()); (o.texs || []).forEach(t => t.dispose()); root.remove(o.group); }
   function build(pc) {
     const steel = new THREE.MeshStandardMaterial({ color: COLORS[pc.type] || 0xa3abb5, metalness: 0.55, roughness: 0.4 });
@@ -2700,8 +2741,8 @@ const R = (() => {
         if (d.draw) { if (p.k === 'box') { const roofy = (p.rq && ['tile', 'fiber', 'metal'].includes(p.mat)) || p.mat === 'tile' || p.mat === 'fiber' || p.mat === 'metal' || d.horiz; ru = p.s[0] / d.u; rv = (roofy ? p.s[2] : p.s[1]) / d.v; } else { ru = 1 / d.u; rv = 1 / d.v; } }
         const cm = civMat(p.mat, ru, rv); mat = cm.m; if (d.glow) mat.userData.glow = 1; mats.push(mat); texs.push(...cm.t);
       }
-      if (pc.color || pc.color2) {
-        const want = p.mat === 'wheel' || p.mat === 'grip' ? pc.color2 : (!PAINT_SKIP.has(p.mat) ? pc.color : null);
+      if (pc.paint || pc.paint2) {
+        const want = p.mat === 'wheel' || p.mat === 'grip' ? pc.paint2 : (!PAINT_SKIP.has(p.mat) ? pc.paint : null);
         if (want) { if (mat === steel || mat === acc) { mat = mat.clone(); mats.push(mat); } mat.color.set(want); }
       }
       const m = primMesh(p, mat); if (m && m.userData.extraMat) mats.push(m.userData.extraMat); if (m) { m.userData.pid = pc.id; group.add(m); if (p.edges) { const ln = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 25), EDGE_M); m.add(ln); } }
@@ -2930,7 +2971,16 @@ const R = (() => {
     const m = camera.matrix.elements, right = new THREE.Vector3(m[0], m[1], m[2]), upv = new THREE.Vector3(m[4], m[5], m[6]);
     cam.t.addScaledVector(right, -dx * k).addScaledVector(upv, dy * k); updateCam();
   }
-  return { init, sync, fit, view, render, resize };
+  const FALL = { concrete: 0xa3a49f, block: 0x8e9092, ceramic: 0xb4643c, brick: 0xa24a2c, tile: 0xb5532e, fiber: 0x9aa0a3, metal: 0x8e9499, insul: 0xcfd4d8, plaster: 0xcfc8bb, tilewall: 0xe3e3df, screed: 0x9c9890, floortile: 0xc9b79c, porcelain: 0xd9d6cf, wood: 0x9a6b40, grating: 0x6a6f74, galv: 0xb9c0c6, steel: 0x8b939c };
+  const matColor = k => { const d = MATS[k]; if (d && d.color != null) return d.color; if (FALL[k] != null) return FALL[k]; const m = /^(paint|texture)_(\w+)/.exec(k || ''); if (m && TP.PAINT[m[2]] != null) return TP.PAINT[m[2]]; return null; };
+  const pieceColor = pc => COLORS[pc.type] || 0xa3abb5;
+  function primColor(pc, p, base) {
+    if (p.mat === 'wheel' || p.mat === 'grip') { if (pc.paint2) return pc.paint2; }
+    else if (pc.paint && !PAINT_SKIP.has(p.mat)) return pc.paint;
+    if (p.mat && matColor(p.mat) != null) return matColor(p.mat);
+    return p.accent ? 0xf59e0b : base;
+  }
+  return { init, sync, fit, view, render, resize, pieceColor, primColor };
 })();
 
 function onPortTap(m) {
@@ -3052,24 +3102,48 @@ function insertCustom(c) {
 
 /* ======================= PAINEL DIREITO ======================= */
 const NBR_COLORS = [['#2f7d4f', 'Verde · água'], ['#2b6cb0', 'Azul · ar comprimido'], ['#e8b416', 'Amarelo · gases'], ['#e8731c', 'Laranja · químicos'], ['#c53030', 'Vermelho · incêndio'], ['#f2f2f2', 'Branco · vapor'], ['#9aa3aa', 'Cinza claro · vácuo'], ['#4a5056', 'Cinza escuro · eletroduto'], ['#6b4428', 'Marrom · materiais fragmentados'], ['#1a1a1a', 'Preto · inflamáveis alta viscosidade'], ['#c9ced3', 'Alumínio · gases liquefeitos'], ['#7a2a8a', 'Lilás · álcalis']];
+function starSVG(n, seq) {
+  const R = 46, c = 60, pts = Array.from({ length: n }, (_, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / n; return [c + R * Math.cos(a), c + R * Math.sin(a)]; });
+  const ord = new Map(seq.map((pos, k) => [pos, k + 1]));
+  const path = seq.map((pos, k) => (k ? 'L' : 'M') + pts[pos - 1].map(v => v.toFixed(1)).join(' ')).join(' ');
+  return `<svg viewBox="0 0 120 120" width="120" height="120" style="flex:none"><circle cx="60" cy="60" r="56" fill="none" stroke="#555" stroke-width="1.5"/><circle cx="60" cy="60" r="30" fill="none" stroke="#444" stroke-dasharray="3 3"/><path d="${path}" fill="none" stroke="#e8a33d" stroke-width="1" opacity=".55"/>${pts.map((p, i) => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="8.5" fill="${ord.get(i + 1) === 1 ? '#e8a33d' : '#22272e'}" stroke="#e8a33d"/><text x="${p[0].toFixed(1)}" y="${(p[1] + 3.2).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700" fill="${ord.get(i + 1) === 1 ? '#111' : '#ddd'}">${ord.get(i + 1)}</text>`).join('')}</svg>`;
+}
+function boltCard(b, head) {
+  const mm = v => Math.round(v);
+  return `<details class="bolt" ${head.open ? 'open' : ''}><summary><b>${head.t}</b><span class="mut"> · ${b.nps} ${clsTxt(b.cls)}</span></summary>
+    <table class="bt"><tr><td>Estojos</td><td><b>${b.n} × ${b.thread} × ${b.lenIn}"</b> (${b.len} mm) — ${b.stud}</td></tr>
+    <tr><td>Porcas</td><td>${b.n * 2} × sextavada pesada A194 2H · chave <b>${b.nutLabel}</b> (${b.nutMm} mm)</td></tr>
+    <tr><td>Junta</td><td>${esc(b.gasket.replace(/Cl\.\d+/, clsTxt(b.cls)))}</td></tr>
+    <tr><td>Torque</td><td><b>${mm(b.TnmLub)} N·m</b> (${mm(b.TftLub)} lbf·ft) lubrificado · ${mm(b.TnmDry)} N·m seco</td></tr></table>
+    <div style="display:flex;gap:10px;align-items:center;margin-top:6px">${starSVG(b.n, b.seq)}<ol class="bp">${b.passes.map(p => `<li>${p.txt}${p.pct < 1 || p.txt.startsWith('100 % em') ? ` — <b>${p.nm} N·m</b>` : ''}</li>`).join('')}</ol></div>
+    <div class="mut" style="font-size:10.5px;margin-top:4px">Números = ordem de aperto em cruz (comece pelo 1). Torque de referência para ~50 ksi (345 MPa) no estojo, fator de porca 0,16 lubrificado / 0,20 seco. Confirme com o procedimento de aperto (ASME PCC-1) e o fabricante da junta.</div></details>`;
+}
+const clsTxt = c => (TP.FLANGE_STDS[pr.meta.fstd] || TP.FLANGE_STDS['ASME B16.5'])[c] || 'Cl.' + c;
+function boltSec(pc) {
+  if (!TP.PIPING || !TP.PIPING.has(pc.type)) { if (!['flange', 'valve', 'strainer', 'expjoint', 'sightglass', 'psv'].includes(pc.type)) return ''; }
+  let info; try { info = TP.boltedOf(pr, pc.id); } catch { return ''; }
+  if (!info.joints.length && !info.free.length) return '';
+  const cards = info.joints.map((j, i) => boltCard(j.spec, { t: 'Junta com ' + esc(j.other.tag || j.other.id), open: i === 0 })).concat(info.free.map((f, i) => boltCard(f.spec, { t: 'Face livre (' + f.port + ') — prever ao conectar', open: !info.joints.length && i === 0 })));
+  return `<div class="sec"><h3>Parafusos e aperto</h3>${cards.join('')}</div>`;
+}
 const HAS_ACC = pc => pc.type === 'valve' || pc.type === 'psv';
 function paintSec(pc) {
-  const T = TYPES[pc.type], cur = pc.color || '', sw = NBR_COLORS.map(([c, l]) => `<button class="sw ${cur.toLowerCase() === c ? 'on' : ''}" data-sw="${c}" title="${l}" style="background:${c}"></button>`).join('');
+  const T = TYPES[pc.type], cur = pc.paint || '', sw = NBR_COLORS.map(([c, l]) => `<button class="sw ${cur.toLowerCase() === c ? 'on' : ''}" data-sw="${c}" title="${l}" style="background:${c}"></button>`).join('');
   return `<div class="sec"><h3>Cor / pintura</h3>
     <div class="mut" style="margin-bottom:6px;font-size:11px">Cores de identificação de tubulação (NBR 6493) — toque para aplicar, ou escolha qualquer cor.</div>
     <div class="swr">${sw}</div>
     <div class="grid2" style="margin-top:8px"><label class="f">Cor da peça<input class="in" type="color" id="pCol" value="${cur || '#8b939c'}"></label>
-    ${HAS_ACC(pc) ? `<label class="f">Volante / alavanca<input class="in" type="color" id="pCol2" value="${pc.color2 || '#a81e1e'}"></label>` : '<span></span>'}</div>
+    ${HAS_ACC(pc) ? `<label class="f">Volante / alavanca<input class="in" type="color" id="pCol2" value="${pc.paint2 || '#a81e1e'}"></label>` : '<span></span>'}</div>
     <div class="btns" style="margin-top:8px"><button class="ib" id="pColAll">Pintar todas: ${esc(T.name)}</button><button class="ib" id="pColDisc">Pintar a linha conectada</button><button class="ib" id="pColClr">Cor original</button></div></div>`;
 }
 function bindPaint(pc) {
   const id = pc.id, set = (k, v) => mutate(() => { const p = pr.get(id); if (v) p[k] = v; else delete p[k]; });
-  document.querySelectorAll('[data-sw]').forEach(b => b.onclick = () => set('color', b.dataset.sw));
-  $('#pCol').onchange = e => set('color', e.target.value);
-  if ($('#pCol2')) $('#pCol2').onchange = e => set('color2', e.target.value);
-  $('#pColClr').onclick = () => mutate(() => { const p = pr.get(id); delete p.color; delete p.color2; });
-  $('#pColAll').onclick = () => { const p0 = pr.get(id); if (!p0.color && !p0.color2) return toast('Escolha uma cor primeiro.'); let n = 0; mutate(() => { for (const p of pr.pieces.values()) if (p.type === p0.type) { n++; if (p0.color) p.color = p0.color; else delete p.color; if (p0.color2) p.color2 = p0.color2; } }); toast(n + ' peça(s) pintada(s).'); };
-  $('#pColDisc').onclick = () => { const p0 = pr.get(id); if (!p0.color) return toast('Escolha uma cor primeiro.'); const ids = TP.component(pr, id); let n = 0; mutate(() => { for (const pid of ids) { const p = pr.get(pid); if (p && (pid === id || (p.type !== 'valve' && p.type !== 'psv'))) { p.color = p0.color; n++; } } }); toast(n + ' peça(s) da linha pintada(s) — válvulas mantêm a cor delas.'); };
+  document.querySelectorAll('[data-sw]').forEach(b => b.onclick = () => set('paint', b.dataset.sw));
+  $('#pCol').onchange = e => set('paint', e.target.value);
+  if ($('#pCol2')) $('#pCol2').onchange = e => set('paint2', e.target.value);
+  $('#pColClr').onclick = () => mutate(() => { const p = pr.get(id); delete p.paint; delete p.paint2; });
+  $('#pColAll').onclick = () => { const p0 = pr.get(id); if (!p0.paint && !p0.paint2) return toast('Escolha uma cor primeiro.'); let n = 0; mutate(() => { for (const p of pr.pieces.values()) if (p.type === p0.type) { n++; if (p0.paint) p.paint = p0.paint; else delete p.paint; if (p0.paint2) p.paint2 = p0.paint2; } }); toast(n + ' peça(s) pintada(s).'); };
+  $('#pColDisc').onclick = () => { const p0 = pr.get(id); if (!p0.paint) return toast('Escolha uma cor primeiro.'); const ids = TP.component(pr, id); let n = 0; mutate(() => { for (const pid of ids) { const p = pr.get(pid); if (p && (pid === id || (p.type !== 'valve' && p.type !== 'psv'))) { p.paint = p0.paint; n++; } } }); toast(n + ' peça(s) da linha pintada(s) — válvulas mantêm a cor delas.'); };
 }
 function renderRight() {
   const Rt = $('#right'); const st = Rt.scrollTop;
@@ -3113,6 +3187,7 @@ function renderRight() {
     <div style="margin-bottom:6px">${esc(T.desc(pc))}</div><div class="mut mono">${esc(T.mat(pc))} · ${fmt(T.weight(pc), 1)} kg</div>
     ${mis.length ? `<div class="chip er" style="margin-top:6px">Junta com desvio de ${mis.map(m => fmt(m.deg, 1) + '°').join(', ')}</div>` : ''}
     <div class="grid2" style="margin-top:8px"><label class="f">TAG<input class="in" id="pTag" value="${esc(pc.tag)}"></label>${par}</div></div>
+    ${boltSec(pc)}
     ${paintSec(pc)}
     <div class="sec"><h3>Orientação</h3><div class="mut" style="margin-bottom:6px">${piv ? `Pivô: face ${piv}${upc ? ' em ' + esc(upc.tag) : ''}` : 'Pivô: canto de referência'} · E ${fmt(pv.x)} N ${fmt(-pv.z)} EL ${fmt(pv.y)}</div>
       <div class="row" style="margin-bottom:6px"><label class="f" style="flex:1">Passo (°)<input class="in" id="oStep" type="number" value="${S.step}"></label></div>
@@ -3567,8 +3642,16 @@ function renderSheet() {
     <button class="ib sm am" id="shPrint">Imprimir / PDF</button><button class="ib sm" id="shCopy">Copiar SVG</button><button class="ib sm" id="shDl">Baixar SVG</button>`;
   const fields = [['title', 'Título do projeto'], ['line', 'Linha'], ['sheet', 'Folha'], ['designer', 'Projetista'], ['approver', 'Aprovador'], ['date', 'Data'], ['rev', 'Revisão'], ['fluid', 'Fluido']];
   $('#carimbo').className = S.sheet.carimbo ? 'on' : '';
-  $('#carimbo').innerHTML = fields.map(([k, l]) => `<label class="f">${l}<input class="in" data-m="${k}" value="${esc(m[k])}"></label>`).join('');
-  $('#carimbo').querySelectorAll('[data-m]').forEach(i => i.onchange = () => mutate(() => { pr.meta[i.dataset.m] = i.value; }));
+  /* Campos do carimbo: criados uma vez e só atualizados — recriá-los fechava o teclado no celular (o teclado redimensiona a tela e redesenhava tudo). */
+  const cb = $('#carimbo');
+  if (!cb.querySelector('[data-m]')) {
+    cb.innerHTML = fields.map(([k, l]) => `<label class="f">${l}<input class="in" data-m="${k}" value="${esc(m[k])}" ${k === 'date' ? 'inputmode="numeric"' : ''} autocomplete="off"></label>`).join('');
+    cb.querySelectorAll('[data-m]').forEach(i => {
+      i.oninput = () => { pr.meta[i.dataset.m] = i.value; clearTimeout(i._t); i._t = setTimeout(sheetOnly, 500); };
+      i.onchange = () => { pr.meta[i.dataset.m] = i.value; save(); sheetOnly(); };
+      i.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); const all = [...cb.querySelectorAll('[data-m]')], n = all[all.indexOf(i) + 1]; n ? n.focus() : i.blur(); } };
+    });
+  } else cb.querySelectorAll('[data-m]').forEach(i => { if (i !== document.activeElement) i.value = m[i.dataset.m] ?? ''; });
   $('#shSize').onchange = e => { S.sheet.size = e.target.value; renderSheet(); };
   $('#shSp').onchange = e => { S.sheet.spool = e.target.value; renderSheet(); };
   $('#shZo').onclick = () => { S.sheet.zoom = Math.max(0.4, S.sheet.zoom / 1.25); renderSheet(); };
@@ -3577,6 +3660,9 @@ function renderSheet() {
   $('#shPrint').onclick = printSheet;
   $('#shCopy').onclick = () => copy(lastSVG, 'SVG da prancha');
   $('#shDl').onclick = () => download(`${(m.line || 'TP')}-${S.sheet.spool}-${S.sheet.size}.svg`, lastSVG, 'image/svg+xml');
+  sheetOnly();
+}
+function sheetOnly() {
   const wrap = $('#sheetwrap');
   if (!pr.pieces.size) { wrap.innerHTML = '<div class="mut" style="padding:40px">Modelo vazio — insira peças no 3D ou converta um isométrico.</div>'; return; }
   const out = TPSheet.sheetSVG(pr, { size: S.sheet.size, spool: S.sheet.spool });
@@ -3662,6 +3748,12 @@ function refresh() {
   $('#bUndo').disabled = !S.hist.length; $('#bRedo').disabled = !S.fut.length;
   if (S.tab === 'sheet') renderSheet();
   if (S.tab === 'bom') renderBom();
+  if (S.tab === 'iso') ISOM.update();
+}
+function isoMode(m) {
+  store.set('tecplan.isomode', m);
+  document.querySelectorAll('#isomode [data-im]').forEach(b => { b.classList.toggle('on', b.dataset.im === m); b.onclick = () => { isoMode(b.dataset.im); if (b.dataset.im === 'model') toast('Modo Modelo: o mesmo projeto em isométrico. Arraste os losangos âmbar para puxar tubo; toque numa peça para selecionar.'); }; });
+  ISOM.show(m === 'model');
 }
 function setTab(t) {
   S.tab = t;
@@ -3670,7 +3762,7 @@ function setTab(t) {
   $('#main').classList.toggle('full', t !== '3d');
   document.querySelectorAll('.mob').forEach(b => b.style.visibility = t === '3d' ? '' : 'hidden');
   closeDrawers();
-  if (t === 'iso') { ISO.init(); ISO.resize(); ISO.info(); }
+  if (t === 'iso') { ISO.init(); ISO.resize(); ISO.info(); isoMode(store.get('tecplan.isomode', 'draw')); }
   refresh();
   if (t === '3d') R.resize();
 }
@@ -3782,7 +3874,7 @@ function init() {
     else if ((e.key === 'Delete' || e.key === 'Backspace') && S.sel && S.tab === '3d') deleteSel();
     else if (e.key === 'Escape') { S.sel = null; S.active = null; refresh(); }
   });
-  window.addEventListener('resize', () => { if (S.tab === 'sheet') renderSheet(); });
+  window.addEventListener('resize', () => { if (S.tab !== 'sheet') return; const svg = $('#sheetwrap svg'); if (svg) svg.style.width = Math.round(($('#sheetwrap').clientWidth - 32) * S.sheet.zoom) + 'px'; });
   refresh();
   bootProjects();
 }
@@ -3853,6 +3945,7 @@ const VK = (() => {
     { t: 'Inserir peças', k: ['inserir', 'inserir peca', 'adicionar peca', 'catalogo', 'colocar peca', 'como coloco'], a: 'Abra o <b>catálogo</b> (painel da esquerda, ou ☰ no celular), escolha o diâmetro e toque na peça. Se houver uma <b>esfera verde</b> (porta ativa), a peça nasce encaixada nela; senão, entra solta ao lado do modelo. Você também pode me pedir: <i>"insira uma válvula gaveta de 4 polegadas"</i>.' },
     { t: 'Continuar uma linha', k: ['continuar', 'esfera', 'porta ativa', 'esfera ambar', 'esfera verde', 'continuar linha', 'porta livre'], a: 'As <b>esferas âmbar</b> são portas livres. Toque numa delas e ela fica <b>verde</b>: a próxima peça do catálogo encaixa exatamente ali, face a face. Depois de inserir, a porta ativa passa sozinha para a ponta nova, então dá para ir tocando tubo → curva → tubo em sequência.' },
     { t: 'Girar e inclinar sem desconectar', k: ['girar', 'inclinar', 'rotacionar', 'desconecta', 'solta', 'girar no eixo', 'virar curva', 'desviar'], a: '<b>Girar no eixo</b> gira a peça em torno da face da conexão e leva junto tudo o que vem depois — a junta continua perfeita. É assim que você vira uma curva para cima, para baixo ou para os lados. <b>Inclinar/Desviar</b> também gira na face, mas cria uma junta em ângulo (aparece aviso vermelho). Para trechos inclinados de verdade, mude o <b>ângulo da curva</b>.' },
+    { t: 'Parafusos e torque', k: ['parafuso', 'parafusos', 'estojo', 'estojos', 'torque', 'aperto', 'porca', 'chave', 'junta espiralada', 'sequencia de aperto'], a: 'O TEC PLAN recomenda o parafusamento de cada junta flangeada pela ASME B16.5: quantidade e bitola dos estojos (A193 B7), comprimento comercial, porcas pesadas A194 2H, chave, junta espiralada e <b>torque de referência</b> com a <b>sequência em cruz</b> (ASME PCC-1). Selecione uma flange ou válvula e veja <b>Parafusos e aperto</b> no painel da direita — ou me pergunte "quais parafusos dessa flange?". Tudo também sai somado na BOM.' },
     { t: 'Pintar peças', k: ['pintar', 'pintura', 'cor', 'cores', 'mudar cor', 'colorir', 'nbr 6493', 'cor da tubulacao', 'cor da parede'], a: 'Selecione a peça e use o bloco <b>Cor / pintura</b> no painel da direita: as amostras são as cores de identificação da <b>NBR 6493</b> (verde água, azul ar comprimido, amarelo gases, laranja químicos, vermelho incêndio, branco vapor…), ou escolha qualquer cor. Válvulas têm uma segunda cor para o <b>volante/alavanca</b>. <b>Pintar todas</b> aplica a todas as peças do mesmo tipo; <b>Pintar a linha conectada</b> pinta o trecho inteiro, mantendo as válvulas. Também pode me pedir: <i>"pinte todas as válvulas de vermelho"</i> ou <i>"pinte a linha de verde"</i>.' },
     { t: 'Gizmo', k: ['gizmo', 'arrastar', 'mover peca', 'setas', 'aneis', 'mover com dedo', 'mover com mouse'], a: 'Com uma peça selecionada aparecem <b>setas</b> (vermelha E, verde EL, azul N) e <b>anéis</b>. Puxe uma seta para mover e um anel para girar. O passo segue a grade escolhida (10 a 500 mm) e o ângulo (5° a 90°). Move o grupo conectado inteiro, e se você soltar perto de uma porta compatível, acopla sozinho.' },
     { t: 'Acoplar', k: ['acoplar', 'encaixar', 'juntar pecas', 'conectar pecas', 'ligar pecas'], a: 'O botão <b>Acoplar</b> (painel da peça) procura a porta livre compatível mais próxima e encaixa face a face. Só acopla se o diâmetro bater (tolerância 0,6 mm) e a classe for igual em flanges.' },
@@ -3974,13 +4067,17 @@ const VK = (() => {
     }
     if (/(exclu|apag|delet|remov)/.test(q) && /(peca|isso|selecionad|essa|esse)/.test(q)) { if (!sel) return 'Selecione a peça que quer excluir.'; const tg = sel.tag; deleteSel(); return `Excluí ${esc(tg)}. Se foi engano, diga "desfazer".`; }
     if (/acopl/.test(q) && sel) { let r; mutate(() => { r = TP.acoplar(pr, sel.id); if (!r.ok) return false; }); return r.ok ? r.msg + '.' : r.msg; }
+    if (/parafus|estojo|torque|aperto|porca/.test(q) && sel && !/^(o que e|explique)/.test(q)) {
+      const info = TP.boltedOf(pr, sel.id), all = info.joints.map(j => [j.other.tag || j.other.id, j.spec]).concat(info.free.map(f => ['face livre', f.spec]));
+      if (all.length) return all.map(([w, b]) => `<b>${esc(sel.tag || sel.id)} × ${esc(w)}</b> (${b.nps} Cl.${b.cls}): ${b.n} estojos ${b.thread} × ${b.lenIn}" (${b.len} mm) A193 B7, ${b.n * 2} porcas pesadas A194 2H, chave ${b.nutLabel}. Torque ≈ <b>${Math.round(b.TnmLub)} N·m</b> lubrificado (${Math.round(b.TnmDry)} seco), em 3 passes de 30/60/100 % em cruz. Detalhes e sequência no painel da direita.`).join('<br>');
+    }
     const pm = q.match(/(pint|cor)\w*.*?\b(verde|azul|amarel\w*|laranja|vermelh\w*|branc\w*|cinza escuro|cinza|marrom|pret\w*|aluminio|lilas|original)\b/);
     if (pm && !/^(como|onde|qual|o que|posso)/.test(q)) {
       const C = { verde: '#2f7d4f', azul: '#2b6cb0', amarel: '#e8b416', laranja: '#e8731c', vermelh: '#c53030', branc: '#f2f2f2', 'cinza escuro': '#4a5056', cinza: '#9aa3aa', marrom: '#6b4428', pret: '#1a1a1a', aluminio: '#c9ced3', lilas: '#7a2a8a' };
       const key = Object.keys(C).find(k => pm[2].startsWith(k)), all = /tod[ao]s|tudo|linha|conectad/.test(q), line = /linha|conectad/.test(q);
       let tp = null; for (const [k, t] of Object.entries(TYPES)) if (N(t.name).split(' ')[0].length > 3 && q.includes(N(t.name).split(' ')[0])) { tp = k; break; }
       if (!all && !sel) return 'Selecione a peça que quer pintar, ou diga por exemplo "pinte todas as válvulas de vermelho".';
-      let n = 0; mutate(() => { for (const p of pr.pieces.values()) { const hit = !all ? p.id === sel.id : tp ? p.type === tp : line ? (p.type !== 'valve' && p.type !== 'psv' || p.id === sel?.id) && (sel ? TP.component(pr, sel.id).has(p.id) : true) : true; if (!hit) continue; n++; if (pm[2] === 'original') { delete p.color; delete p.color2; } else p.color = C[key]; } });
+      let n = 0; mutate(() => { for (const p of pr.pieces.values()) { const hit = !all ? p.id === sel.id : tp ? p.type === tp : line ? (p.type !== 'valve' && p.type !== 'psv' || p.id === sel?.id) && (sel ? TP.component(pr, sel.id).has(p.id) : true) : true; if (!hit) continue; n++; if (pm[2] === 'original') { delete p.paint; delete p.paint2; } else p.paint = C[key]; } });
       return n ? `Pronto, ${n} peça(s) ${pm[2] === 'original' ? 'voltaram à cor original' : 'pintada(s) de ' + pm[2]}.` : 'Não encontrei peças para pintar.';
     }
     const gm = q.match(/gir(?:a|e|ar)\s*(-?\d+)?/);
@@ -4251,6 +4348,227 @@ const VK = (() => {
   return { boot, tour, reply, toggle, _fx: fxGraph };
 })();
 
+/* ======================= ISOMÉTRICO "JOGO" — vista 2D isométrica do MESMO modelo ======================= */
+/* Não guarda dados próprios: desenha as peças do projeto (pr) em isométrico verdadeiro com sombreamento plano
+   (estilo jogos), e toda edição vai direto ao modelo — 3D, prancha e BOM continuam sempre iguais. */
+const ISOM = (() => {
+  let cv, ctx, W = 0, H = 0, dpr = 1, inited = false, rot = 0, view = { k: 0.08, x: 0, y: 0 }, faces = [], markers = [], fitted = false;
+  let centers = new Map(), drag = null, pull = null, pinch = null, tile = 500, showTags = true, raf = 0;
+  const A = Math.atan(1 / Math.SQRT2), ca = Math.cos(A), sa = Math.sin(A);
+  const L = norm3([-0.45, 1, 0.3]), L2 = norm3([0.6, 0.35, 0.9]);
+  function norm3(v) { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; }
+  const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], add3 = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], sc3 = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
+  const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2], cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const P3 = o => [o.x, o.y, o.z];
+  function basis(d) { d = norm3(d); const ref = Math.abs(d[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0]; const u = norm3(cross3(ref, d)), w = cross3(d, u); return [u, w, d]; }
+  function circ(c, d, r, n) { const [u, w] = basis(d), out = []; for (let i = 0; i < n; i++) { const t = i / n * Math.PI * 2; out.push(add3(c, add3(sc3(u, r * Math.cos(t)), sc3(w, r * Math.sin(t))))); } return out; }
+  const qrot = (q, v) => { const { x, y, z, w } = q, ix = w * v[0] + y * v[2] - z * v[1], iy = w * v[1] + z * v[0] - x * v[2], iz = w * v[2] + x * v[1] - y * v[0], iw = -x * v[0] - y * v[1] - z * v[2]; return [ix * w + iw * -x + iy * -z - iz * -y, iy * w + iw * -y + iz * -x - ix * -z, iz * w + iw * -z + ix * -y - iy * -x]; };
+  const segs = r => r > 70 ? 20 : r > 15 ? 14 : 8;
+
+  /* ---------- tesselação dos primitivos (coordenadas locais da peça) ---------- */
+  function tube(F, A0, B0, Ai, Bi) { const n = A0.length; for (let i = 0; i < n; i++) { const j = (i + 1) % n; F.push([A0[i], A0[j], B0[j], B0[i]]); if (Ai) { F.push([Ai[i], Ai[j], Bi[j], Bi[i]]); } } }
+  function annulus(F, O, I) { const n = O.length; for (let i = 0; i < n; i++) { const j = (i + 1) % n; F.push([O[i], O[j], I[j], I[i]]); } }
+  function boxF(F, c, s, q) {
+    const [a, b, d] = [s[0] / 2, s[1] / 2, s[2] / 2], V = [[-a, -b, -d], [a, -b, -d], [a, b, -d], [-a, b, -d], [-a, -b, d], [a, -b, d], [a, b, d], [-a, b, d]].map(v => add3(c, q ? qrot(q, v) : v));
+    for (const f of [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [2, 3, 7, 6], [1, 2, 6, 5], [0, 3, 7, 4]]) F.push(f.map(i => V[i]));
+  }
+  function extrude(F, poly, map, hole) { // poly 2D, map(x,y,t∈{0,1}) → 3D
+    const n = poly.length, A0 = poly.map(p => map(p[0], p[1], 0)), B0 = poly.map(p => map(p[0], p[1], 1));
+    for (let i = 0; i < n; i++) { const j = (i + 1) % n; F.push([A0[i], A0[j], B0[j], B0[i]]); }
+    if (hole) { const Ah = hole.map(p => map(p[0], p[1], 0)), Bh = hole.map(p => map(p[0], p[1], 1)); for (let i = 0; i < hole.length; i++) { const j = (i + 1) % hole.length; F.push([Ah[i], Ah[j], Bh[j], Bh[i]]); } const fa = A0.slice(); fa.hole = Ah; const fb = B0.slice(); fb.hole = Bh; F.push(fa, fb); }
+    else F.push(A0, B0);
+  }
+  function lathe(F, prof, o, d, n) { const [u, w, dd] = basis(d); const R = prof.map(([r, h]) => { const c = add3(o, sc3(dd, h)), out = []; for (let i = 0; i < n; i++) { const t = i / n * Math.PI * 2; out.push(add3(c, add3(sc3(u, r * Math.cos(t)), sc3(w, r * Math.sin(t))))); } return out; }); for (let k = 0; k + 1 < R.length; k++) for (let i = 0; i < n; i++) { const j = (i + 1) % n; F.push([R[k][i], R[k][j], R[k + 1][j], R[k + 1][i]]); } }
+  const circle2 = (r, n) => Array.from({ length: n }, (_, i) => [r * Math.cos(i / n * Math.PI * 2), r * Math.sin(i / n * Math.PI * 2)]);
+  function tess(p) {
+    const F = [], k = p.k;
+    if (k === 'cyl') {
+      if (p.inner) return F;
+      const a = P3(p.a), b = P3(p.b), d = sub3(b, a); if (Math.hypot(...d) < 0.01) return F;
+      const r2 = p.r2 ?? p.r, n = p.seg || segs(Math.max(p.r, r2)), A0 = circ(a, d, p.r, n), B0 = circ(b, d, r2, n);
+      if (p.ri > 0 && p.ri < Math.max(p.r, r2)) { const Ai = circ(a, d, p.ri, n), Bi = circ(b, d, p.ri2 ?? p.ri, n); tube(F, A0, B0, Ai, Bi); annulus(F, A0, Ai); annulus(F, B0, Bi); }
+      else { tube(F, A0, B0); F.push(A0, B0); }
+    } else if (k === 'arc') {
+      const c = P3(p.c), u = P3(p.u), v = P3(p.v), st = Math.max(6, Math.ceil(p.ang / (Math.PI / 12))), m = segs(p.r);
+      const O = [], I = [];
+      for (let i = 0; i <= st; i++) { const t = p.ang * i / st, cc = add3(c, add3(sc3(u, p.R * Math.cos(t)), sc3(v, p.R * Math.sin(t)))), tg = add3(sc3(u, -Math.sin(t)), sc3(v, Math.cos(t))); O.push(circ(cc, tg, p.r, m)); if (p.ri > 0) I.push(circ(cc, tg, p.ri, m)); }
+      for (let i = 0; i < st; i++) tube(F, O[i], O[i + 1], p.ri > 0 ? I[i] : null, p.ri > 0 ? I[i + 1] : null);
+      if (p.ri > 0) { annulus(F, O[0], I[0]); annulus(F, O[st], I[st]); } else F.push(O[0], O[st]);
+    } else if (k === 'sph') {
+      const c = P3(p.c), la = 6, lo = 10, P = [];
+      for (let i = 0; i <= la; i++) { const ph = Math.PI * i / la, row = []; for (let j = 0; j < lo; j++) { const th = 2 * Math.PI * j / lo; row.push(add3(c, [p.r * Math.sin(ph) * Math.cos(th), p.r * Math.cos(ph), p.r * Math.sin(ph) * Math.sin(th)])); } P.push(row); }
+      for (let i = 0; i < la; i++) for (let j = 0; j < lo; j++) { const jj = (j + 1) % lo; F.push([P[i][j], P[i][jj], P[i + 1][jj], P[i + 1][j]]); }
+    } else if (k === 'box' || k === 'cbox') boxF(F, P3(p.c), p.s, p.rq);
+    else if (k === 'rtube') { const [Lx, Hh, Ww] = p.s, t = Math.min(p.t, Hh / 3, Ww / 3), c = P3(p.c); for (const [y, z, sy, sz] of [[Hh / 2 - t / 2, 0, t, Ww], [-Hh / 2 + t / 2, 0, t, Ww], [0, Ww / 2 - t / 2, Hh - 2 * t, t], [0, -Ww / 2 + t / 2, Hh - 2 * t, t]]) { const off = p.rq ? qrot(p.rq, [0, y, z]) : [0, y, z]; boxF(F, add3(c, off), [Lx, sy, sz], p.rq); } }
+    else if (k === 'rev') lathe(F, p.pts.map(q => [Math.max(0.01, q[0]), q[1]]), P3(p.o), P3(p.dir), 14);
+    else if (k === 'lathe') { const pts = p.ri > 0 ? [[p.ri, 0], [p.ro, 0], [p.ro, p.h], [p.ri, p.h], [p.ri, 0]] : [[0, 0], [p.ro, 0], [p.ro, p.h], [0, p.h]]; lathe(F, pts, [0, 0, 0], [0, 1, 0], 18); }
+    else if (k === 'section') {
+      const q = p.sec, d = q.d / 2, b = q.bf / 2, map = (x, y, t) => [t * p.L, y, -x];
+      if (q.fam === 'CHS') { extrude(F, circle2(q.od / 2, 14), map, circle2(q.od / 2 - q.t, 14)); }
+      else if (q.fam === 'W' || q.fam === 'H') extrude(F, [[-b, -d], [b, -d], [b, -d + q.tf], [q.tw / 2, -d + q.tf], [q.tw / 2, d - q.tf], [b, d - q.tf], [b, d], [-b, d], [-b, d - q.tf], [-q.tw / 2, d - q.tf], [-q.tw / 2, -d + q.tf], [-b, -d + q.tf]], map);
+      else if (q.fam === 'U') extrude(F, [[-b, -d], [b, -d], [b, -d + q.tf], [-b + q.tw, -d + q.tf], [-b + q.tw, d - q.tf], [b, d - q.tf], [b, d], [-b, d]], map);
+      else if (q.fam === 'L') extrude(F, [[-b, -d], [b, -d], [b, -d + q.t], [-b + q.t, -d + q.t], [-b + q.t, d], [-b, d]], map);
+      else { const bi = b - q.t, di = d - q.t; extrude(F, [[-b, -d], [b, -d], [b, d], [-b, d]], map, [[-bi, -di], [bi, -di], [bi, di], [-bi, di]]); }
+    } else if (k === 'gusset') extrude(F, [[0, 0], [p.a, 0], [0, p.b]], (x, y, t) => [x, y, (t - 0.5) * p.t]);
+    else if (k === 'prism') extrude(F, p.pts, (x, z, t) => [x, p.y1 - t * (p.y1 - p.y0), z]);
+    else if (k === 'loft') { const [aw, ah] = p.a, [bw, bh] = p.b, x0 = p.x0 || 0, x1 = x0 + p.L, Aq = [[x0, -ah / 2, -aw / 2], [x0, -ah / 2, aw / 2], [x0, ah / 2, aw / 2], [x0, ah / 2, -aw / 2]], Bq = [[x1, -bh / 2, -bw / 2], [x1, -bh / 2, bw / 2], [x1, bh / 2, bw / 2], [x1, bh / 2, -bw / 2]]; for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; F.push([Aq[i], Aq[j], Bq[j], Bq[i]]); } }
+    else if (k === 'frustum') { const [bx, bz] = p.b, [tx, tz] = p.t, B = [[-bx / 2, p.y0, -bz / 2], [bx / 2, p.y0, -bz / 2], [bx / 2, p.y0, bz / 2], [-bx / 2, p.y0, bz / 2]], T = [[-tx / 2, p.y1, -tz / 2], [tx / 2, p.y1, -tz / 2], [tx / 2, p.y1, tz / 2], [-tx / 2, p.y1, tz / 2]]; for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; F.push([B[i], B[j], T[j], T[i]]); } F.push(T, B); }
+    return F;
+  }
+
+  /* ---------- projeção isométrica verdadeira, girável de 90 em 90° ---------- */
+  function proj(v) { const t = Math.PI / 4 + rot * Math.PI / 2, c = Math.cos(t), s = Math.sin(t), x1 = v[0] * c - v[2] * s, z1 = v[0] * s + v[2] * c; return [x1, z1 * sa - v[1] * ca, v[1] * sa + z1 * ca]; }
+  const toS = q => [q[0] * view.k + view.x, q[1] * view.k + view.y];
+  const hex = n => '#' + (n >>> 0).toString(16).padStart(6, '0').slice(-6);
+  function shade(col, n, lift) { const c = typeof col === 'string' ? parseInt(col.slice(1), 16) : col; const kd = 0.42 + 0.48 * Math.max(0, dot3(n, L)) + 0.16 * Math.max(0, dot3(n, L2)) + (lift || 0); const f = x => Math.max(0, Math.min(255, Math.round(x * kd))); return `rgb(${f(c >> 16 & 255)},${f(c >> 8 & 255)},${f(c & 255)})`; }
+
+  function rebuild() {
+    faces = []; markers = []; centers = new Map();
+    const selId = S.sel;
+    for (const pc of pr.pieces.values()) {
+      const q = pc.q, o = P3(pc.pos), base = R.pieceColor(pc), sel = pc.id === selId;
+      let prims; try { prims = TYPES[pc.type].prims(pc); } catch { continue; }
+      for (const p of prims) {
+        const col = R.primColor(pc, p, base);
+        for (const f of tess(p)) {
+          const W3 = f.map(v => add3(qrot(q, v), o)), hole = f.hole ? f.hole.map(v => add3(qrot(q, v), o)) : null;
+          let n = norm3(cross3(sub3(W3[1], W3[0]), sub3(W3[2], W3[0]))); if (!isFinite(n[0])) n = [0, 1, 0];
+          const S2 = W3.map(proj), Hs = hole ? hole.map(proj) : null;
+          // normal virada para a câmera (direção de visão no espaço do mundo)
+          const t = Math.PI / 4 + rot * Math.PI / 2, vdir = [Math.sin(t) * ca, sa, Math.cos(t) * ca];
+          if (dot3(n, vdir) < 0) n = sc3(n, -1);
+          let z = 0, zmax = -1e18; for (const s of S2) { z += s[2]; if (s[2] > zmax) zmax = s[2]; } z /= S2.length;
+          { const cc = centers.get(pc.id) || [0, 0, 0, 0]; for (const q of S2) { cc[0] += q[0]; cc[1] += q[1]; cc[3]++; } if (z > cc[2] || !cc[2]) cc[2] = z; centers.set(pc.id, cc); }
+          faces.push({ s: S2, h: Hs, z: z * 0.7 + zmax * 0.3, fill: shade(col, n, sel ? 0.08 : 0), pid: pc.id, sel });
+        }
+      }
+      if (S.ports !== false) { let w; try { w = TP.worldPorts(pc); } catch { w = {}; } for (const k in w) if (!pc.conn[k] && !['CV', 'ES', 'EL', 'HV'].includes(w[k].end) && TP.DIM[w[k].dn]) markers.push({ pid: pc.id, port: k, p: P3(w[k].pos), d: P3(w[k].dir), dn: w[k].dn, s: proj(P3(w[k].pos)) }); }
+    }
+    faces.sort((a, b) => a.z - b.z);
+  }
+  function bounds() { let x0 = 1e18, y0 = 1e18, x1 = -1e18, y1 = -1e18; for (const f of faces) for (const s of f.s) { if (s[0] < x0) x0 = s[0]; if (s[0] > x1) x1 = s[0]; if (s[1] < y0) y0 = s[1]; if (s[1] > y1) y1 = s[1]; } return x0 > x1 ? null : { x0, y0, x1, y1 }; }
+  function fit() { const b = bounds(); if (!b || !W) { view = { k: 0.08, x: W / 2, y: H / 2 }; return; } const bh = ($('#isombar')?.offsetHeight || 90) + 50, top = 50; const k = Math.min((W - 60) / Math.max(1, b.x1 - b.x0), (H - bh - top) / Math.max(1, b.y1 - b.y0), 1.2); view.k = k; view.x = W / 2 - (b.x0 + b.x1) / 2 * k; view.y = top + (H - bh - top) / 2 - (b.y0 + b.y1) / 2 * k; }
+  function worldBox() { let mn = [1e18, 1e18, 1e18], mx = [-1e18, -1e18, -1e18]; for (const pc of pr.pieces.values()) { const p = P3(pc.pos); for (let i = 0; i < 3; i++) { mn[i] = Math.min(mn[i], p[i]); mx[i] = Math.max(mx[i], p[i]); } } return mn[0] > mx[0] ? null : { mn, mx }; }
+
+  function draw() {
+    if (!inited || !$('#isom').classList.contains('on')) return;
+    cancelAnimationFrame(raf); raf = requestAnimationFrame(paint);
+  }
+  function paint() {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+    const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#13171c'); bg.addColorStop(1, '#0c0f12'); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    // piso em losangos (grade isométrica do jogo)
+    const wb = worldBox(), fy = wb ? Math.min(0, wb.mn[1]) - 0 : 0, c = wb ? [(wb.mn[0] + wb.mx[0]) / 2, 0, (wb.mn[2] + wb.mx[2]) / 2] : [0, 0, 0];
+    const ext = wb ? Math.max(wb.mx[0] - wb.mn[0], wb.mx[2] - wb.mn[2]) / 2 + tile * 4 : tile * 10, n = Math.min(80, Math.ceil(ext / tile));
+    const cx = Math.round(c[0] / tile) * tile, cz = Math.round(c[2] / tile) * tile;
+    for (let i = -n; i < n; i++) for (let j = -n; j < n; j++) {
+      const x = cx + i * tile, z = cz + j * tile, Q4 = [[x, fy, z], [x + tile, fy, z], [x + tile, fy, z + tile], [x, fy, z + tile]].map(v => toS(proj(v)));
+      ctx.beginPath(); Q4.forEach((q, k) => k ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.closePath();
+      ctx.fillStyle = (i + j) & 1 ? 'rgba(255,255,255,.028)' : 'rgba(255,255,255,.012)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(232,163,61,.07)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+    // faces (pintor: do fundo para a frente)
+    for (const f of faces) {
+      ctx.beginPath(); f.s.forEach((q, k) => { const p = toS(q); k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }); ctx.closePath();
+      if (f.h) { f.h.forEach((q, k) => { const p = toS(q); k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }); ctx.closePath(); ctx.fillStyle = f.fill; ctx.fill('evenodd'); }
+      else { ctx.fillStyle = f.fill; ctx.fill(); }
+      ctx.strokeStyle = f.sel ? 'rgba(245,170,60,.9)' : f.fill; ctx.lineWidth = f.sel ? 0.9 : 0.6; ctx.stroke();
+    }
+    // tags (sem sobreposição; a peça selecionada sempre aparece)
+    if (showTags && view.k > 0.02) {
+      ctx.font = '600 11px ui-monospace,monospace'; ctx.textAlign = 'center'; const used = [];
+      const list = [...pr.pieces.values()].filter(pc => pc.tag && centers.has(pc.id)).sort((a, b) => (b.id === S.sel) - (a.id === S.sel));
+      for (const pc of list) {
+        const c = centers.get(pc.id), s = toS([c[0] / c[3], c[1] / c[3]]), w = pc.tag.length * 7 + 6;
+        if (pc.id !== S.sel && used.some(u => Math.abs(u[0] - s[0]) < (u[2] + w) / 2 && Math.abs(u[1] - s[1]) < 14)) continue;
+        used.push([s[0], s[1] - 14, w]);
+        ctx.fillStyle = 'rgba(12,15,18,.7)'; ctx.fillRect(s[0] - w / 2, s[1] - 25, w, 15);
+        ctx.fillStyle = pc.id === S.sel ? '#f5a524' : 'rgba(220,226,232,.85)'; ctx.fillText(pc.tag, s[0], s[1] - 14);
+      }
+    }
+    // portas livres (losangos âmbar) — toque para ativar, arraste para puxar tubo
+    for (const m of markers) {
+      const s = toS(m.s), act = S.active && S.active.id === m.pid && S.active.port === m.port, r = act ? 10 : 7;
+      const tip = toS(proj(add3(m.p, sc3(m.d, 260))));
+      ctx.strokeStyle = act ? '#f5a524' : 'rgba(245,165,36,.55)'; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(s[0], s[1]); ctx.lineTo(tip[0], tip[1]); ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(s[0], s[1] - r); ctx.lineTo(s[0] + r, s[1]); ctx.lineTo(s[0], s[1] + r); ctx.lineTo(s[0] - r, s[1]); ctx.closePath();
+      ctx.fillStyle = act ? '#f5a524' : 'rgba(245,165,36,.85)'; ctx.fill(); ctx.strokeStyle = '#1a1206'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+    // tubo fantasma enquanto puxa
+    if (pull && pull.len > 0) {
+      const a = toS(proj(pull.p)), b = toS(proj(add3(pull.p, sc3(pull.d, pull.len)))), od = (TP.DIM[pull.dn]?.od || 100) * view.k;
+      ctx.strokeStyle = 'rgba(245,165,36,.55)'; ctx.lineCap = 'round'; ctx.lineWidth = Math.max(4, od); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); ctx.lineCap = 'butt';
+      ctx.font = '700 13px system-ui'; ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText(`${(pull.len / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m`, b[0] + 12, b[1] - 8);
+    }
+    // bússola
+    const cp = [W - 46, H - 46]; ctx.font = '700 10px system-ui'; ctx.textAlign = 'center';
+    for (const [lab, v, col] of [['N', [0, 0, -1], '#e05252'], ['E', [1, 0, 0], '#cfd6dd'], ['↑', [0, 1, 0], '#8fb7e0']]) { const q = proj(sc3(v, 1)); const e = [cp[0] + q[0] * 24, cp[1] + q[1] * 24]; ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cp[0], cp[1]); ctx.lineTo(e[0], e[1]); ctx.stroke(); ctx.fillStyle = col; ctx.fillText(lab, cp[0] + q[0] * 34, cp[1] + q[1] * 34 + 3); }
+  }
+
+  /* ---------- interação ---------- */
+  function pip(x, y, poly) { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const a = poly[i], b = poly[j]; if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1] + 1e-12) + a[0]) c = !c; } return c; }
+  function pick(x, y) { for (let i = faces.length - 1; i >= 0; i--) { const f = faces[i]; if (pip(x, y, f.s.map(toS))) return f.pid; } return null; }
+  function hitMarker(x, y) { let best = null, bd = 22; for (const m of markers) { const s = toS(m.s), d = Math.hypot(s[0] - x, s[1] - y); if (d < bd) { bd = d; best = m; } } return best; }
+  const pos = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  const pts = new Map();
+  function bind() {
+    cv.addEventListener('pointerdown', e => {
+      cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, pos(e));
+      if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), k: view.k, cx: (a[0] + b[0]) / 2, cy: (a[1] + b[1]) / 2, x: view.x, y: view.y }; drag = null; pull = null; return; }
+      const [x, y] = pos(e), m = hitMarker(x, y);
+      if (m) { const a = toS(proj(m.p)), b = toS(proj(add3(m.p, m.d))); const sd = [b[0] - a[0], b[1] - a[1]], sl = Math.hypot(...sd); pull = { ...m, x0: x, y0: y, sd: sl > 1e-9 ? [sd[0] / sl, sd[1] / sl] : [0, 0], mmpx: sl > 1e-9 ? 1 / sl : 0, len: 0 }; return; }
+      drag = { x, y, vx: view.x, vy: view.y, moved: false };
+    });
+    cv.addEventListener('pointermove', e => {
+      if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, pos(e));
+      if (pinch && pts.size === 2) { const [a, b] = [...pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), k2 = Math.max(0.005, Math.min(3, pinch.k * d / pinch.d)), r = k2 / pinch.k; view.k = k2; view.x = pinch.cx - (pinch.cx - pinch.x) * r + ((a[0] + b[0]) / 2 - pinch.cx); view.y = pinch.cy - (pinch.cy - pinch.y) * r + ((a[1] + b[1]) / 2 - pinch.cy); draw(); return; }
+      const [x, y] = pos(e);
+      if (pull) { if (pull.mmpx === 0) return; const along = ((x - pull.x0) * pull.sd[0] + (y - pull.y0) * pull.sd[1]) * pull.mmpx; const g = Math.max(50, S.snap || 50); pull.len = Math.max(0, Math.round(along / g) * g); draw(); return; }
+      if (drag) { if (Math.hypot(x - drag.x, y - drag.y) > 6) drag.moved = true; view.x = drag.vx + x - drag.x; view.y = drag.vy + y - drag.y; draw(); }
+    });
+    const up = e => {
+      pts.delete(e.pointerId); if (pinch) { if (pts.size < 2) pinch = null; return; }
+      const [x, y] = pos(e);
+      if (pull) {
+        const p = pull; pull = null; S.active = { id: p.pid, port: p.port }; S.sel = p.pid;
+        if (p.len >= 50) { insert('pipe', { len: p.len }); toast(`Tubo de ${(p.len / 1000).toLocaleString('pt-BR')} m puxado. Continue arrastando o losango âmbar ou use a barra.`); }
+        else { refresh(); toast('Porta ativa. Arraste o losango para puxar tubo, ou escolha uma peça na barra de baixo.'); }
+        return;
+      }
+      if (drag && !drag.moved) { const id = pick(x, y); S.sel = id; if (id) { const pc = pr.get(id), ff = firstFree(pc); if (ff && (!S.active || S.active.id !== id)) S.active = ff; } refresh(); }
+      drag = null;
+    };
+    cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', e => { pts.delete(e.pointerId); pinch = null; pull = null; drag = null; draw(); });
+    cv.addEventListener('wheel', e => { e.preventDefault(); const [x, y] = pos(e), f = Math.exp(-e.deltaY * 0.0015), k2 = Math.max(0.005, Math.min(3, view.k * f)), r = k2 / view.k; view.x = x - (x - view.x) * r; view.y = y - (y - view.y) * r; view.k = k2; draw(); }, { passive: false });
+  }
+  function bar() {
+    const pip = has('TB');
+    const Q = [['pipe', {}, 'Tubo'], ['elbow', { angle: 90 }, 'Curva 90°'], ['elbow', { angle: 45 }, 'Curva 45°'], ['tee', {}, 'Tê'], ['valve', { sub: 'gate' }, 'Gaveta'], ['valve', { sub: 'ball' }, 'Esfera'], ['flange', {}, 'Flange'], ['reducer', { dn2: 'down' }, 'Redução'], ['cap', {}, 'Tampão']];
+    $('#isombar').innerHTML = `<div class="ibrow"><button class="ib sm" id="mRotL" title="Girar vista">⟲ 90°</button><button class="ib sm" id="mRotR">⟳ 90°</button><button class="ib sm" id="mFit">Enquadrar</button>
+      <span class="sep"></span><span class="mut">Piso</span><select class="in" id="mTile" style="width:auto">${[250, 500, 1000, 2000].map(t => `<option ${t === tile ? 'selected' : ''} value="${t}">${t} mm</option>`).join('')}</select>
+      <button class="ib sm ${showTags ? 'on' : ''}" id="mTags">TAGs</button>${S.sel ? `<span class="sep"></span><button class="ib sm" id="mRoll">↻ Girar peça</button><button class="ib sm" id="mDel">🗑</button><button class="ib sm" id="mDet">Detalhes</button>` : ''}</div>
+      ${pip ? `<div class="ibrow mq">${Q.map((q, i) => `<button class="ib sm" data-mq="${i}">${q[2]}</button>`).join('')}</div>` : ''}`;
+    const on = (id, fn) => { const e = document.getElementById(id); if (e) e.onclick = fn; };
+    on('mRotL', () => { rot = (rot + 3) % 4; rebuild(); fit(); draw(); }); on('mRotR', () => { rot = (rot + 1) % 4; rebuild(); fit(); draw(); });
+    on('mFit', () => { fit(); draw(); }); on('mTags', () => { showTags = !showTags; bar(); draw(); });
+    $('#mTile').onchange = e => { tile = +e.target.value; draw(); };
+    on('mRoll', () => { const id = S.sel; mutate(() => { const r = TP.roll(pr, id, 90); if (r && !r.ok) { toast(r.msg, 'er'); return false; } }); });
+    on('mDel', deleteSel);
+    on('mDet', () => { if (innerWidth < 768) openDrawer('right'); else toast('Detalhes da peça no painel da direita (aba 3D).'); });
+    $('#isombar').querySelectorAll('[data-mq]').forEach(b => b.onclick = () => { const q = Q[+b.dataset.mq]; if (!S.active) toast('Toque num losango âmbar para escolher onde a peça entra.', 'er'); insert(q[0], q[1]); });
+  }
+  function resize() { if (!inited) return; const r = $('#isom').getBoundingClientRect(); dpr = Math.min(2, window.devicePixelRatio || 1); W = r.width; H = r.height; cv.width = Math.max(1, W * dpr); cv.height = Math.max(1, H * dpr); if (!fitted && faces.length) { fit(); fitted = true; } draw(); }
+  function init() { if (inited) return; inited = true; cv = $('#isomc'); ctx = cv.getContext('2d'); bind(); new ResizeObserver(resize).observe($('#isom')); }
+  function follow() { // mantém a peça selecionada (ex.: a recém-inserida) dentro da tela
+    if (!S.sel || !centers.has(S.sel)) return; const c = centers.get(S.sel), s = toS([c[0] / c[3], c[1] / c[3]]), bh = ($('#isombar')?.offsetHeight || 90) + 20;
+    if (s[0] < 40 || s[0] > W - 40 || s[1] < 60 || s[1] > H - bh) { view.x += W / 2 - s[0]; view.y += (H - bh) / 2 + 20 - s[1]; }
+  }
+  function update() { if (!inited || !$('#isom').classList.contains('on')) return; rebuild(); if (!fitted && faces.length && W) { fit(); fitted = true; } else follow(); bar(); draw(); }
+  function show(onv) { init(); $('#isom').classList.toggle('on', onv); if (onv) { resize(); rebuild(); if (!fitted || !faces.length) { fit(); fitted = !!faces.length; } bar(); draw(); } }
+  return { show, update, resize, _tess: tess, _proj: proj, _markers: () => markers.map(m => ({ pid: m.pid, port: m.port, s: toS(m.s), tip: toS(proj(add3(m.p, sc3(m.d, 1000)))) })), _center: id => { const c = centers.get(id); return c ? toS([c[0] / c[3], c[1] / c[3]]) : null; } };
+})();
+
+window.ISOM = ISOM;
 window.__VKfx = (...a) => VK._fx(...a);
 window.TPApp = {
   start(user, cloud) {
