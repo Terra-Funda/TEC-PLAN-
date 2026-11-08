@@ -377,10 +377,11 @@ const rev = (o, dir, pts, extra) => Object.assign({ k: 'rev', o, dir: dir.norm()
 const VB = { mat: 'vbody' }, VBn = { mat: 'vbody', clash: false }, WH = { mat: 'wheel', clash: false }, ST = { mat: 'stem', clash: false };
 const hexNut = (c, dir, s, extra) => cyl(c.sub(dir.scale(s * 0.42)), c.add(dir.scale(s * 0.42)), s * 0.95, null, Object.assign({ seg: 6, mat: 'stem', clash: false }, extra || {}));
 // flanges integrais com face com ressalto (RF) e pescoço
-function vFlanges(L, f, R) {
-  const rf = R + (f.fod / 2 - R) * 0.38, out = [];
+function vFlanges(L, f, R, bore) {
+  const rf = R + (f.fod / 2 - R) * 0.38, out = [], bi = bore || R * 0.88;
+  out.push(cyl(new V3(0, 0, 0), new V3(L, 0, 0), bi, null, { mat: 'bore', inner: true, clash: false }));
   for (const [x0, s] of [[0, 1], [L, -1]]) {
-    out.push(cyl(new V3(x0 + s * 1.6, 0, 0), new V3(x0 + s * f.ft, 0, 0), f.fod / 2, null, VB), cyl(new V3(x0, 0, 0), new V3(x0 + s * 1.6, 0, 0), rf, null, VB));
+    out.push(cyl(new V3(x0 + s * 1.6, 0, 0), new V3(x0 + s * f.ft, 0, 0), f.fod / 2, null, Object.assign({ ri: bi }, VB)), cyl(new V3(x0, 0, 0), new V3(x0 + s * 1.6, 0, 0), rf, null, Object.assign({ ri: bi }, VB)));
     out.push(rev(new V3(x0 + s * f.ft, 0, 0), new V3(s, 0, 0), [[f.fod * 0.36, 0], [R * 1.3, f.ft * 0.9]], VB));
   }
   return out;
@@ -427,7 +428,7 @@ function valvePrims(p, L) {
   const Rw = Math.max(70, Math.min(420, f.fod * 0.45));
   if (p.sub === 'butterfly') {
     const rb = R * 1.32;
-    pr.push(cyl(new V3(0, 0, 0), new V3(L, 0, 0), rb, null, VB));
+    pr.push(cyl(new V3(0, 0, 0), new V3(L, 0, 0), rb, null, Object.assign({ ri: R - DIM[p.dn].wt }, VB)));
     for (const a of [Math.PI / 4, 3 * Math.PI / 4, 5 * Math.PI / 4, 7 * Math.PI / 4]) pr.push(box(new V3(m, Math.sin(a) * (f.bc / 2), Math.cos(a) * (f.bc / 2)), [L * 0.9, Math.max(20, f.bd * 2.2), Math.max(20, f.bd * 2.2)], VBn));
     pr.push(cyl(new V3(m, -R * 0.06, 0), new V3(m, R * 0.06, 0), R * 0.94, null, { mat: 'stem', clash: false, rq: null }));
     pr.push(rev(new V3(m, rb * 0.9, 0), UP, [[R * 0.3, 0], [R * 0.3, R * 0.75], [R * 0.4, R * 0.8]], VBn), box(new V3(m, rb * 0.9 + R * 0.86, 0), [R * 0.9, Math.max(8, R * 0.1), R * 0.9], VBn));
@@ -436,7 +437,7 @@ function valvePrims(p, L) {
     else { pr.push(box(new V3(m + R * 0.35, y0 + 4, 0), [R * 0.8, 8, R * 0.9], { mat: 'stem', clash: false })); pr.push(...lever(m, y0 + Math.max(14, R * 0.15), Math.max(160, f.fod * 1.0), R)); }
     return pr;
   }
-  pr.push(...vFlanges(L, f, R));
+  pr.push(...vFlanges(L, f, R, R - DIM[p.dn].wt));
   const neck = f.ft * 0.9;
   if (p.sub === 'gate' || p.sub === 'globe') {
     const glb = p.sub === 'globe';
@@ -492,7 +493,7 @@ function valvePrims(p, L) {
   return pr;
 }
 function strainerPrims(p, L) {
-  const f = flg(p.dn, p.cls), od = odOf(p.dn), R = od / 2, m = L / 2, pr = vFlanges(L, f, R), neck = f.ft * 0.9;
+  const f = flg(p.dn, p.cls), od = odOf(p.dn), R = od / 2, m = L / 2, pr = vFlanges(L, f, R, R - DIM[p.dn].wt), neck = f.ft * 0.9;
   pr.push(rev(new V3(neck, 0, 0), AX, [[R * 1.25, 0], [R * 1.35, L * 0.15], [R * 1.4, m - neck], [R * 1.35, L - 2 * neck - L * 0.15], [R * 1.25, L - 2 * neck]], VB));
   const d = new V3(0.55, -0.83, 0).norm(), c0 = new V3(m - R * 0.6, -R * 0.3, 0), h = R * 3.3;
   pr.push(rev(c0, d, [[R * 0.95, 0], [R * 1.0, h * 0.85], [R * 1.15, h]], VBn));
@@ -510,7 +511,7 @@ const TYPES = {
     desc: p => `Tubo reto ${DIM[p.dn].nps} SCH${p.sch || 40} sem costura${p.ins ? `, isolado ${p.ins} mm` : ''}`,
     std: p => p.mat === 'SS' ? 'ASME B36.19' : 'ASME B36.10', mat: p => pmat(p).pipe,
     ports: p => [P('P1', new V3(0, 0, 0), AX.neg(), 'BW', p.dn), P('P2', new V3(p.len, 0, 0), AX, 'BW', p.dn)],
-    prims: p => [cyl(new V3(0, 0, 0), new V3(p.len, 0, 0), odOf(p.dn) / 2, null, { mat: pmatKey(p) }), ...(p.ins ? [cyl(new V3(0, 0, 0), new V3(p.len, 0, 0), odOf(p.dn) / 2 + p.ins, null, { mat: 'insul', clash: false })] : [])],
+    prims: p => [cyl(new V3(0, 0, 0), new V3(p.len, 0, 0), odOf(p.dn) / 2, null, { mat: pmatKey(p), ri: odOf(p.dn) / 2 - wtOf(p) }), ...(p.ins ? [cyl(new V3(0, 0, 0), new V3(p.len, 0, 0), odOf(p.dn) / 2 + p.ins, null, { mat: 'insul', clash: false, ri: odOf(p.dn) / 2 + 0.5 })] : [])],
     weight: p => kgm(odOf(p.dn), wtOf(p)) * p.len / 1000,
     insLen: p => p.len,
     keys: (p, w) => ({ pts: [w.P1, w.P2], key: [] }),
@@ -520,7 +521,7 @@ const TYPES = {
     desc: p => `${p.label || 'Componente sob medida'} Ø${r1(p.od)}×${r1(p.wt)}`,
     std: p => p.std || '—', mat: p => p.material || 'ASTM A106 Gr.B',
     ports: p => [P('P1', new V3(0, 0, 0), AX.neg(), p.ends || 'BW', p.dn, p.od), P('P2', new V3(p.len, 0, 0), AX, p.ends || 'BW', p.dn, p.od)],
-    prims: p => [cyl(new V3(0, 0, 0), new V3(p.len, 0, 0), p.od / 2)],
+    prims: p => [cyl(new V3(0, 0, 0), new V3(p.len, 0, 0), p.od / 2, null, { ri: Math.max(1, p.od / 2 - p.wt) })],
     weight: p => kgm(p.od, p.wt) * p.len / 1000,
     keys: (p, w) => ({ pts: [w.P1, w.P2], key: [] }),
   },
@@ -532,7 +533,7 @@ const TYPES = {
     std: () => 'ASME B16.9', mat: p => pmat(p).fit,
     ports(p) { const { R, t } = this.geo(p); return [P('P1', new V3(0, 0, 0), AX.neg(), 'BW', p.dn), P('P2', new V3(R * Math.sin(t), R * (1 - Math.cos(t)), 0), new V3(Math.cos(t), Math.sin(t), 0), 'BW', p.dn)]; },
     vertex(p) { return new V3(this.geo(p).A, 0, 0); },
-    prims(p) { const { R, t } = this.geo(p); return [arc(new V3(0, R, 0), R, odOf(p.dn) / 2, UP.neg(), AX, t, { mat: pmatKey(p) }), ...(p.ins ? [arc(new V3(0, R, 0), R, odOf(p.dn) / 2 + p.ins, UP.neg(), AX, t, { mat: 'insul', clash: false })] : [])]; },
+    prims(p) { const { R, t } = this.geo(p); return [arc(new V3(0, R, 0), R, odOf(p.dn) / 2, UP.neg(), AX, t, { mat: pmatKey(p), ri: odOf(p.dn) / 2 - wtOf(p) }), ...(p.ins ? [arc(new V3(0, R, 0), R, odOf(p.dn) / 2 + p.ins, UP.neg(), AX, t, { mat: 'insul', clash: false, ri: odOf(p.dn) / 2 + 0.5 })] : [])]; },
     weight(p) { const { R, t } = this.geo(p); return kgm(odOf(p.dn), wtOf(p)) * R * t / 1000; },
     insLen(p) { const { R, t } = this.geo(p); return R * t; },
     keys(p, w, piece) { const V = worldPt(piece, this.vertex(p)); return { pts: [w.P1, V, w.P2], key: [V] }; },
@@ -544,7 +545,7 @@ const TYPES = {
     std: () => 'ASME B16.9', mat: p => pmat(p).fit,
     ports(p) { const C = DIM[p.dn].tee, b = p.dn2 || p.dn; return [P('P1', new V3(0, 0, 0), AX.neg(), 'BW', p.dn), P('P2', new V3(2 * C, 0, 0), AX, 'BW', p.dn), P('P3', new V3(C, C, 0), UP, 'BW', b)]; },
     center: p => new V3(DIM[p.dn].tee, 0, 0),
-    prims(p) { const C = DIM[p.dn].tee, b = p.dn2 || p.dn, m = { mat: pmatKey(p) }; return [cyl(new V3(0, 0, 0), new V3(2 * C, 0, 0), odOf(p.dn) / 2, null, m), cyl(new V3(C, 0, 0), new V3(C, C, 0), odOf(b) / 2, null, m)]; },
+    prims(p) { const C = DIM[p.dn].tee, b = p.dn2 || p.dn, m = { mat: pmatKey(p) }; return [cyl(new V3(0, 0, 0), new V3(2 * C, 0, 0), odOf(p.dn) / 2, null, Object.assign({ ri: odOf(p.dn) / 2 - wtOf(p) }, m)), cyl(new V3(C, odOf(p.dn) * 0.3, 0), new V3(C, C, 0), odOf(b) / 2, null, Object.assign({ ri: odOf(b) / 2 - DIM[b].wt }, m))]; },
     weight(p) { const C = DIM[p.dn].tee; return kgm(odOf(p.dn), DIM[p.dn].wt) * 3 * C / 1000 * 1.3; },
     keys(p, w, piece) { const C = worldPt(piece, this.center(p)); return { pts: [w.P1, C, w.P2], branch: [C, w.P3], key: [C] }; },
   },
@@ -554,7 +555,7 @@ const TYPES = {
     desc(p) { const { d2 } = this.geo(p); return `Redução ${p.ecc ? 'excêntrica' : 'concêntrica'} ${DIM[p.dn].nps}×${DIM[d2].nps} SCH40 BW`; },
     std: () => 'ASME B16.9', mat: p => pmat(p).fit, extra: FIT_EXTRA,
     ports(p) { const { H, d2, e } = this.geo(p); return [P('P1', new V3(0, 0, 0), AX.neg(), 'BW', p.dn), P('P2', new V3(H, e, 0), AX, 'BW', d2)]; },
-    prims(p) { const { H, d2, e } = this.geo(p); return [cyl(new V3(0, 0, 0), new V3(H, e, 0), odOf(p.dn) / 2, odOf(d2) / 2, { mat: pmatKey(p) })]; },
+    prims(p) { const { H, d2, e } = this.geo(p); return [cyl(new V3(0, 0, 0), new V3(H, e, 0), odOf(p.dn) / 2, odOf(d2) / 2, { mat: pmatKey(p), ri: odOf(p.dn) / 2 - wtOf(p), ri2: odOf(d2) / 2 - DIM[d2].wt })]; },
     weight(p) { const { H, d2 } = this.geo(p); return kgm((odOf(p.dn) + odOf(d2)) / 2, DIM[p.dn].wt) * H / 1000 * 1.2; },
     keys: (p, w) => ({ pts: [w.P1, w.P2], key: [] }),
   },
@@ -572,9 +573,10 @@ const TYPES = {
     prims(p) {
       const f = flg(p.dn, p.cls), L = this.len(p), od = odOf(p.dn);
       if (p.sub === 'BL') return [cyl(new V3(0, 0, 0), new V3(L, 0, 0), f.fod / 2)];
-      const hub = p.sub === 'WN' ? [cyl(new V3(0, 0, 0), new V3(L - f.ft, 0, 0), od / 2, od / 2 * 1.3 + 4)] : [cyl(new V3(0, 0, 0), new V3(L - f.ft, 0, 0), od / 2 + 6)];
+      const bore = p.sub === 'WN' ? od / 2 - DIM[p.dn].wt : od / 2 + 0.6;
+      const hub = p.sub === 'WN' ? [cyl(new V3(0, 0, 0), new V3(L - f.ft, 0, 0), od / 2, od / 2 * 1.3 + 4, { ri: bore })] : [cyl(new V3(0, 0, 0), new V3(L - f.ft, 0, 0), od / 2 + 6, null, { ri: bore })];
       const rf = od / 2 + (f.fod / 2 - od / 2) * 0.38;
-      return [...hub, cyl(new V3(L - f.ft, 0, 0), new V3(L - 1.6, 0, 0), f.fod / 2), cyl(new V3(L - 1.6, 0, 0), new V3(L, 0, 0), rf)];
+      return [...hub, cyl(new V3(L - f.ft, 0, 0), new V3(L - 1.6, 0, 0), f.fod / 2, null, { ri: bore }), cyl(new V3(L - 1.6, 0, 0), new V3(L, 0, 0), rf, null, { ri: bore })];
     },
     weight(p) { const f = flg(p.dn, p.cls), od = odOf(p.dn); const disc = Math.PI * (f.fod ** 2 - (p.sub === 'BL' ? 0 : od ** 2)) / 4 * f.ft * STEEL; return disc * (p.sub === 'WN' ? 1.3 : 1.1); },
     keys: (p, w) => w.P2 ? ({ pts: [w.P1, w.P2], key: [w.P2] }) : ({ pts: [w.P1], key: [w.P1] }),
@@ -1169,7 +1171,7 @@ function sheetLines(p, area) { const g = GAUGE(ductMax(p)); return { desc: `Chap
 const HV_FIELDS = (extra) => p => [['sub', 'Seção', ['rect', 'round'], k => k === 'rect' ? 'Retangular' : 'Circular'], ...(p.sub === 'round' ? [['D', 'Diâmetro (mm)']] : [['W', 'Largura (mm)'], ['H', 'Altura (mm)']]), ...extra];
 function ductEnds(p, x0, x1) { // colarinhos/flanges
   const f = 30, out = [];
-  for (const x of [x0, x1]) out.push(p.sub === 'round' ? cyl(new V3(x - 10, 0, 0), new V3(x + 10, 0, 0), p.D / 2 + f / 2, null, { mat: 'galvd', clash: false }) : box(new V3(x, 0, 0), [20, p.H + f, p.W + f], { mat: 'galvd', clash: false }));
+  for (const x of [x0, x1]) out.push(p.sub === 'round' ? cyl(new V3(x - 10, 0, 0), new V3(x + 10, 0, 0), p.D / 2 + f / 2, null, { mat: 'galvd', clash: false, ri: p.D / 2 - 1 }) : { k: 'rtube', c: new V3(x, 0, 0), s: [20, p.H + f, p.W + f], t: f / 2 + 2, mat: 'galvd', clash: false });
   return out;
 }
 const HVT = {
@@ -1180,7 +1182,7 @@ const HVT = {
     desc: p => `Duto ${p.sub === 'round' ? 'circular' : 'retangular'} ${ductSize(p)} mm, L = ${p.len} mm`,
     std: () => 'NBR 16401 / SMACNA', mat: () => 'Aço galvanizado',
     ports: p => { const c = hvCode(p.sub, p.W, p.H, p.D); return [HVP('A', new V3(0, 0, 0), AX.neg(), c), HVP('B', new V3(p.len, 0, 0), AX, c)]; },
-    prims: p => [p.sub === 'round' ? cyl(new V3(0, 0, 0), new V3(p.len, 0, 0), p.D / 2, null, { mat: 'galv' }) : box(new V3(p.len / 2, 0, 0), [p.len, p.H, p.W], { mat: 'galv', edges: true }), ...ductEnds(p, 0, p.len)],
+    prims: p => [p.sub === 'round' ? cyl(new V3(0, 0, 0), new V3(p.len, 0, 0), p.D / 2, null, { mat: 'galv', ri: p.D / 2 - 3 }) : { k: 'rtube', c: new V3(p.len / 2, 0, 0), s: [p.len, p.H, p.W], t: 3, mat: 'galv' }, ...ductEnds(p, 0, p.len)],
     bomLines: p => [{ desc: `Duto ${p.sub === 'round' ? 'circular' : 'retangular'} ${ductSize(p)} mm`, unit: 'm', qty: p.len / 1000, std: 'NBR 16401', mat: 'Aço galvanizado', w: 0 }, sheetLines(p, ductPer(p) * p.len / 1e6)],
     keys: civKeys,
   },
@@ -1194,10 +1196,10 @@ const HVT = {
     ports(p) { const { R, t } = this.geo(p), c = hvCode(p.sub, p.W, p.H, p.D); return [HVP('P1', new V3(0, 0, 0), AX.neg(), c), HVP('P2', new V3(R * Math.sin(t), R * (1 - Math.cos(t)), 0), new V3(Math.cos(t), Math.sin(t), 0), c)]; },
     prims(p) {
       const { R, t } = this.geo(p);
-      if (p.sub === 'round') return [arc(new V3(0, R, 0), R, p.D / 2, UP.neg(), AX, t, { mat: 'galv' })];
+      if (p.sub === 'round') return [arc(new V3(0, R, 0), R, p.D / 2, UP.neg(), AX, t, { mat: 'galv', ri: p.D / 2 - 3 })];
       const n = Math.max(4, Math.round(p.angle / 10)), out = [];
       const P = a => new V3(R * Math.sin(a), R * (1 - Math.cos(a)), 0);
-      for (let i = 0; i < n; i++) { const a0 = i / n * t, a1 = (i + 1) / n * t, am = (a0 + a1) / 2; out.push(box(P(am), [P(a0).dist(P(a1)) * (1 + p.W / (2 * R)) + 2, p.W, p.H], { mat: 'galv', rq: Q.axisAngle(AZ, am) })); }
+      for (let i = 0; i < n; i++) { const a0 = i / n * t, a1 = (i + 1) / n * t, am = (a0 + a1) / 2; out.push({ k: 'rtube', c: P(am), s: [P(a0).dist(P(a1)) * (1 + p.W / (2 * R)) + 2, p.W, p.H], t: 3, mat: 'galv', rq: Q.axisAngle(AZ, am) }); }
       return out;
     },
     bomLines(p) { const { R, t } = this.geo(p); return [{ desc: `Curva de duto ${p.angle}° ${ductSize(p)} mm`, unit: 'un', qty: 1, std: 'SMACNA', mat: 'Aço galvanizado', w: 0 }, sheetLines(p, ductPer(p) * R * t / 1e6 * 1.15)]; },
@@ -1231,7 +1233,8 @@ const HVT = {
     ports: p => { const c = hvCode(p.sub, p.W, p.H, p.D); return [HVP('A', new V3(0, 0, 0), AX.neg(), c), HVP('B', new V3(250, 0, 0), AX, c)]; },
     prims(p) {
       const side = p.sub === 'round' ? p.D / 2 : p.W / 2;
-      return [p.sub === 'round' ? cyl(new V3(0, 0, 0), new V3(250, 0, 0), p.D / 2, null, { mat: 'galvd' }) : box(new V3(125, 0, 0), [250, p.H, p.W], { mat: 'galvd', edges: true }), ...ductEnds(p, 0, 250),
+      return [p.sub === 'round' ? cyl(new V3(0, 0, 0), new V3(250, 0, 0), p.D / 2, null, { mat: 'galvd', ri: p.D / 2 - 3 }) : { k: 'rtube', c: new V3(125, 0, 0), s: [250, p.H, p.W], t: 3, mat: 'galvd' }, ...ductEnds(p, 0, 250),
+        p.sub === 'round' ? cyl(new V3(125, -p.D * 0.45, 0), new V3(125, p.D * 0.45, 0), p.D * 0.02 + 2, null, { mat: 'galvd', clash: false }) : box(new V3(125, 0, 0), [6, p.H - 10, p.W - 10], { mat: 'galvd', clash: false, rq: Q.axisAngle(AZ, 0.5) }),
         cyl(new V3(125, 0, -side), new V3(125, 0, side + 60), 8, null, { accent: true, clash: false }),
         p.act ? box(new V3(125, 0, side + 110), [140, 160, 90], { accent: true, clash: false }) : box(new V3(125, 40, side + 70), [30, 120, 10], { accent: true, clash: false })];
     },
@@ -1263,7 +1266,7 @@ Object.assign(TYPES, {
     name: 'Tampão', prefix: 'TP', spool: true, extra: FIT_EXTRA, defaults: { sch: 40, mat: 'CS' },
     desc: p => `Tampão (cap) ${DIM[p.dn].nps} SCH${p.sch || 40} BW`, std: () => 'ASME B16.9', mat: p => pmat(p).fit,
     ports: p => [P('P1', new V3(0, 0, 0), AX.neg(), 'BW', p.dn)],
-    prims: p => { const od = odOf(p.dn), L = od * 0.35 + 10; return [cyl(new V3(0, 0, 0), new V3(L, 0, 0), od / 2, null, { mat: pmatKey(p) }), sph(new V3(L, 0, 0), od / 2 * 0.98, { mat: pmatKey(p), clash: false })]; },
+    prims: p => { const od = odOf(p.dn), L = od * 0.35 + 10; return [cyl(new V3(0, 0, 0), new V3(L, 0, 0), od / 2, null, { mat: pmatKey(p), ri: od / 2 - wtOf(p) }), sph(new V3(L, 0, 0), od / 2 * 0.98, { mat: pmatKey(p), clash: false })]; },
     weight: p => kgm(odOf(p.dn), wtOf(p)) * odOf(p.dn) * 1.2 / 1000,
     keys: (p, w) => ({ pts: [w.P1], key: [w.P1] }),
   },
@@ -1352,7 +1355,7 @@ Object.assign(TYPES, {
     fields: [['sub', 'Tipo', ['aco', 'pvc'], k => k === 'aco' ? 'Aço galvanizado' : 'PVC rígido'], ['d', 'Diâmetro nominal (mm)', Object.keys(CONDUIT).map(Number)], ['len', 'Comprimento (mm)']],
     desc: p => `Eletroduto ${p.sub === 'aco' ? 'de aço galvanizado' : 'de PVC rígido'} Ø${p.d} mm, L = ${p.len}`, std: p => p.sub === 'aco' ? 'NBR 5597' : 'NBR 15465', mat: p => p.sub === 'aco' ? 'Aço galvanizado' : 'PVC',
     ports: p => [ELP('A', new V3(0, 0, 0), AX.neg()), ELP('B', new V3(p.len, 0, 0), AX)],
-    prims: p => { const r = CONDUIT[p.d] / 2, m = p.sub === 'aco' ? 'galv' : 'pvc', out = [cyl(new V3(0, 0, 0), new V3(p.len, 0, 0), r, null, { mat: m })]; for (let x = 0; x <= p.len; x += 3000) out.push(cyl(new V3(Math.max(0, x - 25), 0, 0), new V3(Math.min(p.len, x + 25), 0, 0), r + 3, null, { mat: m, clash: false })); return out; },
+    prims: p => { const r = CONDUIT[p.d] / 2, m = p.sub === 'aco' ? 'galv' : 'pvc', out = [cyl(new V3(0, 0, 0), new V3(p.len, 0, 0), r, null, { mat: m, ri: r - (p.sub === 'aco' ? 2.2 : 2.6) })]; for (let x = 0; x <= p.len; x += 3000) out.push(cyl(new V3(Math.max(0, x - 25), 0, 0), new V3(Math.min(p.len, x + 25), 0, 0), r + 3, null, { mat: m, clash: false, ri: r })); return out; },
     bomLines: p => [{ desc: `Eletroduto ${p.sub === 'aco' ? 'aço galvanizado' : 'PVC rígido'} Ø${p.d} mm`, unit: 'm', qty: p.len / 1000, std: p.sub === 'aco' ? 'NBR 5597' : 'NBR 15465', mat: p.sub === 'aco' ? 'Aço galvanizado' : 'PVC', w: p.len / 1000 * (p.sub === 'aco' ? p.d * 0.08 : p.d * 0.015) }],
     keys: civKeys,
   },
@@ -1362,7 +1365,7 @@ Object.assign(TYPES, {
     fields: [['sub', 'Tipo', ['aco', 'pvc'], k => k === 'aco' ? 'Aço galvanizado' : 'PVC rígido'], ['d', 'Diâmetro nominal (mm)', Object.keys(CONDUIT).map(Number)]],
     desc: p => `Curva 90° de eletroduto ${p.sub === 'aco' ? 'aço' : 'PVC'} Ø${p.d} mm`, std: p => p.sub === 'aco' ? 'NBR 5597' : 'NBR 15465', mat: p => p.sub === 'aco' ? 'Aço galvanizado' : 'PVC',
     ports: p => { const R = CONDUIT[p.d] * 6; return [ELP('A', new V3(0, 0, 0), AX.neg()), ELP('B', new V3(R, R, 0), UP)]; },
-    prims: p => { const R = CONDUIT[p.d] * 6; return [arc(new V3(0, R, 0), R, CONDUIT[p.d] / 2, UP.neg(), AX, Math.PI / 2, { mat: p.sub === 'aco' ? 'galv' : 'pvc' })]; },
+    prims: p => { const R = CONDUIT[p.d] * 6; return [arc(new V3(0, R, 0), R, CONDUIT[p.d] / 2, UP.neg(), AX, Math.PI / 2, { mat: p.sub === 'aco' ? 'galv' : 'pvc', ri: CONDUIT[p.d] / 2 - 2.4 })]; },
     bomLines: p => [{ desc: `Curva 90° eletroduto ${p.sub === 'aco' ? 'aço' : 'PVC'} Ø${p.d} mm`, unit: 'un', qty: 1, std: '—', mat: p.sub === 'aco' ? 'Aço galvanizado' : 'PVC', w: 0.4 }],
     keys: civKeys,
   },
@@ -1438,7 +1441,7 @@ Object.assign(TYPES, {
     fields: [['D', 'Diâmetro (mm)', [300, 400, 500, 630, 800]]],
     desc: p => `Exaustor axial em linha Ø${p.D} mm`, std: () => 'AMCA 210', mat: () => 'Aço galvanizado',
     ports: p => [HVP('A', new V3(0, 0, 0), AX.neg(), p.D), HVP('B', new V3(p.D * 1.1, 0, 0), AX, p.D)],
-    prims(p) { const L = p.D * 1.1; return [cyl(new V3(0, 0, 0), new V3(L, 0, 0), p.D / 2, null, { mat: 'galv' }), cyl(new V3(L * 0.35, 0, 0), new V3(L * 0.65, 0, 0), p.D / 2 + 25, null, { mat: 'galvd', clash: false }), box(new V3(L / 2, p.D / 2 + 70, 0), [p.D * 0.4, 80, p.D * 0.3], { accent: true, clash: false })]; },
+    prims(p) { const L = p.D * 1.1; return [cyl(new V3(0, 0, 0), new V3(L, 0, 0), p.D / 2, null, { mat: 'galv', ri: p.D / 2 - 3 }), box(new V3(L / 2, 0, 0), [p.D * 0.12, p.D * 0.9, 8], { mat: 'galvd', clash: false, rq: Q.axisAngle(AX, 0.4) }), box(new V3(L / 2, 0, 0), [p.D * 0.12, 8, p.D * 0.9], { mat: 'galvd', clash: false, rq: Q.axisAngle(AX, 0.4) }), cyl(new V3(L * 0.35, 0, 0), new V3(L * 0.65, 0, 0), p.D / 2 + 25, null, { mat: 'galvd', clash: false }), box(new V3(L / 2, p.D / 2 + 70, 0), [p.D * 0.4, 80, p.D * 0.3], { accent: true, clash: false })]; },
     bomLines: p => [{ desc: `Exaustor axial Ø${p.D} mm c/ motor`, unit: 'un', qty: 1, std: 'AMCA 210', mat: 'Aço galvanizado', w: 15 + p.D * 0.06 }],
     keys: civKeys,
   },
@@ -2011,6 +2014,7 @@ const SCALES = [1, 2, 2.5, 5, 10, 15, 20, 25, 50, 75, 100, 200];
 function geomOf(pc) { // primitivas em coordenadas do mundo
   const out = [];
   for (const p of TYPES[pc.type].prims(pc)) {
+    if (p.inner) continue;
     if (p.k === 'cyl') out.push({ k: 'seg', a: worldPt(pc, p.a), b: worldPt(pc, p.b), r: (p.r + p.r2) / 2, rmax: Math.max(p.r, p.r2), center: p.clash !== false && !p.accent });
     else if (p.k === 'arc') {
       const n = Math.max(6, Math.ceil(p.ang / (Math.PI / 12))), pts = [];
@@ -2023,7 +2027,7 @@ function geomOf(pc) { // primitivas em coordenadas do mundo
     else if (p.k === 'rev') { const r = Math.max(...p.pts.map(q => q[0])); out.push({ k: 'seg', a: worldPt(pc, p.o.add(p.dir.scale(p.pts[0][1]))), b: worldPt(pc, p.o.add(p.dir.scale(p.pts[p.pts.length - 1][1]))), r: r * 0.85, rmax: r, center: p.clash !== false }); }
     else if (p.k === 'lathe') out.push({ k: 'seg', a: worldPt(pc, new V3(0, 0, 0)), b: worldPt(pc, new V3(0, p.h, 0)), r: p.ro, rmax: p.ro, center: true });
     else if (p.k === 'prism') { const pts = []; for (const y of [p.y0, p.y1]) for (const [x, z] of p.pts) pts.push(worldPt(pc, new V3(x, y, z))); out.push({ k: 'hull', pts }); }
-    else if (p.mat && (p.k === 'box' || p.k === 'cbox')) {
+    else if (p.mat && (p.k === 'box' || p.k === 'cbox' || p.k === 'rtube')) {
       const pts = []; for (const a of [-1, 1]) for (const b of [-1, 1]) for (const c of [-1, 1]) { let v = new V3(a * p.s[0] / 2, b * p.s[1] / 2, c * p.s[2] / 2); if (p.rq) v = p.rq.rot(v); pts.push(worldPt(pc, p.c.add(v))); }
       out.push({ k: 'hull', pts });
     } else if (p.k === 'frustum') {
@@ -2531,7 +2535,7 @@ const R = (() => {
     fiber: { draw: (g, n, b) => { noise(g, n, 1200, '#9aa0a3', 30, b); for (let x = 0; x < n; x++) { const v = Math.sin(x / n * Math.PI * 2 * 6); g.fillStyle = b ? `rgb(${128 + v * 110 | 0},${128 + v * 110 | 0},${128 + v * 110 | 0})` : `rgba(${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${Math.abs(v) * 0.18})`; g.fillRect(x, 0, 1, n); } }, u: 1100, v: 1100, rough: 0.85, metal: 0 },
     metal: { draw: (g, n, b) => { g.fillStyle = b ? '#808080' : '#c7ccd1'; g.fillRect(0, 0, n, n); for (let x = 0; x < n; x += n / 4) { g.fillStyle = b ? '#f0f0f0' : 'rgba(255,255,255,.25)'; g.fillRect(x, 0, n / 16, n); g.fillStyle = b ? '#404040' : 'rgba(0,0,0,.15)'; g.fillRect(x + n / 16, 0, 3, n); } }, u: 1000, v: 1000, rough: 0.35, metal: 0.7 },
     rebar: { color: 0x5b4636, rough: 0.6, metal: 0.6 },
-    vbody: { color: 0x56616c, rough: 0.55, metal: 0.35 }, wheel: { color: 0xa81e1e, rough: 0.45, metal: 0.25 }, stem: { color: 0xd9dde2, rough: 0.22, metal: 0.92 }, grip: { color: 0x161616, rough: 0.85, metal: 0 }, flow: { color: 0xf59e0b, rough: 0.5, metal: 0 },
+    bore: { color: 0x2a2f35, rough: 0.8, metal: 0.3 }, vbody: { color: 0x56616c, rough: 0.55, metal: 0.35 }, wheel: { color: 0xa81e1e, rough: 0.45, metal: 0.25 }, stem: { color: 0xd9dde2, rough: 0.22, metal: 0.92 }, grip: { color: 0x161616, rough: 0.85, metal: 0 }, flow: { color: 0xf59e0b, rough: 0.5, metal: 0 },
     pCS: { color: 0x7b838c, rough: 0.42, metal: 0.65 }, pSS: { color: 0xd2d7dc, rough: 0.22, metal: 0.92 }, pGALV: { color: 0xb3bac0, rough: 0.38, metal: 0.8 },
     insul: { draw: (g, n, b) => { g.fillStyle = b ? '#808080' : '#d7dbdf'; g.fillRect(0, 0, n, n); g.fillStyle = b ? '#303030' : 'rgba(0,0,0,.18)'; for (let x = 0; x < n; x += n / 2) g.fillRect(x, 0, 3, n); for (let i = 0; i < 40; i++) { g.fillStyle = 'rgba(255,255,255,.06)'; g.fillRect(0, rnd() * n, n, 2); } }, u: 1000, v: 1000, rough: 0.3, metal: 0.85 },
     plaster: { draw: (g, n, b) => noise(g, n, 7000, '#cfc8bb', 40, b), u: 800, v: 800, rough: 0.95, metal: 0 },
@@ -2596,9 +2600,36 @@ const R = (() => {
   }
   function render() { if (pend) return; pend = true; requestAnimationFrame(() => { pend = false; if (renderer) renderer.render(scene, camera); }); }
 
+  class ArcPath extends THREE.Curve {
+    constructor(c, a, b, R, ang) { super(); this.c = c; this.a = a; this.b = b; this.R = R; this.ang = ang; }
+    getPoint(t, target = new THREE.Vector3()) { const q = this.ang * t; return target.copy(this.c).addScaledVector(this.a, this.R * Math.cos(q)).addScaledVector(this.b, this.R * Math.sin(q)); }
+  }
+  const ring = (r, ri, seg) => { const sh = new THREE.Shape(); sh.absarc(0, 0, r, 0, Math.PI * 2, false); const h = new THREE.Path(); h.absarc(0, 0, ri, 0, Math.PI * 2, true); sh.holes.push(h); return sh; };
   function primMesh(p, mat) {
     let g, m;
-    if (p.k === 'cyl') {
+    if (p.k === 'cyl' && p.inner) {
+      const a = v(p.a), d = v(p.b).sub(a), L = d.length(); if (L < 0.01) return null;
+      g = new THREE.CylinderGeometry(p.r, p.r, L, p.r > 70 ? 32 : 20, 1, true); const im = mat.clone(); im.side = THREE.BackSide; mat = im; mat.userData.extra = 1;
+      m = new THREE.Mesh(g, mat); m.position.copy(a).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(UPY, d.normalize()); m.userData.extraMat = im;
+    } else if (p.k === 'cyl' && p.ri > 0 && p.ri < Math.max(p.r, p.r2)) {
+      const a = v(p.a), d = v(p.b).sub(a), L = d.length(); if (L < 0.01) return null;
+      const seg = p.seg || (Math.max(p.r, p.r2) > 70 ? 16 : Math.max(p.r, p.r2) > 15 ? 11 : 6);
+      if (Math.abs(p.r - p.r2) < 0.01) {
+        g = new THREE.ExtrudeGeometry(ring(p.r, p.ri), { depth: L, bevelEnabled: false, curveSegments: seg });
+        m = new THREE.Mesh(g, mat); m.position.copy(a); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), d.normalize());
+      } else {
+        const ri2 = p.ri2 ?? p.ri, P = [[p.ri, 0], [p.ri, 0], [p.r, 0], [p.r, 0], [p.r2, L], [p.r2, L], [ri2, L], [ri2, L], [p.ri, 0]];
+        g = new THREE.LatheGeometry(P.map(q => new THREE.Vector2(q[0], q[1])), seg * 2); m = new THREE.Mesh(g, mat); m.position.copy(a); m.quaternion.setFromUnitVectors(UPY, d.normalize());
+      }
+    } else if (p.k === 'arc' && p.ri > 0 && p.ang < Math.PI * 1.99) {
+      const path = new ArcPath(v(p.c), v(p.u), v(p.v), p.R, p.ang);
+      g = new THREE.ExtrudeGeometry(ring(p.r, p.ri), { steps: Math.max(8, Math.ceil(p.ang / (Math.PI / 18))), bevelEnabled: false, curveSegments: p.r > 70 ? 16 : 11, extrudePath: path });
+      m = new THREE.Mesh(g, mat);
+    } else if (p.k === 'rtube') {
+      m = new THREE.Group(); const [L, H, W] = p.s, t = Math.min(p.t, H / 3, W / 3);
+      for (const [y, z, sy, sz] of [[H / 2 - t / 2, 0, t, W], [-H / 2 + t / 2, 0, t, W], [0, W / 2 - t / 2, H - 2 * t, t], [0, -W / 2 + t / 2, H - 2 * t, t]]) { const bm = new THREE.Mesh(new THREE.BoxGeometry(L, sy, sz), mat); bm.position.set(0, y, z); m.add(bm); }
+      m.position.copy(v(p.c)); if (p.rq) m.quaternion.set(p.rq.x, p.rq.y, p.rq.z, p.rq.w);
+    } else if (p.k === 'cyl') {
       const a = v(p.a), d = v(p.b).sub(a), L = d.length(); if (L < 0.01) return null;
       g = new THREE.CylinderGeometry(p.r2, p.r, L, p.seg || (Math.max(p.r, p.r2) > 70 ? 32 : Math.max(p.r, p.r2) > 15 ? 22 : 12), 1, false);
       m = new THREE.Mesh(g, mat); m.position.copy(a).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(UPY, d.normalize());
@@ -2667,7 +2698,7 @@ const R = (() => {
         if (d.draw) { if (p.k === 'box') { const roofy = (p.rq && ['tile', 'fiber', 'metal'].includes(p.mat)) || p.mat === 'tile' || p.mat === 'fiber' || p.mat === 'metal' || d.horiz; ru = p.s[0] / d.u; rv = (roofy ? p.s[2] : p.s[1]) / d.v; } else { ru = 1 / d.u; rv = 1 / d.v; } }
         const cm = civMat(p.mat, ru, rv); mat = cm.m; if (d.glow) mat.userData.glow = 1; mats.push(mat); texs.push(...cm.t);
       }
-      const m = primMesh(p, mat); if (m) { m.userData.pid = pc.id; group.add(m); if (p.edges) { const ln = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 25), EDGE_M); m.add(ln); } }
+      const m = primMesh(p, mat); if (m && m.userData.extraMat) mats.push(m.userData.extraMat); if (m) { m.userData.pid = pc.id; group.add(m); if (p.edges) { const ln = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 25), EDGE_M); m.add(ln); } }
     }
     group.userData.pid = pc.id;
     return { group, mats, texs, key: pkey(pc) };
