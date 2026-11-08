@@ -26,6 +26,7 @@ header{display:flex;align-items:center;gap:10px;padding:0 10px;background:var(--
 .ib:disabled{opacity:.4}
 .ib.am{background:var(--am);color:#111;border-color:var(--am);font-weight:600}
 .ib.sm{height:26px;font-size:12px;padding:0 7px}
+.swr{display:flex;flex-wrap:wrap;gap:6px}.sw{width:26px;height:26px;border-radius:6px;border:1px solid rgba(255,255,255,.25);cursor:pointer;padding:0}.sw.on{outline:2px solid var(--am);outline-offset:2px}input[type=color].in{padding:2px;height:32px;cursor:pointer}
 .mob{display:none}
 main{position:relative;display:grid;grid-template-columns:260px 1fr 290px;min-height:0}
 main.full{grid-template-columns:1fr}
@@ -223,7 +224,7 @@ input[type=range]{accent-color:#f59e0b}
     url = URL.createObjectURL(new Blob([arr], { type: 'video/mp4' })); v.src = url;
   } catch (e) { end(); return; }
   v.addEventListener('ended', end); v.addEventListener('error', end);
-  v.addEventListener('timeupdate', () => { if (v.duration) document.getElementById('introB').style.width = (v.currentTime / v.duration * 100) + '%'; });
+  v.addEventListener('timeupdate', () => { const ib = document.getElementById('introB'); if (v.duration && ib) ib.style.width = (v.currentTime / v.duration * 100) + '%'; });
   document.getElementById('introK').onclick = end;
   document.getElementById('introS').onclick = e => { v.muted = !v.muted; e.currentTarget.textContent = v.muted ? '🔇 Ativar som' : '🔊 Som ligado'; if (v.paused) v.play().catch(() => {}); };
   const p = v.play(); if (p && p.catch) p.catch(() => { setTimeout(() => { if (v.paused) end(); }, 1200); });
@@ -2557,6 +2558,7 @@ const R = (() => {
     steel: { draw: (g, n, b) => { g.fillStyle = b ? '#808080' : '#8b939c'; g.fillRect(0, 0, n, n); for (let i = 0; i < 900; i++) { const v = (rnd() - 0.5); g.fillStyle = b ? `rgba(${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},.08)` : `rgba(${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},.06)`; g.fillRect(0, rnd() * n, n, 1); } }, u: 1000, v: 1000, rough: 0.45, metal: 0.65 },
   };
   for (const [k, c] of Object.entries(TP.PAINT)) { MATS['paint_' + k] = { color: c, rough: 0.85, metal: 0 }; MATS['texture_' + k] = { draw: (g, n, b) => noise(g, n, 12000, '#' + c.toString(16).padStart(6, '0'), 70, b), u: 500, v: 500, rough: 0.95, metal: 0 }; }
+  const PAINT_SKIP = new Set(['bore', 'stem', 'flow', 'glass', 'lamp', 'wood', 'woodframe', 'porcelainins', 'rebar', 'granite', 'wheel', 'grip', 'alum']);
   function civMat(key, ru, rv) {
     const d = MATS[key];
     if (d && !d.draw && (d.opacity || d.glow)) return { m: new THREE.MeshStandardMaterial({ color: d.color, roughness: d.rough, metalness: d.metal, transparent: !!d.opacity, opacity: d.opacity || 1, depthWrite: !d.opacity, emissive: d.glow || 0x000000, emissiveIntensity: d.glow ? 0.9 : 0 }), t: [] };
@@ -2685,7 +2687,7 @@ const R = (() => {
     }
     return m;
   }
-  const pkey = pc => JSON.stringify([pc.type, pc.sub, pc.dn, pc.dn2, pc.cls, pc.len, pc.angle, pc.radius, pc.ecc, pc.od, pc.wt, pc.ends, ...TP.fieldsOf(pc).map(f => pc[f[0]]), ...TP.extraOf(pc).map(f => pc[f[0]])]);
+  const pkey = pc => JSON.stringify([pc.type, pc.sub, pc.dn, pc.dn2, pc.cls, pc.len, pc.angle, pc.radius, pc.ecc, pc.od, pc.wt, pc.ends, ...TP.fieldsOf(pc).map(f => pc[f[0]]), ...TP.extraOf(pc).map(f => pc[f[0]]), pc.color, pc.color2]);
   function disposeObj(o) { o.group.traverse(c => { if (c.geometry) c.geometry.dispose(); }); o.mats.forEach(m => m.dispose()); (o.texs || []).forEach(t => t.dispose()); root.remove(o.group); }
   function build(pc) {
     const steel = new THREE.MeshStandardMaterial({ color: COLORS[pc.type] || 0xa3abb5, metalness: 0.55, roughness: 0.4 });
@@ -2697,6 +2699,10 @@ const R = (() => {
         const d = MATS[p.mat]; let ru = 1, rv = 1;
         if (d.draw) { if (p.k === 'box') { const roofy = (p.rq && ['tile', 'fiber', 'metal'].includes(p.mat)) || p.mat === 'tile' || p.mat === 'fiber' || p.mat === 'metal' || d.horiz; ru = p.s[0] / d.u; rv = (roofy ? p.s[2] : p.s[1]) / d.v; } else { ru = 1 / d.u; rv = 1 / d.v; } }
         const cm = civMat(p.mat, ru, rv); mat = cm.m; if (d.glow) mat.userData.glow = 1; mats.push(mat); texs.push(...cm.t);
+      }
+      if (pc.color || pc.color2) {
+        const want = p.mat === 'wheel' || p.mat === 'grip' ? pc.color2 : (!PAINT_SKIP.has(p.mat) ? pc.color : null);
+        if (want) { if (mat === steel || mat === acc) { mat = mat.clone(); mats.push(mat); } mat.color.set(want); }
       }
       const m = primMesh(p, mat); if (m && m.userData.extraMat) mats.push(m.userData.extraMat); if (m) { m.userData.pid = pc.id; group.add(m); if (p.edges) { const ln = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 25), EDGE_M); m.add(ln); } }
     }
@@ -3045,6 +3051,26 @@ function insertCustom(c) {
 }
 
 /* ======================= PAINEL DIREITO ======================= */
+const NBR_COLORS = [['#2f7d4f', 'Verde · água'], ['#2b6cb0', 'Azul · ar comprimido'], ['#e8b416', 'Amarelo · gases'], ['#e8731c', 'Laranja · químicos'], ['#c53030', 'Vermelho · incêndio'], ['#f2f2f2', 'Branco · vapor'], ['#9aa3aa', 'Cinza claro · vácuo'], ['#4a5056', 'Cinza escuro · eletroduto'], ['#6b4428', 'Marrom · materiais fragmentados'], ['#1a1a1a', 'Preto · inflamáveis alta viscosidade'], ['#c9ced3', 'Alumínio · gases liquefeitos'], ['#7a2a8a', 'Lilás · álcalis']];
+const HAS_ACC = pc => pc.type === 'valve' || pc.type === 'psv';
+function paintSec(pc) {
+  const T = TYPES[pc.type], cur = pc.color || '', sw = NBR_COLORS.map(([c, l]) => `<button class="sw ${cur.toLowerCase() === c ? 'on' : ''}" data-sw="${c}" title="${l}" style="background:${c}"></button>`).join('');
+  return `<div class="sec"><h3>Cor / pintura</h3>
+    <div class="mut" style="margin-bottom:6px;font-size:11px">Cores de identificação de tubulação (NBR 6493) — toque para aplicar, ou escolha qualquer cor.</div>
+    <div class="swr">${sw}</div>
+    <div class="grid2" style="margin-top:8px"><label class="f">Cor da peça<input class="in" type="color" id="pCol" value="${cur || '#8b939c'}"></label>
+    ${HAS_ACC(pc) ? `<label class="f">Volante / alavanca<input class="in" type="color" id="pCol2" value="${pc.color2 || '#a81e1e'}"></label>` : '<span></span>'}</div>
+    <div class="btns" style="margin-top:8px"><button class="ib" id="pColAll">Pintar todas: ${esc(T.name)}</button><button class="ib" id="pColDisc">Pintar a linha conectada</button><button class="ib" id="pColClr">Cor original</button></div></div>`;
+}
+function bindPaint(pc) {
+  const id = pc.id, set = (k, v) => mutate(() => { const p = pr.get(id); if (v) p[k] = v; else delete p[k]; });
+  document.querySelectorAll('[data-sw]').forEach(b => b.onclick = () => set('color', b.dataset.sw));
+  $('#pCol').onchange = e => set('color', e.target.value);
+  if ($('#pCol2')) $('#pCol2').onchange = e => set('color2', e.target.value);
+  $('#pColClr').onclick = () => mutate(() => { const p = pr.get(id); delete p.color; delete p.color2; });
+  $('#pColAll').onclick = () => { const p0 = pr.get(id); if (!p0.color && !p0.color2) return toast('Escolha uma cor primeiro.'); let n = 0; mutate(() => { for (const p of pr.pieces.values()) if (p.type === p0.type) { n++; if (p0.color) p.color = p0.color; else delete p.color; if (p0.color2) p.color2 = p0.color2; } }); toast(n + ' peça(s) pintada(s).'); };
+  $('#pColDisc').onclick = () => { const p0 = pr.get(id); if (!p0.color) return toast('Escolha uma cor primeiro.'); const ids = TP.component(pr, id); let n = 0; mutate(() => { for (const pid of ids) { const p = pr.get(pid); if (p && (pid === id || (p.type !== 'valve' && p.type !== 'psv'))) { p.color = p0.color; n++; } } }); toast(n + ' peça(s) da linha pintada(s) — válvulas mantêm a cor delas.'); };
+}
 function renderRight() {
   const Rt = $('#right'); const st = Rt.scrollTop;
   const pc = S.sel && pr.get(S.sel);
@@ -3087,6 +3113,7 @@ function renderRight() {
     <div style="margin-bottom:6px">${esc(T.desc(pc))}</div><div class="mut mono">${esc(T.mat(pc))} · ${fmt(T.weight(pc), 1)} kg</div>
     ${mis.length ? `<div class="chip er" style="margin-top:6px">Junta com desvio de ${mis.map(m => fmt(m.deg, 1) + '°').join(', ')}</div>` : ''}
     <div class="grid2" style="margin-top:8px"><label class="f">TAG<input class="in" id="pTag" value="${esc(pc.tag)}"></label>${par}</div></div>
+    ${paintSec(pc)}
     <div class="sec"><h3>Orientação</h3><div class="mut" style="margin-bottom:6px">${piv ? `Pivô: face ${piv}${upc ? ' em ' + esc(upc.tag) : ''}` : 'Pivô: canto de referência'} · E ${fmt(pv.x)} N ${fmt(-pv.z)} EL ${fmt(pv.y)}</div>
       <div class="row" style="margin-bottom:6px"><label class="f" style="flex:1">Passo (°)<input class="in" id="oStep" type="number" value="${S.step}"></label></div>
       ${T.struct ? `<div class="btns"><button class="ib" data-o="spin:90">Girar 90° ⟲</button><button class="ib" data-o="spin:-90">Girar 90° ⟳</button><button class="ib" data-o="spin:s">+passo</button><button class="ib" data-o="spin:-s">−passo</button><button class="ib" data-o="tipx:90">Tombar (eixo E)</button><button class="ib" data-o="tipz:90">Tombar (eixo N)</button></div>` : T.civil ? `<div class="btns"><button class="ib" data-o="${pc.type === 'wall' ? 'th' : 'roll'}:90">Girar 90° ⟲</button><button class="ib" data-o="${pc.type === 'wall' ? 'th' : 'roll'}:-90">Girar 90° ⟳</button><button class="ib" data-o="${pc.type === 'wall' ? 'th' : 'roll'}:s">+passo</button><button class="ib" data-o="${pc.type === 'wall' ? 'th' : 'roll'}:-s">−passo</button></div>` : `<div class="btns">
@@ -3102,6 +3129,7 @@ function renderRight() {
     <div class="sec"><div class="btns"><button class="ib am" id="aCpl">Acoplar</button><button class="ib" id="aDup">Duplicar</button><button class="ib" id="aDel" style="color:var(--er)">Excluir</button></div></div>`;
   Rt.scrollTop = st;
   const id = pc.id;
+  bindPaint(pc);
   $('#pTag').onchange = e => mutate(() => { pr.get(id).tag = e.target.value.trim() || pc.tag; });
   if ($('#pDn')) $('#pDn').onchange = e => setParam(p => { p.dn = +e.target.value; if (p.dn2 && (p.type === 'reducer' ? p.dn2 >= p.dn : p.type === 'tee' ? p.dn2 > p.dn : p.dn2 < p.dn)) p.dn2 = p.type === 'psv' ? TP.nextUp(p.dn) : p.type === 'tee' ? p.dn : TP.nextDown(p.dn); });
   if ($('#pCls')) $('#pCls').onchange = e => setParam(p => { p.cls = +e.target.value; });
@@ -3815,7 +3843,7 @@ const VK = (() => {
   const num = s => parseFloat(String(s).replace(',', '.'));
   const f = (n, d = 0) => fmt(n, d);
   let open = false, voiceOn = true, rec = null, listening = false;
-  let VC = { voice: '', pitch: 0.9, rate: 1.04, robot: 0.25 };
+  let VC = { voice: '', pitch: 0.9, rate: 1.04, robot: 0.25, engine: 'neural', nvoice: 'pt_BR-faber-medium', grave: 0.3, metal: 0.3, peso: 0.35, eco: 0.25, sat: 0.15 };
   const vcApply = u => { const r = VC.robot || 0; u.pitch = Math.max(0.1, Math.min(2, (VC.pitch || 1) * (1 - 0.55 * r))); u.rate = Math.max(0.5, Math.min(1.8, (VC.rate || 1) * (1 - 0.12 * r))); };
   const pickVoice = () => { const all = speechSynthesis.getVoices(); const named = VC.voice && all.find(x => x.name === VC.voice); if (named) return named; const pt = all.filter(x => /pt[-_]BR/i.test(x.lang)); return pt.find(x => /natural|neural|online/i.test(x.name)) || pt.find(x => /google|luciana|daniel|felipe|francisca|antonio/i.test(x.name)) || pt[0] || null; };
   try { voiceOn = localStorage.getItem('tecplan.vk.voice') !== '0'; } catch { }
@@ -3825,6 +3853,7 @@ const VK = (() => {
     { t: 'Inserir peças', k: ['inserir', 'inserir peca', 'adicionar peca', 'catalogo', 'colocar peca', 'como coloco'], a: 'Abra o <b>catálogo</b> (painel da esquerda, ou ☰ no celular), escolha o diâmetro e toque na peça. Se houver uma <b>esfera verde</b> (porta ativa), a peça nasce encaixada nela; senão, entra solta ao lado do modelo. Você também pode me pedir: <i>"insira uma válvula gaveta de 4 polegadas"</i>.' },
     { t: 'Continuar uma linha', k: ['continuar', 'esfera', 'porta ativa', 'esfera ambar', 'esfera verde', 'continuar linha', 'porta livre'], a: 'As <b>esferas âmbar</b> são portas livres. Toque numa delas e ela fica <b>verde</b>: a próxima peça do catálogo encaixa exatamente ali, face a face. Depois de inserir, a porta ativa passa sozinha para a ponta nova, então dá para ir tocando tubo → curva → tubo em sequência.' },
     { t: 'Girar e inclinar sem desconectar', k: ['girar', 'inclinar', 'rotacionar', 'desconecta', 'solta', 'girar no eixo', 'virar curva', 'desviar'], a: '<b>Girar no eixo</b> gira a peça em torno da face da conexão e leva junto tudo o que vem depois — a junta continua perfeita. É assim que você vira uma curva para cima, para baixo ou para os lados. <b>Inclinar/Desviar</b> também gira na face, mas cria uma junta em ângulo (aparece aviso vermelho). Para trechos inclinados de verdade, mude o <b>ângulo da curva</b>.' },
+    { t: 'Pintar peças', k: ['pintar', 'pintura', 'cor', 'cores', 'mudar cor', 'colorir', 'nbr 6493', 'cor da tubulacao', 'cor da parede'], a: 'Selecione a peça e use o bloco <b>Cor / pintura</b> no painel da direita: as amostras são as cores de identificação da <b>NBR 6493</b> (verde água, azul ar comprimido, amarelo gases, laranja químicos, vermelho incêndio, branco vapor…), ou escolha qualquer cor. Válvulas têm uma segunda cor para o <b>volante/alavanca</b>. <b>Pintar todas</b> aplica a todas as peças do mesmo tipo; <b>Pintar a linha conectada</b> pinta o trecho inteiro, mantendo as válvulas. Também pode me pedir: <i>"pinte todas as válvulas de vermelho"</i> ou <i>"pinte a linha de verde"</i>.' },
     { t: 'Gizmo', k: ['gizmo', 'arrastar', 'mover peca', 'setas', 'aneis', 'mover com dedo', 'mover com mouse'], a: 'Com uma peça selecionada aparecem <b>setas</b> (vermelha E, verde EL, azul N) e <b>anéis</b>. Puxe uma seta para mover e um anel para girar. O passo segue a grade escolhida (10 a 500 mm) e o ângulo (5° a 90°). Move o grupo conectado inteiro, e se você soltar perto de uma porta compatível, acopla sozinho.' },
     { t: 'Acoplar', k: ['acoplar', 'encaixar', 'juntar pecas', 'conectar pecas', 'ligar pecas'], a: 'O botão <b>Acoplar</b> (painel da peça) procura a porta livre compatível mais próxima e encaixa face a face. Só acopla se o diâmetro bater (tolerância 0,6 mm) e a classe for igual em flanges.' },
     { t: 'Mover peça por botões', k: ['mover', 'deslocar', 'posicao', 'coordenada', 'elevacao'], a: 'No painel da peça, em <b>Mover grupo conectado</b>, use E±, N± e EL± com o passo em mm. O grupo inteiro anda junto, sem soltar juntas. Ou use o gizmo no 3D.' },
@@ -3945,6 +3974,15 @@ const VK = (() => {
     }
     if (/(exclu|apag|delet|remov)/.test(q) && /(peca|isso|selecionad|essa|esse)/.test(q)) { if (!sel) return 'Selecione a peça que quer excluir.'; const tg = sel.tag; deleteSel(); return `Excluí ${esc(tg)}. Se foi engano, diga "desfazer".`; }
     if (/acopl/.test(q) && sel) { let r; mutate(() => { r = TP.acoplar(pr, sel.id); if (!r.ok) return false; }); return r.ok ? r.msg + '.' : r.msg; }
+    const pm = q.match(/(pint|cor)\w*.*?\b(verde|azul|amarel\w*|laranja|vermelh\w*|branc\w*|cinza escuro|cinza|marrom|pret\w*|aluminio|lilas|original)\b/);
+    if (pm && !/^(como|onde|qual|o que|posso)/.test(q)) {
+      const C = { verde: '#2f7d4f', azul: '#2b6cb0', amarel: '#e8b416', laranja: '#e8731c', vermelh: '#c53030', branc: '#f2f2f2', 'cinza escuro': '#4a5056', cinza: '#9aa3aa', marrom: '#6b4428', pret: '#1a1a1a', aluminio: '#c9ced3', lilas: '#7a2a8a' };
+      const key = Object.keys(C).find(k => pm[2].startsWith(k)), all = /tod[ao]s|tudo|linha|conectad/.test(q), line = /linha|conectad/.test(q);
+      let tp = null; for (const [k, t] of Object.entries(TYPES)) if (N(t.name).split(' ')[0].length > 3 && q.includes(N(t.name).split(' ')[0])) { tp = k; break; }
+      if (!all && !sel) return 'Selecione a peça que quer pintar, ou diga por exemplo "pinte todas as válvulas de vermelho".';
+      let n = 0; mutate(() => { for (const p of pr.pieces.values()) { const hit = !all ? p.id === sel.id : tp ? p.type === tp : line ? (p.type !== 'valve' && p.type !== 'psv' || p.id === sel?.id) && (sel ? TP.component(pr, sel.id).has(p.id) : true) : true; if (!hit) continue; n++; if (pm[2] === 'original') { delete p.color; delete p.color2; } else p.color = C[key]; } });
+      return n ? `Pronto, ${n} peça(s) ${pm[2] === 'original' ? 'voltaram à cor original' : 'pintada(s) de ' + pm[2]}.` : 'Não encontrei peças para pintar.';
+    }
     const gm = q.match(/gir(?:a|e|ar)\s*(-?\d+)?/);
     if (gm && sel && !/^(como|onde|qual|o que|posso)/.test(q)) { const d = gm[1] ? +gm[1] : 90; mutate(() => { if (TYPES[sel.type].struct || !Object.keys(sel.conn).length) { const c = sel.q.rot(structCenter(sel)).add(sel.pos); TP.applyRigid(pr, [sel.id], c, c, Q.axisAngle(TP.UP, d * Math.PI / 180)); } else TP.roll(pr, sel.id, d); }); return `Girei ${esc(sel.tag)} em ${d}°.`; }
     if (/resumo|quantas pecas|peso total|status do projeto/.test(q)) {
@@ -3987,10 +4025,10 @@ const VK = (() => {
   function related(e) { const i = KB.indexOf(e); return [KB[(i + 1) % KB.length].t, KB[(i + 5) % KB.length].t].map(t => t.includes('?') ? t : 'Sobre: ' + t); }
 
   /* ---------- voz ---------- */
-  function speak(html) {
-    if (!voiceOn || !('speechSynthesis' in window)) return;
+  const clean = html => html.replace(/<br\s*\/?>/g, '. ').replace(/<[^>]+>/g, '').replace(/&[a-z]+;/g, ' ').replace(/×/g, ' por ').replace(/≈/g, 'aproximadamente ').replace(/m³/g, ' metros cúbicos').replace(/m²/g, ' metros quadrados').replace(/Ø/g, 'diâmetro ').replace(/"/g, ' polegadas').replace(/\s+/g, ' ').trim();
+  function speakBrowser(t) {
+    if (!('speechSynthesis' in window)) return;
     try {
-      const t = html.replace(/<br\s*\/?>/g, '. ').replace(/<[^>]+>/g, '').replace(/×/g, ' por ').replace(/≈/g, 'aproximadamente ').replace(/m³/g, ' metros cúbicos').replace(/m²/g, ' metros quadrados').replace(/Ø/g, 'diâmetro ').replace(/"/g, ' polegadas');
       speechSynthesis.cancel();
       const text = VC.robot > 0.6 ? t.replace(/([,.;:])\s*/g, '$1 … ') : t;
       const u = new SpeechSynthesisUtterance(text); u.lang = 'pt-BR'; vcApply(u);
@@ -3998,7 +4036,77 @@ const VK = (() => {
       speechSynthesis.speak(u);
     } catch { }
   }
-  const stopVoice = () => { try { speechSynthesis.cancel(); } catch { } };
+  /* Voz neural (Piper, código aberto, roda no navegador) + cadeia de efeitos */
+  const NEU = {
+    lib: null, failed: false, ctx: null, tok: 0, srcs: [], cache: new Map(), irBuf: null, warned: false,
+    load() {
+      if (this.failed) return Promise.reject(new Error('indisponível'));
+      if (!this.lib) this.lib = Promise.race([
+        import('https://cdn.jsdelivr.net/npm/@diffusionstudio/vits-web@1.0.3/+esm'),
+        new Promise((_, r) => setTimeout(() => r(new Error('tempo esgotado')), 20000))
+      ]).catch(e => { this.failed = true; this.lib = null; throw e; });
+      return this.lib;
+    },
+    ac() { if (!this.ctx) { const C = window.AudioContext || window.webkitAudioContext; this.ctx = new C(); } if (this.ctx.state === 'suspended') this.ctx.resume(); return this.ctx; },
+    async synth(text, vid) {
+      const k = vid + '|' + text; if (this.cache.has(k)) return this.cache.get(k);
+      const lib = await this.load();
+      const wav = await lib.predict({ text, voiceId: vid });
+      const buf = await this.ac().decodeAudioData(await wav.arrayBuffer());
+      this.cache.set(k, buf); if (this.cache.size > 40) this.cache.delete(this.cache.keys().next().value);
+      return buf;
+    },
+    stop() { this.tok++; for (const s of this.srcs) try { s.stop(); } catch { } this.srcs = []; }
+  };
+  function impulse(ctx, sec, decay) { const n = Math.floor(ctx.sampleRate * sec), b = ctx.createBuffer(2, n, ctx.sampleRate); for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, decay); } return b; }
+  /* Monta o grafo: grave (taxa) → peso (lowshelf) → saturação → [seco | anel+pente metálico | eco] → compressor */
+  function fxGraph(ctx, buf, c, dest, when = 0) {
+    const src = ctx.createBufferSource(); src.buffer = buf; src.playbackRate.value = Math.max(0.6, 1 - 0.22 * (c.grave || 0));
+    const shelf = ctx.createBiquadFilter(); shelf.type = 'lowshelf'; shelf.frequency.value = 180; shelf.gain.value = 10 * (c.peso || 0);
+    const pres = ctx.createBiquadFilter(); pres.type = 'peaking'; pres.frequency.value = 2600; pres.Q.value = 1.1; pres.gain.value = 4 * (c.metal || 0);
+    const ws = ctx.createWaveShaper(); const amt = 1 + 30 * (c.sat || 0), cu = new Float32Array(1024); for (let i = 0; i < 1024; i++) { const x = i / 511.5 - 1; cu[i] = Math.tanh(amt * x) / Math.tanh(amt); } ws.curve = cu; ws.oversample = '2x';
+    const out = ctx.createDynamicsCompressor(); out.threshold.value = -20; out.ratio.value = 10; out.knee.value = 6; out.attack.value = 0.003;
+    const master = ctx.createGain(); master.gain.value = 1.95 / (1 + 0.6 * (c.metal || 0) + 0.4 * (c.eco || 0) + 0.5 * (c.peso || 0) + 0.3 * (c.sat || 0));
+    src.connect(shelf); shelf.connect(pres); pres.connect(ws);
+    const dry = ctx.createGain(); dry.gain.value = 1 - 0.35 * (c.metal || 0); ws.connect(dry); dry.connect(out);
+    const nodes = [src];
+    if (c.metal > 0) {
+      const ring = ctx.createGain(); ring.gain.value = 0; const osc = ctx.createOscillator(); osc.frequency.value = 38 + 30 * c.metal; osc.connect(ring.gain); osc.start(when); nodes.push(osc);
+      const rw = ctx.createGain(); rw.gain.value = 0.55 * c.metal; ws.connect(ring); ring.connect(rw); rw.connect(out);
+      const dl = ctx.createDelay(0.05); dl.delayTime.value = 0.0045; const fb = ctx.createGain(); fb.gain.value = 0.55 * c.metal; const cw = ctx.createGain(); cw.gain.value = 0.6 * c.metal;
+      ws.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(cw); cw.connect(out);
+    }
+    if (c.eco > 0) { const cv = ctx.createConvolver(); cv.buffer = impulse(ctx, 0.25 + 0.5 * c.eco, 3.2); const ew = ctx.createGain(); ew.gain.value = 0.55 * c.eco; ws.connect(cv); cv.connect(ew); ew.connect(out); }
+    out.connect(master); master.connect(dest);
+    src.start(when);
+    const dur = buf.duration / src.playbackRate.value;
+    src.onended = () => nodes.slice(1).forEach(n => { try { n.stop(); } catch { } });
+    return { src, dur };
+  }
+  async function speakNeural(t) {
+    const tok = ++NEU.tok; const ctx = NEU.ac();
+    const parts = (t.match(/[^.!?…]+[.!?…]*/g) || [t]).map(x => x.trim()).filter(Boolean).reduce((a, x) => { if (a.length && (a[a.length - 1] + ' ' + x).length < 140) a[a.length - 1] += ' ' + x; else a.push(x); return a; }, []);
+    let at = ctx.currentTime + 0.05, next = NEU.synth(parts[0], VC.nvoice);
+    for (let i = 0; i < parts.length; i++) {
+      const buf = await next; if (tok !== NEU.tok) return;
+      if (i + 1 < parts.length) next = NEU.synth(parts[i + 1], VC.nvoice);
+      at = Math.max(at, ctx.currentTime + 0.02);
+      const { src, dur } = fxGraph(ctx, buf, VC, ctx.destination, at); NEU.srcs.push(src); at += dur + 0.12;
+    }
+  }
+  function speak(html) {
+    if (!voiceOn) return;
+    const t = clean(html); if (!t) return;
+    stopVoice();
+    if (VC.engine === 'neural' && !NEU.failed && (window.AudioContext || window.webkitAudioContext)) {
+      const first = !NEU.lib;
+      if (first) { speakBrowser(t); NEU.load().then(() => { }).catch(() => { }); return; }
+      speakNeural(t).catch(e => { if (USER.role === 'admin' && !NEU.warned) { NEU.warned = true; toast('Voz neural indisponível aqui (' + e.message + '). Usando a voz do navegador.', 'er'); } speakBrowser(t); });
+      return;
+    }
+    speakBrowser(t);
+  }
+  const stopVoice = () => { try { speechSynthesis.cancel(); } catch { } NEU.stop(); };
   function listen() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { toast('Seu navegador não tem reconhecimento de voz. No Android use o Chrome.', 'er'); return; }
@@ -4039,15 +4147,40 @@ const VK = (() => {
     const list = () => speechSynthesis.getVoices().slice().sort((a, b) => (/pt/i.test(b.lang) - /pt/i.test(a.lang)) || a.name.localeCompare(b.name));
     const render = () => {
       const vs = list();
-      m.innerHTML = `<div class="box"><h3 style="margin:0 0 4px">Voz do Vikron</h3><div class="mut" style="margin-bottom:12px;font-size:12px">Só o administrador ajusta. Ao salvar, vale para todos os usuários. As vozes vêm do navegador e do aparelho; se a escolhida não existir no aparelho de alguém, o app usa a voz pt-BR mais natural disponível.</div>
-        <label class="f">Voz<select class="in" id="vcV"><option value="">Automática (melhor voz pt-BR do aparelho)</option>${vs.map(x => `<option value="${esc(x.name)}" ${x.name === VC.voice ? 'selected' : ''}>${esc(x.name)} — ${esc(x.lang)}${/natural|neural|online/i.test(x.name) ? ' ★ neural' : ''}</option>`).join('')}</select></label>
-        <label class="f" style="margin-top:10px">Tom <span id="vcPl">${VC.pitch.toFixed(2)}</span><input type="range" id="vcP" min="0.1" max="2" step="0.05" value="${VC.pitch}"></label>
-        <label class="f" style="margin-top:8px">Velocidade <span id="vcRl">${VC.rate.toFixed(2)}</span><input type="range" id="vcR" min="0.6" max="1.6" step="0.02" value="${VC.rate}"></label>
-        <label class="f" style="margin-top:8px">Efeito robótico <span id="vcBl">${Math.round(VC.robot * 100)}%</span><input type="range" id="vcB" min="0" max="1" step="0.05" value="${VC.robot}"></label>
+      const sl = (id, l, v, mn = 0, mx = 1, st = 0.05) => `<label class="f" style="margin-top:8px">${l} <span id="${id}l">${Math.round(v * 100)}%</span><input type="range" id="${id}" min="${mn}" max="${mx}" step="${st}" value="${v}"></label>`;
+      const neu = VC.engine === 'neural';
+      m.innerHTML = `<div class="box" style="max-height:88vh;overflow:auto"><h3 style="margin:0 0 4px">Voz do Vikron</h3><div class="mut" style="margin-bottom:12px;font-size:12px">Só o administrador ajusta. Ao salvar, vale para todos os usuários.</div>
+        <label class="f">Motor de voz<select class="in" id="vcE"><option value="neural" ${neu ? 'selected' : ''}>Neural Piper + efeitos (recomendado)</option><option value="browser" ${!neu ? 'selected' : ''}>Voz do navegador (sem efeitos)</option></select></label>
+        <div id="vcNeu" style="display:${neu ? 'block' : 'none'}">
+          <div class="mut" style="font-size:11px;margin:6px 0">Voz neural gratuita que roda no próprio aparelho. Baixa ~60 MB só no primeiro uso e depois funciona offline. Enquanto carrega, o Vikron usa a voz do navegador.</div>
+          <label class="f">Voz neural<select class="in" id="vcN">${[['pt_BR-faber-medium', 'Faber — masculina, pt-BR'], ['pt_BR-edresson-low', 'Edresson — masculina, pt-BR (leve)']].map(([k, l]) => `<option value="${k}" ${VC.nvoice === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+          <div class="btns" style="margin-top:8px"><button class="ib sm" data-pre="ia">Estilo IA sombria (leve)</button><button class="ib sm" data-pre="robo">Robô</button><button class="ib sm" data-pre="nat">Natural</button></div>
+          ${sl('vcG', 'Grave', VC.grave)}${sl('vcM', 'Metálico', VC.metal)}${sl('vcK', 'Peso (corpo)', VC.peso)}${sl('vcC', 'Eco (armadura)', VC.eco)}${sl('vcX', 'Saturação', VC.sat)}
+        </div>
+        <div id="vcBr" style="display:${neu ? 'none' : 'block'}">
+          <label class="f" style="margin-top:8px">Voz<select class="in" id="vcV"><option value="">Automática (melhor voz pt-BR do aparelho)</option>${vs.map(x => `<option value="${esc(x.name)}" ${x.name === VC.voice ? 'selected' : ''}>${esc(x.name)} — ${esc(x.lang)}${/natural|neural|online/i.test(x.name) ? ' ★ neural' : ''}</option>`).join('')}</select></label>
+          <label class="f" style="margin-top:10px">Tom <span id="vcPl">${VC.pitch.toFixed(2)}</span><input type="range" id="vcP" min="0.1" max="2" step="0.05" value="${VC.pitch}"></label>
+          <label class="f" style="margin-top:8px">Velocidade <span id="vcRl">${VC.rate.toFixed(2)}</span><input type="range" id="vcR" min="0.6" max="1.6" step="0.02" value="${VC.rate}"></label>
+          ${sl('vcB', 'Pausas robóticas', VC.robot)}
+        </div>
         <div class="btns" style="margin-top:14px"><button class="ib" data-x>Cancelar</button><button class="ib" id="vcT">▶ Testar</button><button class="ib am" id="vcS">Salvar para todos</button></div></div>`;
-      const rd = () => { VC = { voice: m.querySelector('#vcV').value, pitch: +m.querySelector('#vcP').value, rate: +m.querySelector('#vcR').value, robot: +m.querySelector('#vcB').value }; m.querySelector('#vcPl').textContent = VC.pitch.toFixed(2); m.querySelector('#vcRl').textContent = VC.rate.toFixed(2); m.querySelector('#vcBl').textContent = Math.round(VC.robot * 100) + '%'; };
+      const g = id => +m.querySelector('#' + id).value;
+      const rd = () => {
+        VC = Object.assign({}, VC, { engine: m.querySelector('#vcE').value, nvoice: m.querySelector('#vcN').value, voice: m.querySelector('#vcV').value, pitch: g('vcP'), rate: g('vcR'), robot: g('vcB'), grave: g('vcG'), metal: g('vcM'), peso: g('vcK'), eco: g('vcC'), sat: g('vcX') });
+        m.querySelector('#vcPl').textContent = VC.pitch.toFixed(2); m.querySelector('#vcRl').textContent = VC.rate.toFixed(2);
+        for (const id of ['vcB', 'vcG', 'vcM', 'vcK', 'vcC', 'vcX']) m.querySelector('#' + id + 'l').textContent = Math.round(g(id) * 100) + '%';
+        const n = VC.engine === 'neural'; m.querySelector('#vcNeu').style.display = n ? 'block' : 'none'; m.querySelector('#vcBr').style.display = n ? 'none' : 'block';
+      };
+      const PRE = { ia: { grave: 0.35, metal: 0.4, peso: 0.45, eco: 0.3, sat: 0.2 }, robo: { grave: 0.15, metal: 0.8, peso: 0.2, eco: 0.15, sat: 0.35 }, nat: { grave: 0, metal: 0, peso: 0.1, eco: 0, sat: 0 } };
+      m.querySelectorAll('[data-pre]').forEach(b => b.onclick = () => { const p = PRE[b.dataset.pre]; for (const [id, k] of [['vcG', 'grave'], ['vcM', 'metal'], ['vcK', 'peso'], ['vcC', 'eco'], ['vcX', 'sat']]) m.querySelector('#' + id).value = p[k]; rd(); });
       m.querySelectorAll('input,select').forEach(i => i.oninput = rd);
-      m.querySelector('#vcT').onclick = () => { rd(); const was = voiceOn; voiceOn = true; speak('Olá, eu sou o Vikron, assistente do TEC PLAN. Precisão em cada movimento.'); voiceOn = was; };
+      m.querySelector('#vcT').onclick = async () => {
+        rd(); const txt = 'Olá. Eu sou o Vikron, assistente do TEC PLAN. Precisão em cada movimento.'; stopVoice();
+        if (VC.engine !== 'neural') { speakBrowser(clean(txt)); return; }
+        NEU.failed = false; NEU.ac(); const bt = m.querySelector('#vcT'); bt.textContent = NEU.lib ? '▶ Testar' : 'Carregando voz…'; bt.disabled = true;
+        try { await speakNeural(clean(txt)); } catch (e) { toast('Voz neural indisponível neste navegador/página (' + e.message + '). No GitHub Pages ela funciona; aqui o Vikron usa a voz do navegador.', 'er'); speakBrowser(clean(txt)); }
+        bt.textContent = '▶ Testar'; bt.disabled = false;
+      };
       m.querySelector('#vcS').onclick = async () => { rd(); try { await CLOUD.setSetting('vikron_voice', VC, { role: USER.role, email: USER.email }); toast('Voz do Vikron salva para todos os usuários.', 'ok'); m.remove(); } catch (e) { toast('Não foi possível salvar: ' + e.message, 'er'); } };
     };
     m.onclick = e => { if (e.target === m || e.target.dataset.x !== undefined) { m.remove(); loadVoice(); } };
@@ -4094,16 +4227,31 @@ const VK = (() => {
     $('#vkSkip').onclick = endTour; $('#vkNext').onclick = () => { if (tourI >= tourS.length - 1) return endTour(); tourI++; show(); }; if ($('#vkPrev')) $('#vkPrev').onclick = () => { tourI--; show(); };
     speak(st.x);
   }
-  function endTour() { const ov = $('#vkTourOv'); if (ov) ov.style.display = 'none'; stopVoice(); try { localStorage.setItem('tecplan.tour.done:' + String(USER.email || '').toLowerCase(), '1'); } catch { } }
+  function endTour() { const ov = $('#vkTourOv'); if (ov) ov.style.display = 'none'; stopVoice(); markTour(); }
+  const TKEY = () => 'tecplan.tour.done:' + String(USER.email || '').toLowerCase();
+  async function tourDone() {
+    try { if (localStorage.getItem(TKEY()) === '1') return true; } catch { }
+    try { if (CLOUD && CLOUD.tourDone && await CLOUD.tourDone(USER.email)) { try { localStorage.setItem(TKEY(), '1'); } catch { } return true; } } catch { }
+    return false;
+  }
+  function markTour() { try { localStorage.setItem(TKEY(), '1'); } catch { } try { CLOUD && CLOUD.markTour && CLOUD.markTour(USER.email); } catch { } }
   function boot() {
     build(); loadVoice();
     try { speechSynthesis.getVoices(); } catch { }
-    let done = false; try { done = localStorage.getItem('tecplan.tour.done:' + String(USER.email || '').toLowerCase()) === '1'; } catch { }
-    if (!done) { const wait = () => { if ($('#intro')) return setTimeout(wait, 400); setTimeout(tour, 900); }; wait(); }
+    /* Tour automático: uma única vez por usuário (marcado na conta), só com o app aberto — sem tela de login, sem vídeo de abertura — e só depois de um toque do usuário (nunca fala sozinho ao carregar a página). */
+    tourDone().then(done => {
+      if (done) return;
+      const ready = () => !$('#intro') && !$('#gate') && document.visibilityState === 'visible' && $('#main');
+      const go = () => { if (!ready()) return setTimeout(go, 500); markTour(); setTimeout(tour, 700); };
+      const gesture = () => navigator.userActivation ? navigator.userActivation.hasBeenActive : true;
+      const wait = () => { if (!ready()) return setTimeout(wait, 500); if (gesture()) return go(); const once = () => { removeEventListener('pointerdown', once, true); removeEventListener('keydown', once, true); go(); }; addEventListener('pointerdown', once, true); addEventListener('keydown', once, true); };
+      wait();
+    });
   }
-  return { boot, tour, reply, toggle };
+  return { boot, tour, reply, toggle, _fx: fxGraph };
 })();
 
+window.__VKfx = (...a) => VK._fx(...a);
 window.TPApp = {
   start(user, cloud) {
     USER = user; CLOUD = cloud || null; KEY = 'tecplan.project.v1:' + String(user.email || '').toLowerCase();
@@ -4207,6 +4355,8 @@ const Demo = (() => {
     async getProject(id) { const e = me()?.email; return ((db.projects || {})[e] || {})[id] || null; },
     async saveProject(p) { const e = me()?.email; if (!e) throw new Error('sem sessão'); db.projects = db.projects || {}; db.projects[e] = db.projects[e] || {}; const r = { id: p.id, name: p.name, data: p.data, updated_at: new Date().toISOString() }; db.projects[e][p.id] = r; put(db); return { id: r.id, updated_at: r.updated_at }; },
     async deleteProject(id) { const e = me()?.email; if (db.projects && db.projects[e]) delete db.projects[e][id]; put(db); },
+    async tourDone(email) { try { return localStorage.getItem('tecplan.tour.done:' + String(email).toLowerCase()) === '1'; } catch { return false; } },
+    async markTour(email) { try { localStorage.setItem('tecplan.tour.done:' + String(email).toLowerCase(), '1'); } catch { } },
     async getSetting(k) { try { return (JSON.parse(localStorage.getItem('tecplan.demo.settings')) || {})[k] || null; } catch { return null; } },
     async setSetting(k, v, actor) { if (!actor || actor.role !== 'admin') throw new Error('Somente o administrador'); let o = {}; try { o = JSON.parse(localStorage.getItem('tecplan.demo.settings')) || {}; } catch { } o[k] = v; localStorage.setItem('tecplan.demo.settings', JSON.stringify(o)); },
     resetDemo() { try { localStorage.removeItem(K); localStorage.removeItem(KS); } catch { } },
@@ -4241,6 +4391,8 @@ function SupabaseBackend(sb) {
     async getProject(id) { const { data, error } = await sb.from('projects').select('*').eq('id', id).maybeSingle(); if (error) throw error; return data; },
     async saveProject(p) { const { data, error } = await sb.from('projects').upsert({ id: p.id, name: p.name, data: p.data }, { onConflict: 'id' }).select('id,updated_at').single(); if (error) throw new Error(error.message); return data; },
     async deleteProject(id) { const { error } = await sb.from('projects').delete().eq('id', id); if (error) throw new Error(error.message); },
+    async tourDone() { const { data } = await sb.auth.getUser(); return !!(data && data.user && data.user.user_metadata && data.user.user_metadata.tour_done); },
+    async markTour() { await sb.auth.updateUser({ data: { tour_done: true } }); },
     async getSetting(k) { const { data, error } = await sb.from('app_settings').select('value').eq('key', k).maybeSingle(); if (error) throw error; return data ? data.value : null; },
     async setSetting(k, v, actor) { const { error } = await sb.from('app_settings').upsert({ key: k, value: v, updated_by: actor && actor.email, updated_at: new Date().toISOString() }, { onConflict: 'key' }); if (error) throw new Error(error.message); },
     async setPassword(pw) { const { error } = await sb.auth.updateUser({ password: pw }); if (error) throw error; },
