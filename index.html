@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#e8a33d">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>TEC PLAN — Projeto de Tubulação Industrial</title>
@@ -26,7 +30,7 @@ header{display:flex;align-items:center;gap:10px;padding:0 10px;background:var(--
 .ib:disabled{opacity:.4}
 .ib.am{background:var(--am);color:#111;border-color:var(--am);font-weight:600}
 .ib.sm{height:26px;font-size:12px;padding:0 7px}
-.lbl{display:flex;gap:8px;align-items:center;padding:7px 0;border-top:1px solid rgba(255,255,255,.06)}.ib.rec{background:#b42318;color:#fff;border-color:#b42318}
+#viewBanner{position:fixed;left:50%;transform:translateX(-50%);top:58px;z-index:40;background:rgba(232,163,61,.95);color:#141414;padding:6px 14px;border-radius:999px;font:600 12.5px system-ui;box-shadow:0 4px 18px rgba(0,0,0,.35);max-width:92vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bolt{border:1px solid var(--ln,#2a2f36);border-radius:8px;padding:6px 8px;margin-bottom:6px;background:rgba(255,255,255,.02)}.bolt summary{cursor:pointer;font-size:12.5px}.bt{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:6px}.bt td{padding:3px 4px;border-top:1px solid rgba(255,255,255,.06);vertical-align:top}.bt td:first-child{color:var(--mu,#8b949e);width:62px}.bp{margin:0;padding-left:16px;font-size:11px;line-height:1.5}
 .swr{display:flex;flex-wrap:wrap;gap:6px}.sw{width:26px;height:26px;border-radius:6px;border:1px solid rgba(255,255,255,.25);cursor:pointer;padding:0}.sw.on{outline:2px solid var(--am);outline-offset:2px}input[type=color].in{padding:2px;height:32px;cursor:pointer}
 .mob{display:none}
@@ -750,6 +754,11 @@ function finishLines(A, f, color, side) {
   return L;
 }
 const civW = T => p => T.bomLines(p).reduce((a, b) => a + b.w, 0);
+function slabRects(p) {
+  if (!p.hole) return [[0, p.L, 0, p.W]];
+  const x0 = Math.max(0, Math.min(p.L, p.hX)), x1 = Math.max(x0, Math.min(p.L, p.hX + p.hL)), z0 = Math.max(0, Math.min(p.W, p.hZ)), z1 = Math.max(z0, Math.min(p.W, p.hZ + p.hW));
+  return [[0, p.L, 0, z0], [0, p.L, z1, p.W], [0, x0, z0, z1], [x1, p.L, z0, z1]].filter(r => r[1] - r[0] > 1 && r[3] - r[2] > 1);
+}
 const CIVIL = {
   footing: {
     name: 'Bloco de fundação', prefix: 'BF', civil: true, spool: false,
@@ -796,19 +805,21 @@ const CIVIL = {
   },
   slab: {
     name: 'Laje', prefix: 'L', civil: true, spool: false,
-    defaults: { dn: 0, L: 4300, W: 4300, e: 120, fck: 25, floor: 'none', ceil: 'none' },
-    fields: [['L', 'Comprimento (mm)'], ['W', 'Largura (mm)'], ['e', 'Espessura (mm)'], ['fck', 'fck (MPa)', FCK], ['floor', 'Piso sobre a laje', Object.keys(FLOOR_T), k => FLOOR_T[k]], ['ceil', 'Teto (embaixo)', Object.keys(CEIL_T), k => CEIL_T[k]]],
+    defaults: { dn: 0, L: 4300, W: 4300, e: 120, fck: 25, floor: 'none', ceil: 'none', hole: 0, hX: 1000, hZ: 1000, hL: 2500, hW: 1200 },
+    fields: p => [['L', 'Comprimento (mm)'], ['W', 'Largura (mm)'], ['e', 'Espessura (mm)'], ['fck', 'fck (MPa)', FCK], ['floor', 'Piso sobre a laje', Object.keys(FLOOR_T), k => FLOOR_T[k]], ['hole', 'Abertura (escada / shaft)', BOOL, k => k ? 'Com abertura' : 'Sem abertura'], ...(p.hole ? [['hX', 'Abertura: início em X (mm)'], ['hZ', 'Abertura: início em Z (mm)'], ['hL', 'Abertura: comprimento (mm)'], ['hW', 'Abertura: largura (mm)']] : []), ['ceil', 'Teto (embaixo)', Object.keys(CEIL_T), k => CEIL_T[k]]],
     desc: p => `Laje maciça ${p.L}×${p.W} mm, e = ${p.e} mm${p.floor && p.floor !== 'none' ? ', ' + FLOOR_T[p.floor].toLowerCase() : ''}`,
     std: () => 'NBR 6118', mat: p => `Concreto C${p.fck}`,
     ports: p => [CVP('C1', new V3(0, 0, 0), DOWN), CVP('C2', new V3(p.L, 0, 0), DOWN), CVP('C3', new V3(0, 0, p.W), DOWN), CVP('C4', new V3(p.L, 0, p.W), DOWN)],
     prims(p) {
-      const out = [box(new V3(p.L / 2, p.e / 2, p.W / 2), [p.L, p.e, p.W], { mat: 'concrete' })];
-      if (p.floor && p.floor !== 'none') { out.push(box(new V3(p.L / 2, p.e + 20, p.W / 2), [p.L, 40, p.W], { mat: 'screed' })); if (p.floor !== 'contrapiso') out.push(box(new V3(p.L / 2, p.e + 45, p.W / 2), [p.L, 10, p.W], { mat: { ceramica: 'floortile', porcelanato: 'porcelain', epoxi: 'epoxy', granilite: 'granilite' }[p.floor] })); }
-      if (p.ceil && p.ceil !== 'none') out.push(box(new V3(p.L / 2, p.ceil === 'pintura' ? -2 : -60, p.W / 2), [p.L - 20, p.ceil === 'pintura' ? 4 : 12, p.W - 20], { mat: p.ceil === 'pvc' ? 'pvcceil' : 'gesso' }));
+      // laje com abertura opcional (escada, shaft): a placa vira até 4 retângulos em volta do furo
+      const R = slabRects(p), lay = (y, h, mat, ins = 0) => R.map(([x0, x1, z0, z1]) => box(new V3((x0 + x1) / 2, y, (z0 + z1) / 2), [Math.max(1, x1 - x0 - ins), h, Math.max(1, z1 - z0 - ins)], { mat }));
+      const out = lay(p.e / 2, p.e, 'concrete');
+      if (p.floor && p.floor !== 'none') { out.push(...lay(p.e + 20, 40, 'screed')); if (p.floor !== 'contrapiso') out.push(...lay(p.e + 45, 10, { ceramica: 'floortile', porcelanato: 'porcelain', epoxi: 'epoxy', granilite: 'granilite' }[p.floor])); }
+      if (p.ceil && p.ceil !== 'none') out.push(...lay(p.ceil === 'pintura' ? -2 : -60, p.ceil === 'pintura' ? 4 : 12, p.ceil === 'pvc' ? 'pvcceil' : 'gesso', 20));
       return out;
     },
     bomLines(p) {
-      const A = p.L * p.W / 1e6, L = concreteLines(p, p.L * p.W * p.e / 1e9, A, 70);
+      const Ah = slabRects(p).reduce((a, r) => a + (r[1] - r[0]) * (r[3] - r[2]), 0), A = Ah / 1e6, L = concreteLines(p, Ah * p.e / 1e9, A, 70);
       if (p.floor && p.floor !== 'none') {
         L.push({ desc: 'Contrapiso argamassa 1:4 e = 40 mm', unit: 'm²', qty: A, std: 'NBR 13753', mat: 'Argamassa', w: A * 0.04 * 2000 });
         if (p.floor === 'ceramica') L.push({ desc: 'Piso cerâmico 45×45 cm PEI-4', unit: 'm²', qty: A * 1.1, std: 'NBR 13818', mat: 'Cerâmica', w: A * 1.1 * 18 }, { desc: 'Argamassa colante AC-II', unit: 'kg', qty: A * 5, std: 'NBR 14081', mat: 'Argamassa colante', w: A * 5 }, { desc: 'Rejunte cimentício', unit: 'kg', qty: A * 0.3, std: 'NBR 14992', mat: 'Rejunte', w: A * 0.3 });
@@ -1093,6 +1104,33 @@ const CURVED = {
 for (const k in CURVED) CURVED[k].weight = civW(CURVED[k]);
 Object.assign(TYPES, CURVED);
 
+/* ---------------- Fechamento lateral / frontal em telha metálica ---------------- */
+TYPES.cladding = {
+  name: 'Fechamento em telha metálica', prefix: 'FE', spool: false, struct: true, es: true,
+  defaults: { dn: 0, L: 6000, H: 6000, rise: 0, gate: 0, gW: 4000, gH: 4500, gX: 3000 },
+  fields: p => [['L', 'Comprimento (mm)'], ['H', 'Altura até o beiral (mm)'], ['rise', 'Oitão / frontão — altura extra no meio (mm)'], ['gate', 'Portão', BOOL, k => k ? 'Com portão de enrolar' : 'Sem portão'], ...(p.gate ? [['gW', 'Largura do portão (mm)'], ['gH', 'Altura do portão (mm)'], ['gX', 'Centro do portão (mm)']] : [])],
+  desc: p => `Fechamento em telha metálica trapezoidal ${p.L}×${p.H}${p.rise ? ' + oitão ' + p.rise : ''} mm${p.gate ? `, portão ${p.gW}×${p.gH}` : ''}`,
+  std: () => 'NBR 14514', mat: () => 'Telha de aço galvalume TP-40 e = 0,50 mm', ports: () => [],
+  hAt(p, x) { return p.H + (p.rise ? p.rise * (1 - Math.abs(2 * x / p.L - 1)) : 0); },
+  prims(p) {
+    const out = [], rib = 250, n = Math.max(1, Math.round(p.L / rib));
+    for (let i = 0; i < n; i++) {
+      const x0 = i * p.L / n, x1 = (i + 1) * p.L / n, xm = (x0 + x1) / 2, h = this.hAt(p, xm), w = x1 - x0;
+      const inGate = p.gate && Math.abs(xm - p.gX) < p.gW / 2, y0 = inGate ? p.gH : 0;
+      if (h - y0 > 5) { out.push(box(new V3(xm, (y0 + h) / 2, 0), [w - 2, h - y0, 8], { mat: 'galv' })); if (i % 2 === 0) out.push(box(new V3(xm, (y0 + h) / 2, 22), [w * 0.4, h - y0, 36], { mat: 'galvd' })); }
+    }
+    if (p.gate) { out.push(box(new V3(p.gX, p.gH / 2, 30), [p.gW, p.gH, 20], { mat: 'galvd' }), box(new V3(p.gX, p.gH + 150, 120), [p.gW + 100, 300, 260], { mat: 'galv' })); }
+    return out;
+  },
+  bomLines(p) {
+    const A = (p.L * p.H + (p.rise ? p.L * p.rise / 2 : 0) - (p.gate ? p.gW * p.gH : 0)) / 1e6, kg = A * 4.9;
+    const L = [{ desc: 'Telha metálica trapezoidal TP-40 galvalume e = 0,50 mm (fechamento)', unit: 'm²', qty: A * 1.08, std: 'NBR 14514', mat: 'Aço galvalume', w: kg * 1.08 }, { desc: 'Parafuso autoperfurante c/ arruela de vedação', unit: 'un', qty: Math.ceil(A * 6), std: '', mat: 'Aço zincado', w: 0 }];
+    if (p.gate) L.push({ desc: `Portão de enrolar automatizado ${p.gW}×${p.gH} mm`, unit: 'un', qty: 1, std: '', mat: 'Aço galvanizado', w: p.gW * p.gH / 1e6 * 12 });
+    return L;
+  },
+  keys: civKeys,
+};
+TYPES.cladding.weight = civW(TYPES.cladding);
 /* ---------------- Inserir válvula / flanges no meio de um tubo ---------------- */
 const INLINE = {
   gate: { label: 'Válvula gaveta', items: [['flange', { sub: 'WN' }, 'P1', 'P2'], ['valve', { sub: 'gate' }, 'P1', 'P2'], ['flange', { sub: 'WN' }, 'P2', 'P1']] },
@@ -1216,6 +1254,20 @@ function trayPrims(p, path) { // path: lista de {c, len, rot(Q)} segmentos retos
   return out;
 }
 const TRAY_W = [100, 150, 200, 300, 400, 500, 600], TRAY_H = [50, 75, 100];
+/* motor TEFC detalhado: carcaça aletada, tampa do ventilador com grade, caixa de ligação, olhal, pés, ponta de eixo */
+function motorPrims(x0, L, hc, D, opt = {}) {
+  const R = D / 2, out = [cyl(new V3(x0, hc, 0), new V3(x0 + L, hc, 0), R * 0.94, null, { mat: 'motor' })];
+  for (let i = 0; i < 16; i++) { const a = i / 16 * 2 * Math.PI; if (Math.sin(a) < -0.75) continue; out.push(box(new V3(x0 + L * 0.5, hc + R * 0.98 * Math.cos(a), R * 0.98 * Math.sin(a)), [L * 0.86, R * 0.16, R * 0.05], { mat: 'motor', rq: Q.axisAngle(AX, a), clash: false })); }
+  out.push(cyl(new V3(x0 - D * 0.28, hc, 0), new V3(x0, hc, 0), R * 0.96, R * 1.0, { mat: 'motor' }), cyl(new V3(x0 - D * 0.3, hc, 0), new V3(x0 - D * 0.28, hc, 0), R * 0.7, null, { mat: 'stem', clash: false }));
+  for (let i = 0; i < 6; i++) out.push(box(new V3(x0 - D * 0.295, hc, 0), [D * 0.012, R * 1.3, R * 0.03], { mat: 'motor', rq: Q.axisAngle(AX, i * Math.PI / 6), clash: false }));
+  out.push(cyl(new V3(x0 + L, hc, 0), new V3(x0 + L + D * 0.06, hc, 0), R * 0.9, R * 0.7, { mat: 'motor' }));
+  if (!opt.noShaft) out.push(cyl(new V3(x0 + L + D * 0.06, hc, 0), new V3(x0 + L + D * 0.42, hc, 0), D * 0.1, null, { mat: 'stem', clash: false }), box(new V3(x0 + L + D * 0.3, hc + D * 0.1, 0), [D * 0.18, D * 0.02, D * 0.04], { mat: 'stem', clash: false }));
+  out.push(box(new V3(x0 + L * 0.42, hc + R + D * 0.12, 0), [D * 0.42, D * 0.24, D * 0.42], { mat: 'motor', edges: true }), box(new V3(x0 + L * 0.42, hc + R + D * 0.255, 0), [D * 0.46, D * 0.03, D * 0.46], { mat: 'motor' }), cyl(new V3(x0 + L * 0.42, hc + R + D * 0.12, D * 0.21), new V3(x0 + L * 0.42, hc + R + D * 0.12, D * 0.3), D * 0.05, null, { mat: 'stem', clash: false }));
+  out.push(box(new V3(x0 + L * 0.78, hc + R + D * 0.06, 0), [D * 0.08, D * 0.14, D * 0.04], { mat: 'motor', clash: false }));
+  const base = opt.base ?? 0, fh = Math.max(10, hc - R * 0.6 - base); for (const sx of [0.18, 0.82]) for (const sz of [-1, 1]) out.push(box(new V3(x0 + L * sx, base + fh / 2, sz * R * 0.72), [Math.abs(D * 0.22), fh, D * 0.2], { mat: 'motor' }));
+  out.push(box(new V3(x0 + L * 0.55, hc + R * 0.25, R * 0.97), [D * 0.22, D * 0.12, 3], { mat: 'alum', clash: false }));
+  return out;
+}
 const ELT = {
   tray: {
     name: 'Leito / eletrocalha', prefix: 'LT', spool: false, es: true,
@@ -1250,9 +1302,21 @@ const ELT = {
     desc: p => `Painel ${p.sub} ${p.W}×${p.H}×${p.D} mm, IP54`,
     std: () => 'NBR IEC 61439', mat: () => 'Chapa de aço pintada RAL 7035',
     ports: p => [ELP('TOP', new V3(0, p.H, 0), UP)],
-    prims: p => [box(new V3(0, 50, 0), [p.W, 100, p.D], { mat: 'motor' }), box(new V3(0, 100 + (p.H - 100) / 2, 0), [p.W, p.H - 100, p.D], { mat: 'panel', edges: true }),
-      box(new V3(0, 100 + (p.H - 100) / 2, p.D / 2 + 2), [p.W - 30, p.H - 130, 4], { mat: 'panel', edges: true }), box(new V3(p.W / 2 - 60, p.H * 0.55, p.D / 2 + 14), [18, 140, 20], { accent: true, clash: false }),
-      box(new V3(-p.W / 4, p.H * 0.78, p.D / 2 + 6), [p.W * 0.3, p.H * 0.08, 6], { accent: true, clash: false })],
+    prims(p) { // painel com rodapé, portas (1 ou 2 folhas), puxadores, venezianas, sinaleiros, IHM e placa de identificação
+      const out = [box(new V3(0, 50, 0), [p.W, 100, p.D], { mat: 'motor' }), box(new V3(0, 100 + (p.H - 100) / 2, 0), [p.W, p.H - 100, p.D], { mat: 'panel', edges: true }), box(new V3(0, p.H + 15, 0), [p.W + 20, 30, p.D + 20], { mat: 'panel', edges: true })];
+      const nd = p.W >= 800 ? 2 : 1, dw = (p.W - 30) / nd, zf = p.D / 2 + 3, hc = 100 + (p.H - 100) / 2;
+      for (let i = 0; i < nd; i++) {
+        const xc = -p.W / 2 + 15 + dw * (i + 0.5);
+        out.push(box(new V3(xc, hc, zf), [dw - 8, p.H - 150, 5], { mat: 'panel', edges: true }));
+        const hx = nd === 2 ? xc + (i === 0 ? dw / 2 - 45 : -dw / 2 + 45) : xc + dw / 2 - 50;
+        out.push(box(new V3(hx, p.H * 0.52, zf + 14), [22, 150, 20], { mat: 'grip', clash: false }), cyl(new V3(hx, p.H * 0.52 + 110, zf), new V3(hx, p.H * 0.52 + 110, zf + 14), 14, null, { mat: 'stem', clash: false }));
+        for (const yv of [180, p.H - 220]) for (let k = 0; k < 6; k++) out.push(box(new V3(xc, yv + k * 22, zf + 4), [dw * 0.55, 6, 6], { mat: 'motor', clash: false }));
+      }
+      const x1 = -p.W / 2 + 15 + dw / 2;
+      ['#2f9e44', '#e03131', '#f59f00'].forEach((c, k) => out.push(cyl(new V3(x1 - 60 + k * 60, p.H * 0.8, zf + 2), new V3(x1 - 60 + k * 60, p.H * 0.8, zf + 22), 13, null, { mat: k === 0 ? 'lampG' : k === 1 ? 'lampR' : 'lampY', clash: false })));
+      out.push(box(new V3(x1, p.H * 0.68, zf + 5), [Math.min(220, dw * 0.6), 130, 8], { mat: 'glass', clash: false }), box(new V3(x1, p.H * 0.9, zf + 4), [Math.min(260, dw * 0.7), 50, 3], { mat: 'alum', clash: false }));
+      return out;
+    },
     bomLines: p => [{ desc: `Painel elétrico ${p.sub} ${p.W}×${p.H}×${p.D} mm`, unit: 'un', qty: 1, std: 'NBR IEC 61439', mat: 'Aço pintado RAL 7035', w: (p.W * p.H * 2 + p.W * p.D * 2 + p.H * p.D * 2) * 2 * 7.85e-6 }],
     keys: civKeys,
   },
@@ -1266,9 +1330,7 @@ const ELT = {
     geo: p => { const [D, L] = MOTOR[p.cv] || MOTOR[10]; return { D, L, hc: D * 0.62 }; },
     prims(p) {
       const { D, L, hc } = this.geo(p);
-      return [cyl(new V3(0, hc, 0), new V3(L, hc, 0), D / 2, null, { mat: 'motor' }), cyl(new V3(-D * 0.25, hc, 0), new V3(0, hc, 0), D * 0.44, null, { mat: 'motor' }),
-        cyl(new V3(L, hc, 0), new V3(L + D * 0.45, hc, 0), D * 0.11, null, { accent: true, clash: false }), box(new V3(L * 0.5, D * 0.06, 0), [L * 0.8, D * 0.12, D * 1.05], { mat: 'motor' }),
-        box(new V3(L * 0.45, hc + D * 0.55, 0), [D * 0.45, D * 0.25, D * 0.45], { mat: 'motor', edges: true })];
+      return motorPrims(0, L, hc, D);
     },
     bomLines: p => [{ desc: `Motor elétrico trifásico ${p.cv} cv 4 polos IP55`, unit: 'un', qty: 1, std: 'NBR 17094', mat: 'Ferro fundido', w: 12 + p.cv * 7 }],
     keys: civKeys,
@@ -1288,8 +1350,14 @@ const ELT = {
         cyl(new V3(g.s, 0, 0), new V3(g.s + g.w, 0, 0), g.Rv, null, { mat: 'motor' }), cyl(new V3(cx, g.Rv * 0.5, 0), new V3(cx, g.h - f2.ft, 0), g.od2 / 2 * 1.15, g.od2 / 2, { mat: 'motor' }),
         cyl(new V3(cx, g.h - f2.ft, 0), new V3(cx, g.h, 0), f2.fod / 2), cyl(new V3(g.s + g.w, 0, 0), new V3(bx0, 0, 0), g.Rv * 0.35, null, { mat: 'motor', clash: false }),
         cyl(new V3(bx0, 0, 0), new V3(mx, 0, 0), g.Rv * 0.12, null, { accent: true, clash: false }),
-        cyl(new V3(mx, 0, 0), new V3(mx + g.L, 0, 0), g.D / 2, null, { mat: 'motor' }), cyl(new V3(mx + g.L, 0, 0), new V3(mx + g.L + g.D * 0.25, 0, 0), g.D * 0.44, null, { mat: 'motor' }),
-        box(new V3((mx + g.L) / 2, by - 40, 0), [mx + g.L + 200, 80, Math.max(g.D, g.Rv * 2) + 200], { mat: 'motor', edges: true })];
+        // mancal, protetor de acoplamento, motor aletado (girado: ventilador para fora) e base em perfil U com chumbadores
+        cyl(new V3(g.s + g.w + 10, 0, 0), new V3(bx0 - 20, 0, 0), g.Rv * 0.42, g.Rv * 0.3, { mat: 'motor', clash: false }),
+        box(new V3((bx0 + mx) / 2, 0, 0), [mx - bx0 + 60, g.Rv * 0.75, g.Rv * 0.75], { accent: true, clash: false }),
+        ...motorPrims(mx + g.L, -g.L, 0, g.D, { noShaft: true, base: by }),
+        box(new V3((mx + g.L) / 2, by - 40, 0), [mx + g.L + 200, 80, Math.max(g.D, g.Rv * 2) + 200], { mat: 'motor', edges: true }),
+        box(new V3((mx + g.L) / 2, by - 40, (Math.max(g.D, g.Rv * 2) + 200) / 2 - 8), [mx + g.L + 200, 120, 16], { mat: 'motor' }), box(new V3((mx + g.L) / 2, by - 40, -(Math.max(g.D, g.Rv * 2) + 200) / 2 + 8), [mx + g.L + 200, 120, 16], { mat: 'motor' }),
+        ...[-1, 1].flatMap(sx => [-1, 1].map(sz => cyl(new V3((mx + g.L) / 2 + sx * (mx + g.L) / 2, by - 80, sz * (Math.max(g.D, g.Rv * 2) / 2 + 60)), new V3((mx + g.L) / 2 + sx * (mx + g.L) / 2, by + 20, sz * (Math.max(g.D, g.Rv * 2) / 2 + 60)), 10, null, { mat: 'stem', clash: false }))),
+        cyl(new V3(cx, -g.Rv, 0), new V3(cx, -g.Rv - 30, 0), 12, null, { mat: 'stem', clash: false })];
     },
     weight: p => 60 + p.cv * 9 + odOf(p.dn) * 0.5,
     keys: (p, w) => ({ pts: [w.P1], key: [w.P1, w.P2] }),
@@ -2499,6 +2567,45 @@ function flatSVG(pr, opts = {}) {
   return { svg: out.join(''), scale: 0, spools: [], pages };
 }
 
+/* ---------- SVG da prancha → DXF R12 (abre no AutoCAD/LibreCAD/DraftSight), unidades em mm ---------- */
+function svg2dxf(svgText) {
+  const doc = new DOMParser().parseFromString(svgText, 'image/svg+xml'), root = doc.documentElement;
+  const vb = (root.getAttribute('viewBox') || '0 0 420 297').split(/[\s,]+/).map(Number), H = vb[3];
+  const out = [], Y = y => (H - y), num = v => (+v || 0).toFixed(3);
+  const enc = t => String(t).replace(/[^\x20-\x7e]/g, c => '\\U+' + c.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0'));
+  const layerOf = el => { const c = (el.getAttribute('stroke') || el.getAttribute('fill') || '#111').toLowerCase(); return c.includes('2563eb') ? 'COTAS' : c.includes('d97706') || c.includes('b45309') ? 'GABARITO' : c.includes('bbb') || c.includes('ccc') || c.includes('999') ? 'AUXILIAR' : el.tagName === 'text' ? 'TEXTOS' : 'CONTORNO'; };
+  const COLOR = { CONTORNO: 7, COTAS: 5, GABARITO: 30, AUXILIAR: 8, TEXTOS: 7 };
+  const ent = (type, el, pairs) => { out.push('0', type, '8', layerOf(el), '62', String(COLOR[layerOf(el)] || 7)); for (const [c, v] of pairs) out.push(String(c), String(v)); };
+  const poly = (el, pts, closed) => { if (pts.length < 2) return; ent('POLYLINE', el, [[66, 1], [70, closed ? 1 : 0], [10, 0], [20, 0], [30, 0]]); for (const [x, y] of pts) out.push('0', 'VERTEX', '8', layerOf(el), '10', num(x), '20', num(Y(y)), '30', '0'); out.push('0', 'SEQEND', '8', layerOf(el)); };
+  const P = s => (s || '').trim().split(/[\s]+/).map(q => q.split(',').map(Number)).filter(q => q.length === 2 && !isNaN(q[0]));
+  const walk = el => {
+    for (const c of el.children) {
+      const t = c.tagName;
+      if (t === 'defs' || t === 'marker') continue;
+      if (t === 'g') { walk(c); continue; }
+      const fillW = (c.getAttribute('fill') || '').toLowerCase() === '#fff' && !c.getAttribute('stroke');
+      if (t === 'line') ent('LINE', c, [[10, num(c.getAttribute('x1'))], [20, num(Y(c.getAttribute('y1')))], [30, 0], [11, num(c.getAttribute('x2'))], [21, num(Y(c.getAttribute('y2')))], [31, 0]]);
+      else if (t === 'polyline' || t === 'polygon') poly(c, P(c.getAttribute('points')), t === 'polygon');
+      else if (t === 'rect' && !fillW) { const x = +c.getAttribute('x'), y = +c.getAttribute('y'), w = +c.getAttribute('width'), h = +c.getAttribute('height'); if (w < 1e-6 || h < 1e-6 || (w >= vb[2] - 0.01 && h >= vb[3] - 0.01)) continue; poly(c, [[x, y], [x + w, y], [x + w, y + h], [x, y + h]], true); }
+      else if (t === 'circle') ent('CIRCLE', c, [[10, num(c.getAttribute('cx'))], [20, num(Y(c.getAttribute('cy')))], [30, 0], [40, num(c.getAttribute('r'))]]);
+      else if (t === 'ellipse') { const cx = +c.getAttribute('cx'), cy = +c.getAttribute('cy'), rx = +c.getAttribute('rx'), ry = +c.getAttribute('ry'), pts = []; for (let i = 0; i < 48; i++) { const a = i / 48 * 2 * Math.PI; pts.push([cx + rx * Math.cos(a), cy + ry * Math.sin(a)]); } poly(c, pts, true); }
+      else if (t === 'path') { const d = c.getAttribute('d') || '', pts = []; const re = /([ML])\s*([-\d.]+)[ ,]+([-\d.]+)/g; let m; while ((m = re.exec(d))) pts.push([+m[2], +m[3]]); poly(c, pts, /Z/i.test(d)); }
+      else if (t === 'text') {
+        const x = +c.getAttribute('x'), y = +c.getAttribute('y'), fs = +c.getAttribute('font-size') || 2.5, an = c.getAttribute('text-anchor'), tr = c.getAttribute('transform') || '', rm = /rotate\(([-\d.]+)/.exec(tr), rot = rm ? -(+rm[1]) : 0;
+        const h = fs * 0.72, al = an === 'middle' ? 1 : an === 'end' ? 2 : 0, txt = c.textContent || ''; if (!txt.trim()) continue;
+        const pairs = [[10, num(x)], [20, num(Y(y))], [30, 0], [40, num(h)], [1, enc(txt)]]; if (rot) pairs.push([50, num(rot)]); if (al) pairs.push([72, al], [11, num(x)], [21, num(Y(y))], [31, 0]);
+        ent('TEXT', c, pairs);
+      }
+    }
+  };
+  walk(root);
+  const layers = Object.keys(COLOR), tbl = ['0', 'SECTION', '2', 'TABLES', '0', 'TABLE', '2', 'LAYER', '70', String(layers.length)];
+  for (const l of layers) tbl.push('0', 'LAYER', '2', l, '70', '0', '62', String(COLOR[l]), '6', 'CONTINUOUS');
+  tbl.push('0', 'ENDTAB', '0', 'ENDSEC');
+  const head = ['0', 'SECTION', '2', 'HEADER', '9', '$ACADVER', '1', 'AC1009', '9', '$INSUNITS', '70', '4', '9', '$EXTMIN', '10', '0', '20', '0', '9', '$EXTMAX', '10', String(vb[2]), '20', String(vb[3]), '0', 'ENDSEC'];
+  return head.concat(tbl, ['0', 'SECTION', '2', 'ENTITIES'], out, ['0', 'ENDSEC', '0', 'EOF']).join('\r\n');
+}
+
 function isoThumb(pr, W = 320, H = 200) {
   const geo = [...pr.pieces.values()].map(pc => geomOf(pc).map(g => Object.assign(g, { acc: false }))).flat();
   const pj = PROJ.iso;
@@ -2517,8 +2624,8 @@ function isoThumb(pr, W = 320, H = 200) {
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" fill="none" stroke-linecap="butt">${h.join('')}${a.join('')}${b.join('')}</svg>`;
 }
-if (typeof module !== 'undefined') module.exports = { sheetSVG, dimSegments, isoThumb };
-else window.TPSheet = { sheetSVG, dimSegments, isoThumb };
+if (typeof module !== 'undefined') module.exports = { sheetSVG, dimSegments, isoThumb, svg2dxf };
+else window.TPSheet = { sheetSVG, dimSegments, isoThumb, svg2dxf };
 })();
 
 </script>
@@ -2549,7 +2656,7 @@ let CLOUD = null;
 const uid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
 const ck = id => 'tecplan.p:' + String(USER.email || '').toLowerCase() + ':' + id;
 const lastK = () => 'tecplan.last:' + String(USER.email || '').toLowerCase();
-function save() { const js = pr.toJSON(); js.savedAt = Date.now(); store.set(ck(S.pid), js); store.set(lastK(), S.pid); queueCloud(); }
+function save() { if (USER.role === 'viewer') return; const js = pr.toJSON(); js.savedAt = Date.now(); store.set(ck(S.pid), js); store.set(lastK(), S.pid); queueCloud(); }
 let cloudT = null, cloudBusy = false, cloudAgain = false;
 function queueCloud() { if (!CLOUD) return; S.cloud = 'pend'; renderStatus(); clearTimeout(cloudT); cloudT = setTimeout(flushCloud, 1500); }
 async function flushCloud() {
@@ -2589,6 +2696,7 @@ async function newProject(title, data) {
   save(); flushCloud(); refresh(); setTimeout(() => R.fit(), 30);
 }
 async function bootProjects() {
+  if (USER.role === 'viewer') return;
   let list = [];
   if (CLOUD) { try { list = await CLOUD.listProjects(); S.cloud = 'ok'; } catch (e) { console.warn(e); S.cloud = 'off'; } }
   const last = store.get(lastK(), null);
@@ -2604,6 +2712,7 @@ async function bootProjects() {
 function snapshot() { return JSON.stringify(pr.toJSON()); }
 function restore(js) { pr = TP.Project.fromJSON(JSON.parse(js)); if (S.sel && !pr.get(S.sel)) S.sel = null; if (S.active && !pr.get(S.active.id)) S.active = null; }
 function mutate(fn) {
+  if (USER.role === 'viewer') { toast('Visualização somente leitura — peça ao dono do projeto para editar.', 'er'); return; }
   const before = snapshot();
   try {
     const r = fn();
@@ -2810,7 +2919,7 @@ const R = (() => {
     wood: { draw: (g, n, b) => { g.fillStyle = b ? '#808080' : '#8a5a36'; g.fillRect(0, 0, n, n); for (let i = 0; i < 70; i++) { const y = rnd() * n; g.fillStyle = b ? (rnd() > 0.5 ? '#a0a0a0' : '#606060') : `rgba(${rnd() > 0.5 ? '255,220,180' : '40,20,5'},${0.05 + rnd() * 0.08})`; g.fillRect(0, y, n, 1 + rnd() * 3); } }, u: 900, v: 2100, rough: 0.6, metal: 0 },
     woodframe: { color: 0x6b4428, rough: 0.6, metal: 0 }, yellow: { color: 0xe8b416, rough: 0.45, metal: 0.25 }, pvc: { color: 0x9aa3a8, rough: 0.6, metal: 0 },
     grating: { draw: (g, n, b) => { g.fillStyle = b ? '#202020' : '#3a3f45'; g.fillRect(0, 0, n, n); g.fillStyle = b ? '#f0f0f0' : '#b6bdc3'; for (let x = 0; x < n; x += n / 8) g.fillRect(x, 0, 5, n); for (let y = 0; y < n; y += n / 3) g.fillRect(0, y, n, 4); }, u: 300, v: 300, rough: 0.4, metal: 0.8, horiz: 1 },
-    lamp: { color: 0xfff6dc, rough: 0.2, metal: 0, glow: 0xfff0c0 }, porcelainins: { color: 0x7a3b2a, rough: 0.2, metal: 0.05 },
+    lamp: { color: 0xfff6dc, rough: 0.2, metal: 0, glow: 0xfff0c0 }, lampG: { color: 0x2f9e44, rough: 0.3, metal: 0, glow: 0x2f9e44 }, lampR: { color: 0xe03131, rough: 0.3, metal: 0, glow: 0xe03131 }, lampY: { color: 0xf59f00, rough: 0.3, metal: 0, glow: 0xf59f00 }, porcelainins: { color: 0x7a3b2a, rough: 0.2, metal: 0.05 },
     galv: { draw: (g, n, b) => { g.fillStyle = b ? '#808080' : '#b9c0c6'; g.fillRect(0, 0, n, n); for (let i = 0; i < 260; i++) { const v = rnd() - 0.5; g.fillStyle = `rgba(${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${b ? 0.1 : 0.09})`; g.beginPath(); g.moveTo(rnd() * n, rnd() * n); for (let k = 0; k < 5; k++) g.lineTo(rnd() * n, rnd() * n); g.fill(); } }, u: 800, v: 800, rough: 0.4, metal: 0.75 },
     galvd: { color: 0x8d969e, rough: 0.45, metal: 0.7 },
     panel: { color: 0xd4d5cc, rough: 0.55, metal: 0.15 },
@@ -3257,7 +3366,7 @@ const CAT = [
   { g: 'Caldeiraria (chapas)', mod: 'TB', items: [['plate', {}, 'Chapa plana', 'plt'], ['cylinder', {}, 'Cilindro / costado', 'cylr'], ['cplate', {}, 'Chapa calandrada', 'cpl'], ['saddle', {}, 'Sela de reforço', 'sad'],
     ['sphcap', {}, 'Calota esférica', 'cap2'], ['gore', {}, 'Gomo de esfera', 'gore'], ['head', { kind: 'eliptico' }, 'Tampo elíptico 2:1', 'headE'], ['head', { kind: 'torisferico' }, 'Tampo torisférico', 'headT'], ['head', { kind: 'hemisferico' }, 'Tampo hemisférico', 'headH']] },
   { g: 'Estruturas metálicas', mod: 'ES', items: [['baseplate', {}, 'Chapa de base', 'base'], ['profile', { fam: 'W', size: 'W200x15' }, 'Perfil I (W)', 'pI'], ['profile', { fam: 'H', size: 'W200x46,1' }, 'Perfil H', 'pH'],
-    ['profile', { fam: 'U', size: 'U 6"' }, 'Perfil U', 'pU'], ['profile', { fam: 'L', size: 'L 3"x1/4"' }, 'Cantoneira L', 'pL'], ['profile', { fam: 'CHS', size: 'Ø114,3x4,5' }, 'Tubo circular', 'pO'], ['profile', { fam: 'RHS', size: '100x100x5' }, 'Tubo retangular', 'pR'], ['gusset', {}, 'Enrijecedor', 'gus'], ['railing', {}, 'Guarda-corpo', 'rail'], ['grating', {}, 'Piso em grade', 'grate'], ['ladder', {}, 'Escada marinheiro', 'ladder'], ['bracing', {}, 'Contraventamento X', 'brace']] },
+    ['profile', { fam: 'U', size: 'U 6"' }, 'Perfil U', 'pU'], ['cladding', {}, 'Fechamento telha', 'plt'], ['profile', { fam: 'L', size: 'L 3"x1/4"' }, 'Cantoneira L', 'pL'], ['profile', { fam: 'CHS', size: 'Ø114,3x4,5' }, 'Tubo circular', 'pO'], ['profile', { fam: 'RHS', size: '100x100x5' }, 'Tubo retangular', 'pR'], ['gusset', {}, 'Enrijecedor', 'gus'], ['railing', {}, 'Guarda-corpo', 'rail'], ['grating', {}, 'Piso em grade', 'grate'], ['ladder', {}, 'Escada marinheiro', 'ladder'], ['bracing', {}, 'Contraventamento X', 'brace']] },
   { g: 'Eletromecânico', mod: 'EL', items: [['panel', {}, 'Painel elétrico', 'panel'], ['tray', { sub: 'leito' }, 'Leito de cabos', 'tray'], ['tray', { sub: 'eletrocalha' }, 'Eletrocalha', 'tray'],
     ['traybend', {}, 'Curva de leito', 'trayb'], ['conduit', {}, 'Eletroduto', 'cond'], ['conduitbend', {}, 'Curva de eletroduto', 'condb'], ['jbox', {}, 'Caixa de passagem', 'jbox'],
     ['luminaire', { sub: 'highbay' }, 'Luminária industrial', 'lamp'], ['luminaire', { sub: 'linear' }, 'Luminária linear', 'lampl'], ['transformer', {}, 'Transformador', 'trafo'], ['motor', {}, 'Motor elétrico', 'motor'], ['pump', {}, 'Bomba centrífuga', 'pump']] },
@@ -3866,7 +3975,7 @@ function renderSheet() {
     <select class="in" id="shSp" style="width:auto"><option value="ALL">Linha completa</option>${an.spools.map(s => `<option ${S.sheet.spool === s.name ? 'selected' : ''}>${s.name}</option>`).join('')}${[...pr.pieces.values()].some(p => TYPES[p.type].flat) ? `<option value="FLAT" ${S.sheet.spool === 'FLAT' ? 'selected' : ''}>Planificação de chapas</option>` : ''}</select>
     <button class="ib sm" id="shZo">−</button><button class="ib sm" id="shZi">+</button>
     <button class="ib sm ${S.sheet.carimbo ? 'on' : ''}" id="shCar">Carimbo</button><span style="flex:1"></span>
-    <button class="ib sm am" id="shPrint">Imprimir / PDF</button><button class="ib sm" id="shCopy">Copiar SVG</button><button class="ib sm" id="shDl">Baixar SVG</button>`;
+    <button class="ib sm am" id="shPrint">Imprimir / PDF</button><button class="ib sm" id="shCopy">Copiar SVG</button><button class="ib sm" id="shDl">Baixar SVG</button><button class="ib sm" id="shDxf">Baixar DXF</button>`;
   const fields = [['title', 'Título do projeto'], ['line', 'Linha'], ['sheet', 'Folha'], ['designer', 'Projetista'], ['approver', 'Aprovador'], ['date', 'Data'], ['rev', 'Revisão'], ['fluid', 'Fluido']];
   $('#carimbo').className = S.sheet.carimbo ? 'on' : '';
   /* Campos do carimbo: criados uma vez e só atualizados — recriá-los fechava o teclado no celular (o teclado redimensiona a tela e redesenhava tudo). */
@@ -3887,6 +3996,7 @@ function renderSheet() {
   $('#shPrint').onclick = printSheet;
   $('#shCopy').onclick = () => copy(lastSVG, 'SVG da prancha');
   $('#shDl').onclick = () => download(`${(m.line || 'TP')}-${S.sheet.spool}-${S.sheet.size}.svg`, lastSVG, 'image/svg+xml');
+  $('#shDxf').onclick = () => { try { download(`${(m.line || 'TP')}-${S.sheet.spool === 'FLAT' ? 'PLANIFICACAO' : S.sheet.spool}-${S.sheet.size}.dxf`, TPSheet.svg2dxf(lastSVG), 'application/dxf'); toast('DXF gerado (mm, camadas CONTORNO, COTAS, TEXTOS, GABARITO).', 'ok'); } catch (e) { toast('Erro ao gerar DXF: ' + e.message, 'er'); } };
   sheetOnly();
 }
 function sheetOnly() {
@@ -3900,6 +4010,107 @@ function sheetOnly() {
 }
 
 /* ======================= BOM ======================= */
+/* ---------------- ORÇAMENTO (preços editáveis por projeto; valores iniciais são estimativas) ---------------- */
+const BRL = v => 'R$ ' + (+v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const bkey = g => g.desc + '|' + g.unit, N = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+function guessPrice(g) { // R$ por unidade da linha — ponto de partida, sempre editável
+  const d = N(g.desc), u = g.unit, kgU = g.qty ? g.w / g.qty : 0, ss = /inox|a312|316|304/.test(N(g.mat || '') + d), galv = /galv/.test(d);
+  if (/estojo/.test(d)) return Math.round((3 + kgU * 28) * 100) / 100;
+  if (/junta espiralada/.test(d)) return Math.round(35 + (+g.dn || 50) * 0.9);
+  if (/calandragem|conformacao|tampo .* conform|sela de reforco .*calandrar/.test(d)) return Math.round(180 + 1.2 * (+String(g.desc).match(/R (\d+)/)?.[1] || 300) * 0.1);
+  if (/isolamento/.test(d)) return 140;
+  if (u === 'm' && g.type === 'pipe') return Math.round(kgU * (ss ? 85 : galv ? 24 : 18));
+  if (g.type === 'valve') return Math.max(180, Math.round(g.w / Math.max(1, g.qty) * (ss ? 160 : 70)));
+  if (g.type === 'flange') return Math.round(kgU * (ss ? 95 : 30));
+  if (['elbow', 'tee', 'reducer', 'cap'].includes(g.type)) return Math.round(Math.max(25, kgU * (ss ? 110 : 32)));
+  if (['strainer', 'expjoint', 'sightglass', 'psv', 'pgauge', 'tgauge'].includes(g.type)) return Math.max(150, Math.round(kgU * 65));
+  if (u === 'kg') return /ca-50|armadura/.test(d) ? 8.5 : /chapa/.test(d) ? 12 : /perfil|w\d|u \d|cantoneira/.test(d) ? 11.5 : 12;
+  if (u === 'm³') return /concreto/.test(d) ? 750 : /argamassa/.test(d) ? 480 : 500;
+  if (u === 'm²') return /porcelanato/.test(d) ? 115 : /azulejo|ceramic/.test(d) ? 65 : /pintura|textura/.test(d) ? 22 : /reboco|emboco|chapisco/.test(d) ? 35 : /gesso|forro/.test(d) ? 48 : /alvenaria/.test(d) ? 48 : /telha|cobertura/.test(d) ? 70 : /epoxi/.test(d) ? 95 : 45;
+  if (u === 'un') return /bloco/.test(d) ? 4.8 : /tijolo/.test(d) ? 1.2 : /telha/.test(d) ? 3.2 : /porta/.test(d) ? 650 : /janela/.test(d) ? 780 : 35;
+  if (u === 'm') return Math.max(15, Math.round(kgU * 16));
+  return Math.max(20, Math.round((g.w / Math.max(1, g.qty)) * 25));
+}
+function budgetData() {
+  const B = pr.meta.budget || (pr.meta.budget = { prices: {}, labor: 35, bdi: 20, weldSW: 55, weldFW: 80 });
+  const items = TP.bom(pr), an = TP.analyze(pr);
+  const lines = items.map(g => { const k = bkey(g), est = !(k in B.prices), pu = est ? guessPrice(g) : +B.prices[k]; return { g, k, pu, est, tot: pu * g.qty }; });
+  const inch = dn => TP.DIM[dn] ? TP.DIM[dn].inch : 0;
+  const swIn = an.welds.filter(w => !w.field).reduce((a, w) => a + inch(w.dn), 0), fwIn = an.welds.filter(w => w.field).reduce((a, w) => a + inch(w.dn), 0);
+  const mat = lines.reduce((a, l) => a + l.tot, 0), weld = swIn * B.weldSW + fwIn * B.weldFW, labor = mat * B.labor / 100, sub = mat + weld + labor, bdi = sub * B.bdi / 100;
+  return { B, lines, swIn, fwIn, mat, weld, labor, sub, bdi, total: sub + bdi };
+}
+function budgetHTML() {
+  const D = budgetData(), B = D.B, n = (k, v, w = 70) => `<input class="in" type="number" step="0.01" data-bg="${k}" value="${v}" style="width:${w}px;padding:2px 6px;height:28px">`;
+  return `<h2 id="orc">Orçamento <button class="ib sm" id="bgCsv">Baixar planilha (CSV)</button><button class="ib sm" id="bgReset">Voltar às estimativas</button></h2>
+  <div class="mut" style="font-size:12px;margin:-6px 0 10px">Preços iniciais são <b>estimativas de referência</b> (em itálico) — edite o preço unitário com a sua cotação; fica salvo no projeto.</div>
+  <div class="tw"><table class="t"><thead><tr><th>It</th><th>Descrição</th><th>Qtd</th><th>Preço unit.</th><th>Total</th></tr></thead><tbody>
+  ${D.lines.map((l, i) => `<tr><td class="n">${l.g.item}</td><td>${esc(l.g.desc)}</td><td class="n">${fmt(l.g.qty, l.g.unit === 'pç' || l.g.unit === 'un' ? 0 : 2)} ${l.g.unit}</td><td class="n"><input class="in" type="number" step="0.01" data-bp="${i}" value="${(+l.pu).toFixed(2)}" style="width:96px;padding:2px 6px;height:28px;${l.est ? 'font-style:italic;color:var(--mu)' : ''}"></td><td class="n">${BRL(l.tot)}</td></tr>`).join('')}
+  </tbody></table></div>
+  <div class="cards" style="margin-top:10px">
+    <div class="card"><div class="v">${BRL(D.mat)}</div><div class="l">Materiais</div></div>
+    <div class="card"><div class="v">${BRL(D.weld)}</div><div class="l">Soldagem (${fmt(D.swIn, 1)}" oficina · ${fmt(D.fwIn, 1)}" campo)</div></div>
+    <div class="card"><div class="v">${BRL(D.labor)}</div><div class="l">Montagem / mão de obra</div></div>
+    <div class="card"><div class="v">${BRL(D.bdi)}</div><div class="l">BDI / margem</div></div>
+    <div class="card" style="border-color:var(--am)"><div class="v" style="color:var(--am)">${BRL(D.total)}</div><div class="l">Total estimado</div></div>
+  </div>
+  <div class="row" style="gap:14px;flex-wrap:wrap;margin:8px 0 18px;font-size:12.5px">
+    <label>Solda oficina R$/pol·diâm ${n('weldSW', B.weldSW)}</label><label>Solda campo R$/pol·diâm ${n('weldFW', B.weldFW)}</label>
+    <label>Montagem % do material ${n('labor', B.labor, 60)}</label><label>BDI / margem % ${n('bdi', B.bdi, 60)}</label></div>`;
+}
+function bindBudget() {
+  const D = budgetData(), B = D.B, again = () => { save(); const y = $('#bomw').scrollTop; renderBom(); $('#bomw').scrollTop = y; };
+  $('#bomw').querySelectorAll('[data-bp]').forEach(i => i.onchange = () => { const l = D.lines[+i.dataset.bp]; B.prices[l.k] = +i.value || 0; again(); });
+  $('#bomw').querySelectorAll('[data-bg]').forEach(i => i.onchange = () => { B[i.dataset.bg] = +i.value || 0; again(); });
+  $('#bgReset').onclick = () => { B.prices = {}; again(); };
+  $('#bgCsv').onclick = () => {
+    const q = s => '"' + String(s).replace(/"/g, '""') + '"', nb = v => (+v).toFixed(2).replace('.', ',');
+    const rows = [['Item', 'Descrição', 'Norma', 'Material', 'Qtd', 'Unid', 'Preço unit. (R$)', 'Total (R$)', 'Origem do preço']].concat(D.lines.map(l => [l.g.item, l.g.desc, l.g.std, l.g.mat, nb(l.g.qty), l.g.unit, nb(l.pu), nb(l.tot), l.est ? 'estimativa' : 'cotação']));
+    rows.push([], ['', 'Materiais', '', '', '', '', '', nb(D.mat)], ['', `Soldagem (${nb(D.swIn)} pol oficina, ${nb(D.fwIn)} pol campo)`, '', '', '', '', '', nb(D.weld)], ['', `Montagem (${B.labor}% do material)`, '', '', '', '', '', nb(D.labor)], ['', `BDI / margem (${B.bdi}%)`, '', '', '', '', '', nb(D.bdi)], ['', 'TOTAL', '', '', '', '', '', nb(D.total)]);
+    download(`${pr.meta.line || 'TP'}-orcamento.csv`, '﻿' + rows.map(r => r.map(q).join(';')).join('\r\n'), 'text/csv');
+  };
+}
+/* ---------------- HIDRÁULICA: perda de carga da linha (Darcy–Weisbach + Swamee–Jain + coeficientes K) ---------------- */
+const KFIT = { elbow90: 0.3, elbow45: 0.2, tee: 0.9, reducer: 0.15, gate: 0.15, ball: 0.05, globe: 6, butterfly: 0.6, check: 2, plug: 0.4, needle: 8, diaphragm: 2.3, strainer: 2, expjoint: 0.3, sightglass: 0.5 };
+const FLUIDS = { agua: ['Água 20 °C', 998, 1.0e-3], aguaq: ['Água 80 °C', 972, 0.355e-3], oleo: ['Óleo leve (diesel)', 840, 3.0e-3], ar: ['Ar comprimido 7 bar', 9.4, 1.8e-5], vapor: ['Vapor saturado 10 bar', 5.6, 1.5e-5] };
+function hydro() {
+  const H = pr.meta.hyd || (pr.meta.hyd = { q: 30, fl: 'agua', eps: 0.045 });
+  const [fname, rho, mu] = FLUIDS[H.fl] || FLUIDS.agua, Q = H.q / 3600, rows = [];
+  let dpF = 0, dpK = 0, ymin = 1e9, ymax = -1e9;
+  const seg = (dn, Lm, K, what) => {
+    const d = TP.DIM[dn]; if (!d) return; const Di = (d.od - 2 * d.wt) / 1000, A = Math.PI * Di * Di / 4, v = Q / A, Re = rho * v * Di / mu;
+    const f = Re < 2300 ? 64 / Math.max(1, Re) : 0.25 / Math.log10(H.eps / 1000 / (3.7 * Di) + 5.74 / Re ** 0.9) ** 2;
+    const dyn = rho * v * v / 2, dp = (f * Lm / Di + K) * dyn; if (K) dpK += dp; else dpF += dp;
+    rows.push({ what, dn, v, Re, f, dp });
+  };
+  for (const pc of pr.pieces.values()) {
+    if (!TP.PIPING.has(pc.type)) continue;
+    try { const w = TP.worldPorts(pc); for (const k in w) { ymin = Math.min(ymin, w[k].pos.y); ymax = Math.max(ymax, w[k].pos.y); } } catch { }
+    if (pc.type === 'pipe' || pc.type === 'custom') seg(pc.dn, (pc.len || 0) / 1000, 0, pc.tag);
+    else if (pc.type === 'elbow') seg(pc.dn, 0, pc.angle >= 80 ? KFIT.elbow90 : KFIT.elbow45, pc.tag);
+    else if (pc.type === 'valve') seg(pc.dn, 0, KFIT[pc.sub] ?? 0.5, pc.tag);
+    else if (KFIT[pc.type] != null) seg(pc.dn, 0, KFIT[pc.type], pc.tag);
+  }
+  const dz = ymax > ymin ? (ymax - ymin) / 1000 : 0, dpZ = rho * 9.81 * dz, tot = dpF + dpK;
+  const vmax = rows.reduce((a, r) => Math.max(a, r.v), 0);
+  return { H, fname, rho, rows, dpF, dpK, tot, dz, dpZ, vmax, head: tot / (rho * 9.81) };
+}
+function hydroHTML() {
+  if (![...pr.pieces.values()].some(p => p.type === 'pipe' || p.type === 'custom')) return '';
+  const h = hydro(), bar = v => (v / 1e5).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+  const vWarn = h.H.fl.startsWith('agua') ? (h.vmax > 3 ? ' ⚠ acima de 3 m/s (ruído/erosão)' : h.vmax < 0.6 ? ' ⚠ abaixo de 0,6 m/s (sedimentação)' : ' ✓ faixa usual 1–3 m/s') : '';
+  return `<h2 id="hyd">Perda de carga da linha</h2>
+  <div class="row" style="gap:12px;flex-wrap:wrap;font-size:12.5px;margin-bottom:8px">
+    <label>Vazão <input class="in" type="number" step="0.1" data-hy="q" value="${h.H.q}" style="width:80px;height:28px;padding:2px 6px"> m³/h</label>
+    <label>Fluido <select class="in" data-hy="fl" style="width:auto;height:28px;padding:2px 6px">${Object.entries(FLUIDS).map(([k, f]) => `<option value="${k}" ${k === h.H.fl ? 'selected' : ''}>${f[0]}</option>`).join('')}</select></label>
+    <label>Rugosidade <input class="in" type="number" step="0.005" data-hy="eps" value="${h.H.eps}" style="width:70px;height:28px;padding:2px 6px"> mm</label></div>
+  <div class="cards"><div class="card"><div class="v">${bar(h.tot)} bar</div><div class="l">Perda total (atrito + acessórios)</div></div><div class="card"><div class="v">${h.head.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} m</div><div class="l">em coluna de fluido</div></div>
+    <div class="card"><div class="v">${bar(h.dpF)} / ${bar(h.dpK)}</div><div class="l">Atrito nos tubos / acessórios (bar)</div></div><div class="card"><div class="v">${h.vmax.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} m/s</div><div class="l">Velocidade máxima${vWarn}</div></div>
+    <div class="card"><div class="v">${h.dz.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} m</div><div class="l">Desnível da linha (+${bar(h.dpZ)} bar se subir)</div></div></div>
+  <details style="margin:6px 0 16px"><summary class="mut" style="cursor:pointer">Ver trecho a trecho (${h.rows.length})</summary><div class="tw"><table class="t"><thead><tr><th>Peça</th><th>DN</th><th>v (m/s)</th><th>Re</th><th>f</th><th>ΔP (bar)</th></tr></thead><tbody>${h.rows.map(r => `<tr><td class="mono">${esc(r.what)}</td><td class="n">${r.dn}</td><td class="n">${r.v.toFixed(2)}</td><td class="n">${Math.round(r.Re).toLocaleString('pt-BR')}</td><td class="n">${r.f.toFixed(4)}</td><td class="n">${(r.dp / 1e5).toFixed(4)}</td></tr>`).join('')}</tbody></table></div>
+  <div class="mut" style="font-size:11px">Darcy–Weisbach com fator de atrito de Swamee–Jain (laminar: 64/Re); acessórios por coeficiente K (curva 90° RL 0,3; gaveta 0,15; esfera 0,05; globo 6; retenção 2; filtro Y 2). Considera os trechos em série com a mesma vazão — confirme no cálculo de processo.</div></details>`;
+}
+function bindHydro() { $('#bomw').querySelectorAll('[data-hy]').forEach(i => i.onchange = () => { const H = pr.meta.hyd; H[i.dataset.hy] = i.dataset.hy === 'fl' ? i.value : (+i.value || 0); save(); const y = $('#bomw').scrollTop; renderBom(); $('#bomw').scrollTop = y; }); }
 function renderBom() {
   const items = TP.bom(pr), an = TP.analyze(pr), m = pr.meta;
   const totW = items.reduce((a, b) => a + b.w, 0), pipeLen = [...pr.pieces.values()].filter(p => p.type === 'pipe' || p.type === 'custom').reduce((a, p) => a + p.len, 0);
@@ -3967,6 +4178,7 @@ function renderBom() {
   $('#bomw').querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { S.sheet.spool = b.dataset.sp; setTab('sheet'); });
   $('#bomw').querySelectorAll('[data-cs]').forEach(b => b.onclick = () => { S.sel = b.dataset.cs; setTab('3d'); });
   if ($('#wPrev')) { $('#wPrev').onclick = () => { S.weldPage--; renderBom(); }; $('#wNext').onclick = () => { S.weldPage++; renderBom(); }; }
+  if (pr.pieces.size) { try { $('#bomw').insertAdjacentHTML('beforeend', hydroHTML() + budgetHTML()); bindHydro(); bindBudget(); } catch (e) { console.error('orcamento', e); } }
 }
 
 /* ======================= GERAL ======================= */
@@ -4105,7 +4317,64 @@ function init() {
   });
   window.addEventListener('resize', () => { if (S.tab !== 'sheet') return; const svg = $('#sheetwrap svg'); if (svg) svg.style.width = Math.round(($('#sheetwrap').clientWidth - 32) * S.sheet.zoom) + 'px'; });
   refresh();
-  bootProjects();
+  if (USER.role === 'viewer') {
+    pr = TP.Project.fromJSON(USER.share.data); pr.meta.title = pr.meta.title || USER.share.name; S.pid = 'view'; refresh(); setTimeout(() => R.fit(), 50);
+    const bn = document.createElement('div'); bn.id = 'viewBanner'; bn.innerHTML = `👁 <b>${esc(USER.share.name || pr.meta.title || 'Projeto')}</b> — visualização compartilhada, somente leitura`; document.body.appendChild(bn);
+    ['#bNew', '#bUndo', '#bRedo'].forEach(s => { const e = $(s); if (e) e.style.display = 'none'; });
+  } else bootProjects();
+}
+/* ---------------- Compartilhar (link somente leitura com uma "foto" do projeto) ---------------- */
+async function shareModal() {
+  if (!CLOUD || !CLOUD.createShare) return toast('Compartilhamento indisponível neste modo.', 'er');
+  await flushCloud();
+  const m = document.createElement('div'); m.className = 'modal'; document.body.appendChild(m);
+  const link = t => `${location.origin}${location.pathname}#ver=${t}`;
+  const snap = () => { const js = pr.toJSON(); delete js.meta.revisions; delete js.meta.budget; return js; };
+  const render = async () => {
+    let list = []; try { list = await CLOUD.listShares(S.pid); } catch (e) { m.innerHTML = `<div class="box"><b>Não foi possível listar os links.</b><div class="mut" style="margin-top:6px">${esc(e.message)}<br>Se for o primeiro uso, rode o arquivo <b>supabase_compartilhar.sql</b> no Supabase.</div><div class="btns" style="margin-top:10px"><button class="ib" data-x>Fechar</button></div></div>`; return; }
+    m.innerHTML = `<div class="box" style="width:min(600px,100%)"><h3 style="margin:0 0 4px">🔗 Compartilhar "${esc(pr.meta.title || 'projeto')}"</h3>
+      <div class="mut" style="font-size:12px;margin-bottom:12px">Quem tiver o link vê o projeto (3D, isométrico, prancha e BOM) <b>sem poder editar</b> e sem acessar sua nuvem. O link mostra uma <b>foto</b> do projeto: depois de alterar, toque em <b>Atualizar</b>. Preços do orçamento não são compartilhados.</div>
+      ${list.map(s => `<div class="lc" style="margin:0 0 6px;padding:8px 10px"><div class="mono" style="font-size:11px;word-break:break-all">${esc(link(s.token))}</div><div class="mut" style="font-size:11px">foto de ${new Date(s.created_at).toLocaleString('pt-BR')}</div>
+        <div class="row" style="margin-top:6px"><button class="ib sm am" data-sc="${s.token}">Copiar link</button><button class="ib sm" data-su="${s.token}">Atualizar foto</button><button class="ib sm" data-sx="${s.token}">Revogar</button></div></div>`).join('') || '<div class="mut" style="margin-bottom:8px">Nenhum link ainda.</div>'}
+      <div class="btns" style="margin-top:10px"><button class="ib" data-x>Fechar</button><button class="ib am" id="shNew">+ Criar link</button></div></div>`;
+    m.querySelector('#shNew').onclick = async () => { try { const t = await CLOUD.createShare(S.pid, pr.meta.title || 'Projeto', snap()); await copy(link(t), 'Link'); render(); } catch (e) { toast('Não foi possível criar: ' + e.message, 'er'); } };
+    m.querySelectorAll('[data-sc]').forEach(b => b.onclick = () => copy(link(b.dataset.sc), 'Link'));
+    m.querySelectorAll('[data-su]').forEach(b => b.onclick = async () => { try { await CLOUD.updateShare(b.dataset.su, pr.meta.title || 'Projeto', snap()); toast('Link atualizado com a versão atual.', 'ok'); render(); } catch (e) { toast(e.message, 'er'); } });
+    m.querySelectorAll('[data-sx]').forEach(b => b.onclick = async () => { try { await CLOUD.deleteShare(b.dataset.sx); toast('Link revogado — não abre mais.', 'ok'); render(); } catch (e) { toast(e.message, 'er'); } });
+  };
+  m.onclick = e => { if (e.target === m || e.target.dataset.x !== undefined) m.remove(); };
+  m.innerHTML = '<div class="box"><div class="mut">Carregando…</div></div>'; render();
+}
+/* ---------------- Revisões (Rev. 0, 1, 2… guardadas dentro do projeto) ---------------- */
+function revDiff(a, b) { // a = revisão, b = atual
+  const A = new Map(a.pieces.map(p => [p.id, p])), Bm = new Map(b.pieces.map(p => [p.id, p])), add = [], del = [], chg = [];
+  const sig = p => JSON.stringify(Object.assign({}, p, { conn: undefined, pos: (p.pos || []).map(v => Math.round(v)), q: (p.q || []).map(v => Math.round(v * 1000)) }));
+  for (const [id, p] of Bm) { if (!A.has(id)) add.push(p.tag); else if (sig(A.get(id)) !== sig(p)) chg.push(p.tag); }
+  for (const [id, p] of A) if (!Bm.has(id)) del.push(p.tag);
+  return { add, del, chg };
+}
+function revisionsModal() {
+  const m = document.createElement('div'); m.className = 'modal'; document.body.appendChild(m);
+  const revs = () => pr.meta.revisions || [];
+  const render = () => {
+    const cur = pr.toJSON();
+    m.innerHTML = `<div class="box" style="width:min(620px,100%);max-height:88vh;overflow:auto"><h3 style="margin:0 0 4px">🕘 Revisões — ${esc(pr.meta.title || 'projeto')}</h3>
+      <div class="mut" style="font-size:12px;margin-bottom:10px">Emita uma revisão ao enviar o projeto (para o cliente, para a obra…). Ela guarda uma cópia e atualiza o campo <b>REV.</b> do carimbo.</div>
+      <div class="row" style="gap:6px;margin-bottom:12px"><input class="in" id="rvNote" placeholder="Motivo (ex.: emissão inicial, inclusão de válvula…)" style="flex:1"><button class="ib am" id="rvNew">Emitir Rev. ${revs().length}</button></div>
+      ${revs().slice().reverse().map((r, k) => { const i = revs().length - 1 - k, d = revDiff(JSON.parse(r.data), cur); return `<div class="lc" style="margin:0 0 6px;padding:8px 10px"><div class="row" style="justify-content:space-between"><b>Rev. ${r.rev}</b><span class="mut" style="font-size:11px">${new Date(r.date).toLocaleString('pt-BR')} · ${esc(r.by || '')}</span></div><div style="font-size:12px">${esc(r.note || '—')}</div>
+        <div class="mut" style="font-size:11px;margin-top:4px">Desde esta revisão: <b>${d.add.length}</b> peça(s) incluída(s)${d.add.length ? ' (' + esc(d.add.slice(0, 6).join(', ')) + (d.add.length > 6 ? '…' : '') + ')' : ''}, <b>${d.del.length}</b> removida(s)${d.del.length ? ' (' + esc(d.del.slice(0, 6).join(', ')) + ')' : ''}, <b>${d.chg.length}</b> alterada(s)${d.chg.length ? ' (' + esc(d.chg.slice(0, 6).join(', ')) + (d.chg.length > 6 ? '…' : '') + ')' : ''}.</div>
+        <div class="row" style="margin-top:6px"><button class="ib sm" data-rr="${i}">Restaurar esta revisão</button><button class="ib sm" data-rd="${i}">Duplicar como novo projeto</button></div></div>`; }).join('') || '<div class="mut">Nenhuma revisão emitida ainda.</div>'}
+      <div class="btns" style="margin-top:10px"><button class="ib" data-x>Fechar</button></div></div>`;
+    m.querySelector('#rvNew').onclick = () => {
+      const js = pr.toJSON(); delete js.meta.revisions; const n = revs().length;
+      mutate(() => { pr.meta.revisions = revs().concat([{ rev: n, date: new Date().toISOString(), by: USER.name || USER.email, note: m.querySelector('#rvNote').value.trim(), data: JSON.stringify(js) }]).slice(-20); pr.meta.rev = String(n); });
+      toast(`Rev. ${n} emitida — carimbo atualizado.`, 'ok'); render();
+    };
+    m.querySelectorAll('[data-rr]').forEach(b => b.onclick = () => { const r = revs()[+b.dataset.rr]; if (!confirm(`Restaurar a Rev. ${r.rev}? O estado atual pode ser desfeito com ↶.`)) return; const keep = revs(); mutate(() => { const n = TP.Project.fromJSON(JSON.parse(r.data)); pr.pieces = n.pieces; pr.seq = n.seq; pr.nextId = n.nextId; pr.fieldWelds = n.fieldWelds; pr.meta = Object.assign(n.meta, { revisions: keep }); S.sel = null; S.active = null; }); toast(`Rev. ${r.rev} restaurada.`, 'ok'); render(); });
+    m.querySelectorAll('[data-rd]').forEach(b => b.onclick = async () => { const r = revs()[+b.dataset.rd], data = JSON.parse(r.data), t = (data.meta?.title || 'Projeto') + ` (Rev. ${r.rev})`; m.remove(); await newProject(t, data); pr.meta.title = t; save(); toast(`"${t}" criado.`, 'ok'); });
+  };
+  m.onclick = e => { if (e.target === m || e.target.dataset.x !== undefined) m.remove(); };
+  render();
 }
 async function projectsModal() {
   await flushCloud();
@@ -4124,7 +4393,10 @@ async function projectsModal() {
     <div style="display:flex;flex-direction:column;gap:6px">${list.map(p => `<div class="lc" style="margin:0;padding:10px 12px;${p.id === S.pid ? 'border-color:var(--am)' : ''}">
       <div class="hd"><div style="min-width:0"><b>${esc(p.id === S.pid ? (pr.meta.title || 'Sem título') : p.name)}</b>${p.id === S.pid ? ' <span class="chip am">aberto</span>' : ''}<div class="mut" style="font-size:11.5px">${when(p.updated_at)} · ${p.cloud ? '☁ nuvem' : '💾 só neste aparelho'}</div></div>
       <div class="row">${p.id === S.pid ? '' : `<button class="ib sm am" data-po="${p.id}">Abrir</button>`}<button class="ib sm" data-pd="${p.id}">Duplicar</button><button class="ib sm" data-px="${p.id}" style="color:var(--er)">Excluir</button></div></div></div>`).join('') || '<div class="mut">Nenhum projeto ainda.</div>'}</div>
-    <div class="row" style="margin-top:14px"><label class="f" style="flex:1">Renomear o projeto aberto<input class="in" id="pjRen" value="${esc(pr.meta.title || '')}"></label></div></div>`;
+    <div class="row" style="margin-top:14px"><label class="f" style="flex:1">Renomear o projeto aberto<input class="in" id="pjRen" value="${esc(pr.meta.title || '')}"></label></div>
+    <div class="btns" style="margin-top:10px"><button class="ib" id="pjShare">🔗 Compartilhar o projeto aberto</button><button class="ib" id="pjRevs">🕘 Revisões (Rev. ${esc(pr.meta.rev || '0')})</button></div></div>`;
+  m.querySelector('#pjShare').onclick = () => { m.remove(); shareModal(); };
+  m.querySelector('#pjRevs').onclick = () => { m.remove(); revisionsModal(); };
   m.querySelector('#pjNew').onclick = async () => { const n = m.querySelector('#pjName').value.trim() || 'Novo projeto'; m.remove(); await newProject(n); toast(`Projeto "${n}" criado.`, 'ok'); };
   m.querySelector('#pjRen').onchange = e => { const v = e.target.value.trim(); if (v) mutate(() => { pr.meta.title = v; }); };
   m.querySelectorAll('[data-po]').forEach(b => b.onclick = async () => { m.remove(); await openProject(b.dataset.po); });
@@ -4174,6 +4446,7 @@ const VK = (() => {
     { t: 'Inserir peças', k: ['inserir', 'inserir peca', 'adicionar peca', 'catalogo', 'colocar peca', 'como coloco'], a: 'Abra o <b>catálogo</b> (painel da esquerda, ou ☰ no celular), escolha o diâmetro e toque na peça. Se houver uma <b>esfera verde</b> (porta ativa), a peça nasce encaixada nela; senão, entra solta ao lado do modelo. Você também pode me pedir: <i>"insira uma válvula gaveta de 4 polegadas"</i>.' },
     { t: 'Continuar uma linha', k: ['continuar', 'esfera', 'porta ativa', 'esfera ambar', 'esfera verde', 'continuar linha', 'porta livre'], a: 'As <b>esferas âmbar</b> são portas livres. Toque numa delas e ela fica <b>verde</b>: a próxima peça do catálogo encaixa exatamente ali, face a face. Depois de inserir, a porta ativa passa sozinha para a ponta nova, então dá para ir tocando tubo → curva → tubo em sequência.' },
     { t: 'Girar e inclinar sem desconectar', k: ['girar', 'inclinar', 'rotacionar', 'desconecta', 'solta', 'girar no eixo', 'virar curva', 'desviar'], a: '<b>Girar no eixo</b> gira a peça em torno da face da conexão e leva junto tudo o que vem depois — a junta continua perfeita. É assim que você vira uma curva para cima, para baixo ou para os lados. <b>Inclinar/Desviar</b> também gira na face, mas cria uma junta em ângulo (aparece aviso vermelho). Para trechos inclinados de verdade, mude o <b>ângulo da curva</b>.' },
+    { t: 'Perda de carga', k: ['perda de carga', 'hidraulica', 'velocidade', 'vazao', 'darcy', 'pressao', 'queda de pressao', 'bomba'], a: 'Na aba <b>BOM</b>, seção <b>Perda de carga da linha</b>: informe a vazão (m³/h), o fluido e a rugosidade; o app calcula velocidade, Reynolds, fator de atrito (Swamee–Jain), perda nos tubos e nos acessórios (coeficientes K), o total em bar e em metros de coluna, e avisa se a velocidade da água sair da faixa usual de 1 a 3 m/s.' },
     { t: 'Chapas curvas e planificação', k: ['chapa calandrada', 'calandrada', 'calandrar', 'sela', 'colar de reforco', 'calota', 'gomo', 'esfera', 'tampo', 'torisferico', 'eliptico', 'planificacao', 'planificar', 'desenvolvimento', 'boca de lobo'], a: 'No catálogo <b>Caldeiraria (chapas)</b>: chapa calandrada, sela de reforço, calota esférica, gomo de esfera e tampos elíptico 2:1, torisférico e hemisférico. <b>Selecione antes</b> um cilindro ou tubo e a chapa entra já encaixada na superfície (por fora ou por dentro); depois ajuste <b>giro</b> e <b>posição</b> no painel. Selecionando um gomo e inserindo outro, ele entra ao lado na mesma esfera. Na <b>Prancha</b>, escolha <b>Planificação de chapas</b>: cada peça sai planificada na fibra média com cotas, raio de calandragem, diâmetro do disco dos tampos e o gabarito da boca de lobo da sela.' },
     { t: 'Gerar projeto', k: ['gerar projeto', 'gerar casa', 'fazer uma casa', 'gerar predio', 'gerar galpao', 'projeto automatico', 'casa pronta', 'gerador'], a: 'Eu monto rascunhos completos com as peças do app. Exemplos: <i>"gere uma casa de 8 por 10 com 3 quartos e 2 banheiros"</i>, <i>"crie uma casa 10x12 com laje"</i>, <i>"faça um sobrado 7x12"</i>, <i>"gere um prédio de 5 andares 12x15"</i>, <i>"monte um galpão 30x20 com altura 9 m"</i>, <i>"gere uma linha de 4 polegadas de 15 m com 2 válvulas gaveta e filtro"</i>. Tudo fica editável e um <b>desfazer</b> remove o projeto inteiro.' },
     { t: 'Parafusos e torque', k: ['parafuso', 'parafusos', 'estojo', 'estojos', 'torque', 'aperto', 'porca', 'chave', 'junta espiralada', 'sequencia de aperto'], a: 'O TEC PLAN recomenda o parafusamento de cada junta flangeada pela ASME B16.5: quantidade e bitola dos estojos (A193 B7), comprimento comercial, porcas pesadas A194 2H, chave, junta espiralada e <b>torque de referência</b> com a <b>sequência em cruz</b> (ASME PCC-1). Selecione uma flange ou válvula e veja <b>Parafusos e aperto</b> no painel da direita — ou me pergunte "quais parafusos dessa flange?". Tudo também sai somado na BOM.' },
@@ -4292,22 +4565,22 @@ const VK = (() => {
         setTab('3d'); setTimeout(() => R.fit(), 50);
         return `Pronto! Gerei a estrutura de um sobrado de <b>${r.n} pavimentos</b>, ${fm(r.W)} × ${fm(r.D)} m, com escada, lajes, fachadas com janelas e platibanda. Os cômodos internos ficam em planta livre — me peça uma casa térrea para ter a divisão de quartos automática. Tudo é editável e um "desfazer" remove o projeto inteiro.`;
       }
-      const p = { W: d ? d[0] : 8000, D: d ? d[1] : 10000, q: cnt(q, 'quartos?') || 2, b: cnt(q, '(banheiros?|wcs?|banhos?)') || 1, pd: mm(numOf((q.match(/pe[ -]?direito\s*(?:de\s*)?(\d+(?:[.,]\d+)?)/) || [])[1])) || 2800, laje: /\blaje\b/.test(q) && !/telhado/.test(q) };
+      const p = { W: d ? d[0] : 8000, D: d ? d[1] : 10000, q: cnt(q, 'quartos?') || 2, b: cnt(q, '(banheiros?|wcs?|banhos?)') || 1, pd: mm(numOf((q.match(/pe[ -]?direito\s*(?:de\s*)?(\d+(?:[.,]\d+)?)/) || [])[1])) || 2800, laje: /\blaje\b/.test(q) && !/telhado/.test(q), varanda: /varanda|alpendre|area gourmet/.test(q), garagem: /garagem|abrigo/.test(q) };
       if (p.W < 5000 || p.D < 6000) return 'Para caber sala, cozinha, quartos e banheiro preciso de pelo menos <b>5 × 6 m</b>. Me diga as medidas, por exemplo "gere uma casa de 8 por 10 com 2 quartos".';
       const r = GEN.casa(p);
       setTab('3d'); setTimeout(() => R.fit(), 50);
-      return `Pronto! Gerei uma <b>casa térrea ${fm(r.W)} × ${fm(r.D)} m</b> (pé-direito ${fm(r.pd)} m) com ${r.cols} pilares sobre sapatas, vigas, paredes com portas e janelas, piso porcelanato, laje e ${r.laje ? 'platibanda (cobertura em laje)' : 'telhado cerâmico'}.<br>Cômodos: ${r.rooms.join(' · ')}.<br><span class="mut">Rascunho para ajustar — medidas por regras práticas; o dimensionamento final é do responsável técnico. Um "desfazer" remove tudo.</span>`;
+      return `Pronto! Gerei uma <b>casa térrea ${fm(r.W)} × ${fm(r.D)} m</b> (pé-direito ${fm(r.pd)} m) com ${r.cols} pilares sobre sapatas, vigas, paredes com portas e janelas, piso porcelanato, laje e ${r.laje ? 'platibanda (cobertura em laje)' : 'telhado cerâmico'}${r.varanda ? ', varanda na frente (2 m)' : ''}${r.garagem ? ', garagem coberta na lateral (3,2 × 5,5 m)' : ''}.<br>Cômodos: ${r.rooms.join(' · ')}.<br><span class="mut">Rascunho para ajustar — medidas por regras práticas; o dimensionamento final é do responsável técnico. Um "desfazer" remove tudo.</span>`;
     }
     if (/predio|edificio/.test(what)) {
       const n = cnt(q, '(andares|pavimentos|pisos)') || 4, r = GEN.predio({ W: d ? d[0] : 12000, D: d ? d[1] : 15000, n, fh: 3000 });
       setTab('3d'); setTimeout(() => R.fit(), 50);
-      return `Pronto! Gerei um <b>prédio de ${r.n} pavimento(s)</b>, ${fm(r.W)} × ${fm(r.D)} m: grelha de ${r.bays[0]} × ${r.bays[1]} vãos (~${fm(r.span[0])} × ${fm(r.span[1])} m), pilares sobre sapatas, vigas e lajes por andar, escada, fachadas com janelas, porta de entrada no térreo e platibanda.<br><span class="mut">Andares em planta livre (sem divisões internas). A escada aparece atravessando a laje — o vão dela ainda não é recortado. Rascunho para ajustar.</span>`;
+      return `Pronto! Gerei um <b>prédio de ${r.n} pavimento(s)</b>, ${fm(r.W)} × ${fm(r.D)} m: grelha de ${r.bays[0]} × ${r.bays[1]} vãos (~${fm(r.span[0])} × ${fm(r.span[1])} m), pilares sobre sapatas, vigas e lajes por andar, escada, fachadas com janelas, porta de entrada no térreo e platibanda.<br><span class="mut">Andares em planta livre (sem divisões internas). As lajes já saem com a abertura da escada. Rascunho para ajustar.</span>`;
     }
     if (/galpao|barracao|armazem/.test(what)) {
       const h = mm(numOf((q.match(/(?:altura|pe[ -]?direito)\s*(?:de\s*)?(\d+(?:[.,]\d+)?)/) || [])[1])), sl = numOf((q.match(/(\d+(?:[.,]\d+)?)\s*%/) || [])[1]);
-      const r = GEN.galpao({ L: d ? Math.max(d[0], d[1]) : 30000, S: d ? Math.min(d[0], d[1]) : 20000, H: h || 8000, slope: sl || 10 });
+      const r = GEN.galpao({ L: d ? Math.max(d[0], d[1]) : 30000, S: d ? Math.min(d[0], d[1]) : 20000, H: h || 8000, slope: sl || 10, clad: !/sem fechamento|aberto/.test(q) });
       setTab('3d'); setTimeout(() => R.fit(), 50);
-      return `Pronto! Gerei um <b>galpão metálico ${fm(r.L)} × ${fm(r.S)} m</b>, pé-direito ${fm(r.H)} m, ${r.nb} vãos de ${fm(r.bay)} m: pilares ${r.colSize} com chapas de base, vigas de cobertura ${r.rafSize} a ${r.slope}%, terças U 6", contraventamento nos vãos das pontas, telha metálica e piso em epóxi.<br><span class="mut">Perfis por regra prática conforme o vão — confirme no cálculo estrutural.</span>`;
+      return `Pronto! Gerei um <b>galpão metálico ${fm(r.L)} × ${fm(r.S)} m</b>, pé-direito ${fm(r.H)} m, ${r.nb} vãos de ${fm(r.bay)} m: pilares ${r.colSize} com chapas de base, vigas de cobertura ${r.rafSize} a ${r.slope}%, terças U 6", contraventamento nos vãos das pontas, ${r.clad ? 'fechamento lateral e oitões em telha com portão de enrolar na frente, ' : ''}telha metálica e piso em epóxi.<br><span class="mut">Perfis por regra prática conforme o vão — confirme no cálculo estrutural.</span>`;
     }
     // linha de tubulação
     let dn = 100; const inch = q.match(/(\d+(?:[.,]\d+)?|\d\/\d)\s*(?:"|pol|polegada)/), dnm = q.match(/\bdn\s*(\d+)/);
@@ -4463,17 +4736,16 @@ const VK = (() => {
     const parts = (t.match(/[^.!?…]+[.!?…]*/g) || [t]).map(x => x.trim()).filter(Boolean).reduce((a, x) => { if (a.length && (a[a.length - 1] + ' ' + x).length < 140) a[a.length - 1] += ' ' + x; else a.push(x); return a; }, []);
     let at = ctx.currentTime + 0.05, next = NEU.synth(parts[0], VC.nvoice);
     for (let i = 0; i < parts.length; i++) {
-      let buf = await next; if (tok !== NEU.tok) return; if ((VC.semi || 0) !== 0 || (VC.formant || 1) !== 1) buf = applyChar(ctx, buf, VC);
+      let buf = await next; if (tok !== NEU.tok) return;
       if (i + 1 < parts.length) next = NEU.synth(parts[i + 1], VC.nvoice);
       at = Math.max(at, ctx.currentTime + 0.02);
       const { src, dur } = fxGraph(ctx, buf, VC, ctx.destination, at); NEU.srcs.push(src); at += dur + 0.12;
     }
   }
-  function speak(html, clip) {
+  function speak(html) {
     if (!voiceOn) return;
     const t = clean(html); if (!t) return;
     stopVoice();
-    if (clip) { const tok = NEU.tok; clipIndex().then(idx => { if (!idx[clip]) return speak(html); return clipBuf(clip).then(b => { if (tok !== NEU.tok) return; if (!b) return speak(html); NEU.ac(); const ctx = NEU.ac(); const { src } = fxGraph(ctx, b, Object.assign({}, VC, { grave: 0 }), ctx.destination, ctx.currentTime + 0.03); NEU.srcs.push(src); }); }).catch(() => speak(html)); return; }
     if (VC.engine === 'neural' && !NEU.failed && (window.AudioContext || window.webkitAudioContext)) {
       const first = !NEU.lib;
       if (first) { speakBrowser(t); NEU.load().then(() => { }).catch(() => { }); return; }
@@ -4518,144 +4790,6 @@ const VK = (() => {
   function say(html, sug) { add('vk', html); speak(html); chips(sug && sug.length ? sug : SUGG); }
   function toggle(force) { open = typeof force === 'boolean' ? force : !open; $('#vkPanel').classList.toggle('on', open); $('#vkBtn').classList.toggle('hide', open); if (open) setTimeout(() => innerWidth > 767 && $('#vkQ').focus(), 50); else stopVoice(); }
 
-  /* ======== Laboratório de voz: sua voz → personagem (TD-PSOLA: tom e timbre independentes, sem mudar a velocidade) ======== */
-  function detectPeriods(x, sr) {
-    const dec = Math.max(1, Math.floor(sr / 8000)), sr2 = sr / dec, n2 = Math.floor(x.length / dec), y = new Float32Array(n2);
-    for (let i = 0; i < n2; i++) { let s = 0; for (let k = 0; k < dec; k++) s += x[i * dec + k]; y[i] = s / dec; }
-    const hop = Math.round(sr2 * 0.01), win = Math.round(sr2 * 0.035), minL = Math.floor(sr2 / 420), maxL = Math.ceil(sr2 / 65);
-    let peak = 0; for (let i = 0; i < n2; i++) peak = Math.max(peak, Math.abs(y[i]));
-    const per = [];
-    for (let s = 0; s + win + maxL < n2; s += hop) {
-      let e0 = 0; for (let i = 0; i < win; i++) e0 += y[s + i] * y[s + i];
-      if (e0 / win < (peak * 0.04) ** 2) { per.push(0); continue; }
-      let best = 0; const rs = new Float32Array(maxL + 1);
-      for (let L = minL; L <= maxL; L++) { let c = 0, e1 = 0; for (let i = 0; i < win; i++) { c += y[s + i] * y[s + i + L]; e1 += y[s + i + L] * y[s + i + L]; } const r = c / Math.sqrt(e0 * e1 + 1e-12); rs[L] = r; if (r > best) best = r; }
-      let bl = 0; for (let L = minL + 1; L < maxL; L++) if (rs[L] >= 0.88 * best && rs[L] >= rs[L - 1] && rs[L] >= rs[L + 1]) { bl = L; break; } // primeiro pico forte = período (evita erro de oitava)
-      per.push(best > 0.55 && bl ? bl * dec : 0);
-    }
-    // suaviza (mediana de 5) para evitar saltos de oitava
-    const sm = per.map((v, i) => { const w = per.slice(Math.max(0, i - 2), i + 3).filter(Boolean).sort((a, b) => a - b); return v && w.length ? w[w.length >> 1] : 0; });
-    return { per: sm, hop: hop * dec };
-  }
-  function psola(ctx, buf, p, f) {
-    if (Math.abs(p - 1) < 0.01 && Math.abs(f - 1) < 0.01) return buf;
-    const sr = buf.sampleRate, x = buf.getChannelData(0), N = x.length, { per, hop } = detectPeriods(x, sr);
-    const perAt = t => per[Math.min(per.length - 1, Math.max(0, Math.floor(t / hop)))] || 0;
-    const marks = []; for (let t = 0; t < N;) { const P = perAt(t); marks.push([t, P]); t += P || hop; }
-    const y = new Float32Array(N), w = new Float32Array(N);
-    let mi = 0;
-    for (let to = 0; to < N;) {
-      while (mi + 1 < marks.length && Math.abs(marks[mi + 1][0] - to) <= Math.abs(marks[mi][0] - to)) mi++;
-      const [m, P] = marks[mi], L = P || hop, step = P ? P / p : hop, Lo = Math.round(L / f);
-      for (let i = -Lo; i <= Lo; i++) {
-        const o = Math.round(to) + i; if (o < 0 || o >= N) continue;
-        const src = m + i * f, s0 = Math.floor(src), fr = src - s0; if (s0 < 0 || s0 + 1 >= N) continue;
-        const hw = 0.5 + 0.5 * Math.cos(Math.PI * i / (Lo + 1));
-        y[o] += (x[s0] * (1 - fr) + x[s0 + 1] * fr) * hw; w[o] += hw;
-      }
-      to += Math.max(8, step);
-    }
-    const out = ctx.createBuffer(1, N, sr), d = out.getChannelData(0);
-    for (let i = 0; i < N; i++) d[i] = w[i] > 0.05 ? y[i] / Math.max(1, w[i]) : y[i];
-    return out;
-  }
-  const charOf = c => ({ p: Math.pow(2, (c.semi || 0) / 12), f: c.formant || 1 });
-  function applyChar(ctx, buf, c) { const { p, f } = charOf(c); return psola(ctx, buf, p, f); }
-  async function renderFx(buf, c) { // efeitos (metálico, eco…) gravados num buffer — usado no pré-teste e para salvar as falas
-    const extra = Math.ceil(buf.sampleRate * (0.3 + (c.eco || 0) * 0.8));
-    const oc = new OfflineAudioContext(1, buf.length + extra, buf.sampleRate); fxGraph(oc, buf, Object.assign({}, c, { grave: 0 }), oc.destination, 0); return oc.startRendering();
-  }
-  async function recordMic(btn, maxS = 25) {
-    const st = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-    const mime = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
-    const rec = new MediaRecorder(st, mime ? { mimeType: mime } : {}), parts = [];
-    rec.ondataavailable = e => e.data.size && parts.push(e.data);
-    return new Promise((res, rej) => {
-      let t0 = Date.now(), iv;
-      const stop = () => { clearInterval(iv); try { rec.stop(); } catch { } };
-      rec.onstop = async () => { st.getTracks().forEach(t => t.stop()); try { const ab = await new Blob(parts, { type: rec.mimeType }).arrayBuffer(); res(await NEU.ac().decodeAudioData(ab)); } catch (e) { rej(e); } };
-      rec.start(); const old = btn.textContent; btn.classList.add('rec');
-      iv = setInterval(() => { const s = (Date.now() - t0) / 1000; btn.textContent = `■ Parar (${s.toFixed(0)}s)`; if (s >= maxS) stop(); }, 200);
-      btn.onclick = () => { stop(); btn.textContent = old; btn.classList.remove('rec'); };
-    });
-  }
-  function trim(ctx, buf) { // corta silêncio do começo e do fim
-    const x = buf.getChannelData(0); let pk = 0; for (let i = 0; i < x.length; i++) pk = Math.max(pk, Math.abs(x[i])); const th = pk * 0.03;
-    let a = 0, b = x.length - 1; while (a < b && Math.abs(x[a]) < th) a++; while (b > a && Math.abs(x[b]) < th) b--;
-    a = Math.max(0, a - Math.round(buf.sampleRate * 0.08)); b = Math.min(x.length, b + Math.round(buf.sampleRate * 0.15));
-    const out = ctx.createBuffer(1, Math.max(1, b - a), buf.sampleRate); out.getChannelData(0).set(x.subarray(a, b)); const g = 0.9 / Math.max(1e-3, pk); const d = out.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] *= g; return out;
-  }
-  async function encode(buf) { // comprime em opus/aac tocando o buffer num gravador silencioso (não sai no alto-falante)
-    const ctx = NEU.ac(), dst = ctx.createMediaStreamDestination(), src = ctx.createBufferSource(); src.buffer = buf; src.connect(dst);
-    const mime = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find(t => MediaRecorder.isTypeSupported(t)) || '';
-    const rec = new MediaRecorder(dst.stream, Object.assign(mime ? { mimeType: mime } : {}, { audioBitsPerSecond: 32000 })), parts = [];
-    rec.ondataavailable = e => e.data.size && parts.push(e.data);
-    const done = new Promise(r => rec.onstop = r); rec.start(); src.start(); await new Promise(r => src.onended = r); await new Promise(r => setTimeout(r, 120)); rec.stop(); await done;
-    const blob = new Blob(parts, { type: rec.mimeType }); const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
-    return { data: b64, dur: buf.duration };
-  }
-  function playBuf(buf) { stopVoice(); const ctx = NEU.ac(); const s = ctx.createBufferSource(); s.buffer = buf; s.connect(ctx.destination); s.start(); NEU.srcs.push(s); }
-  /* falas gravadas (tour etc.): salvas na nuvem; todos os usuários ouvem */
-  const CLIPS = { idx: null, cache: new Map() };
-  const slug = t => N(t).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  async function clipIndex() { if (CLIPS.idx) return CLIPS.idx; try { CLIPS.idx = (CLOUD && CLOUD.getSetting && await CLOUD.getSetting('vikron_clips')) || {}; } catch { CLIPS.idx = {}; } return CLIPS.idx; }
-  async function clipBuf(key) {
-    if (CLIPS.cache.has(key)) return CLIPS.cache.get(key);
-    const idx = await clipIndex(); if (!idx[key]) return null;
-    const v = await CLOUD.getSetting('vikron_clip:' + key); if (!v || !v.data) return null;
-    const ab = await (await fetch(v.data)).arrayBuffer(); const b = await NEU.ac().decodeAudioData(ab); CLIPS.cache.set(key, b); return b;
-  }
-  async function playClip(key) { try { const b = await clipBuf(key); if (!b) return false; playBuf(b); return true; } catch { return false; } }
-  function labScript() { const s = steps(); s[0] = Object.assign({}, s[0], { x: 'Olá! Eu sou o Vikron, seu assistente. Vou te mostrar rapidamente como o TEC PLAN funciona.' }); return s.map(st => ({ key: 'tour:' + slug(st.t), t: st.t, x: clean(st.x) })); }
-  function voiceLab() {
-    const m = document.createElement('div'); m.className = 'modal'; let raw = null, out = null;
-    const C = Object.assign({ semi: -4, formant: 0.86, metal: 0.25, eco: 0.2, peso: 0.35, sat: 0.1 }, { semi: VC.semi ?? -4, formant: VC.formant ?? 0.86, metal: VC.metal, eco: VC.eco, peso: VC.peso, sat: VC.sat });
-    const PRE = { gigante: { semi: -7, formant: 0.78, metal: 0.1, eco: 0.35, peso: 0.6, sat: 0.1 }, ia: { semi: -4, formant: 0.86, metal: 0.4, eco: 0.3, peso: 0.45, sat: 0.2 }, robo: { semi: 0, formant: 1, metal: 0.85, eco: 0.15, peso: 0.2, sat: 0.35 }, pequeno: { semi: 6, formant: 1.25, metal: 0.2, eco: 0.05, peso: 0, sat: 0 }, anciao: { semi: -2, formant: 0.92, metal: 0, eco: 0.45, peso: 0.3, sat: 0.25 } };
-    const R2 = (id, l, v, mn, mx, st, fmt) => `<label class="f" style="margin-top:8px">${l} <span id="${id}l">${fmt(v)}</span><input type="range" id="${id}" min="${mn}" max="${mx}" step="${st}" value="${v}"></label>`;
-    const pct = v => Math.round(v * 100) + '%', semi = v => (v > 0 ? '+' : '') + v + ' semitons', form = v => (v < 1 ? 'maior ' : v > 1 ? 'menor ' : '') + Math.round(Math.abs(1 - v) * 100) + '%';
-    const lines = labScript();
-    const render = async () => {
-      const idx = await clipIndex();
-      m.innerHTML = `<div class="box" style="max-height:90vh;overflow:auto;max-width:560px"><h3 style="margin:0 0 4px">🎙 Laboratório de voz</h3>
-        <div class="mut" style="font-size:12px;margin-bottom:10px">Grave sua voz e transforme num personagem. Só o resultado transformado é salvo — sua voz original não sai do aparelho.</div>
-        <div class="sec" style="padding:0;border:0"><h3>1 · Grave uma amostra</h3><div class="mut" style="font-size:11.5px">Leia em voz alta, com calma: <i>"Olá. Eu sou o Vikron, assistente do TEC PLAN. Precisão em cada movimento."</i></div>
-        <div class="btns" style="margin-top:8px"><button class="ib am" id="lbRec">● Gravar</button><button class="ib" id="lbOrig" ${raw ? '' : 'disabled'}>▶ Original</button><button class="ib" id="lbChar" ${raw ? '' : 'disabled'}>▶ Personagem</button></div></div>
-        <div class="sec" style="padding:0;border:0;margin-top:12px"><h3>2 · Monte o personagem</h3>
-        <div class="btns">${[['gigante', 'Gigante'], ['ia', 'IA sombria'], ['robo', 'Robô'], ['anciao', 'Ancião'], ['pequeno', 'Pequeno']].map(([k, l]) => `<button class="ib sm" data-lp="${k}">${l}</button>`).join('')}</div>
-        ${R2('lbS', 'Tom', C.semi, -12, 12, 1, semi)}${R2('lbF', 'Timbre (tamanho da voz)', C.formant, 0.7, 1.35, 0.01, form)}
-        ${R2('lbM', 'Metálico', C.metal, 0, 1, 0.05, pct)}${R2('lbK', 'Peso (corpo)', C.peso, 0, 1, 0.05, pct)}${R2('lbC', 'Eco (armadura)', C.eco, 0, 1, 0.05, pct)}${R2('lbX', 'Saturação', C.sat, 0, 1, 0.05, pct)}
-        <div class="mut" style="font-size:11px;margin-top:6px">O <b>Timbre</b> é o que mais disfarça a voz verdadeira. O personagem também é aplicado na voz neural das respostas livres.</div></div>
-        <div class="sec" style="padding:0;border:0;margin-top:12px"><h3>3 · Grave as falas do tour com o personagem</h3>
-        ${lines.map((l, i) => `<div class="lbl"><div style="flex:1"><b style="font-size:12px">${i + 1}. ${esc(l.t)}</b><div class="mut" style="font-size:11.5px">${esc(l.x)}</div></div><div class="btns" style="flex:none"><button class="ib sm" data-lr="${i}">● Gravar</button>${idx[l.key] ? `<button class="ib sm" data-lpl="${i}">▶</button><button class="ib sm" data-ld="${i}" title="Apagar">✕</button>` : ''}</div></div>`).join('')}</div>
-        <div class="btns" style="margin-top:14px"><button class="ib" data-x>Fechar</button><button class="ib am" id="lbSave">Salvar personagem para todos</button></div></div>`;
-      bind();
-    };
-    const g = id => +m.querySelector('#' + id).value;
-    const read = () => { Object.assign(C, { semi: g('lbS'), formant: g('lbF'), metal: g('lbM'), peso: g('lbK'), eco: g('lbC'), sat: g('lbX') }); m.querySelector('#lbSl').textContent = semi(C.semi); m.querySelector('#lbFl').textContent = form(C.formant); for (const id of ['lbM', 'lbK', 'lbC', 'lbX']) m.querySelector('#' + id + 'l').textContent = pct(g(id)); out = null; };
-    const build = async src => { const ctx = NEU.ac(); return renderFx(applyChar(ctx, src, C), C); };
-    function bind() {
-      m.querySelectorAll('input[type=range]').forEach(i => i.oninput = read);
-      m.querySelectorAll('[data-lp]').forEach(b => b.onclick = () => { const p = PRE[b.dataset.lp]; m.querySelector('#lbS').value = p.semi; m.querySelector('#lbF').value = p.formant; m.querySelector('#lbM').value = p.metal; m.querySelector('#lbK').value = p.peso; m.querySelector('#lbC').value = p.eco; m.querySelector('#lbX').value = p.sat; read(); if (raw) m.querySelector('#lbChar').click(); });
-      m.querySelector('#lbRec').onclick = async e => { const b = e.currentTarget; try { NEU.ac(); raw = trim(NEU.ac(), await recordMic(b, 15)); out = null; toast('Amostra gravada. Toque em ▶ Personagem.'); render(); } catch (err) { toast('Não consegui usar o microfone: ' + (err.message || err), 'er'); render(); } };
-      const po = m.querySelector('#lbOrig'); if (po) po.onclick = () => raw && playBuf(raw);
-      const pc = m.querySelector('#lbChar'); if (pc) pc.onclick = async () => { if (!raw) return; pc.disabled = true; pc.textContent = 'Processando…'; try { out = out || await build(raw); playBuf(out); } catch (e) { toast('Erro ao processar: ' + e.message, 'er'); } pc.disabled = false; pc.textContent = '▶ Personagem'; };
-      m.querySelectorAll('[data-lr]').forEach(b => b.onclick = async e => {
-        const l = lines[+b.dataset.lr], bt = e.currentTarget;
-        try {
-          const r = trim(NEU.ac(), await recordMic(bt, 30)); bt.textContent = 'Salvando…'; bt.disabled = true;
-          const pr2 = applyChar(NEU.ac(), r, C); const enc = await encode(pr2);
-          await CLOUD.setSetting('vikron_clip:' + l.key, Object.assign(enc, { t: l.t }), { role: USER.role, email: USER.email });
-          const idx = await clipIndex(); idx[l.key] = Date.now(); await CLOUD.setSetting('vikron_clips', idx, { role: USER.role, email: USER.email });
-          CLIPS.cache.delete(l.key); toast('Fala salva: ' + l.t, 'ok'); render();
-        } catch (err) { toast('Não foi possível gravar/salvar: ' + (err.message || err), 'er'); render(); }
-      });
-      m.querySelectorAll('[data-lpl]').forEach(b => b.onclick = async () => { const l = lines[+b.dataset.lpl]; const buf = await clipBuf(l.key); if (buf) playBuf(await renderFx(buf, C)); });
-      m.querySelectorAll('[data-ld]').forEach(b => b.onclick = async () => { const l = lines[+b.dataset.ld]; const idx = await clipIndex(); delete idx[l.key]; CLIPS.cache.delete(l.key); try { await CLOUD.setSetting('vikron_clips', idx, { role: USER.role, email: USER.email }); await CLOUD.setSetting('vikron_clip:' + l.key, {}, { role: USER.role, email: USER.email }); } catch { } render(); });
-      m.querySelector('#lbSave').onclick = async () => { read(); VC = Object.assign({}, VC, { semi: C.semi, formant: C.formant, metal: C.metal, peso: C.peso, eco: C.eco, sat: C.sat, grave: 0 }); try { await CLOUD.setSetting('vikron_voice', VC, { role: USER.role, email: USER.email }); toast('Personagem salvo — vale para todos os usuários.', 'ok'); } catch (e) { toast('Não foi possível salvar: ' + e.message, 'er'); } };
-    }
-    m.onclick = e => { if (e.target === m || e.target.dataset.x !== undefined) { stopVoice(); m.remove(); } };
-    document.body.appendChild(m); render();
-  }
   function voiceCfg() {
     const m = document.createElement('div'); m.className = 'modal';
     const list = () => speechSynthesis.getVoices().slice().sort((a, b) => (/pt/i.test(b.lang) - /pt/i.test(a.lang)) || a.name.localeCompare(b.name));
@@ -4677,7 +4811,6 @@ const VK = (() => {
           <label class="f" style="margin-top:8px">Velocidade <span id="vcRl">${VC.rate.toFixed(2)}</span><input type="range" id="vcR" min="0.6" max="1.6" step="0.02" value="${VC.rate}"></label>
           ${sl('vcB', 'Pausas robóticas', VC.robot)}
         </div>
-        <button class="ib" id="vcLab" style="width:100%;margin-top:12px">🎙 Laboratório de voz — criar personagem com a sua voz</button>
         <div class="btns" style="margin-top:14px"><button class="ib" data-x>Cancelar</button><button class="ib" id="vcT">▶ Testar</button><button class="ib am" id="vcS">Salvar para todos</button></div></div>`;
       const g = id => +m.querySelector('#' + id).value;
       const rd = () => {
@@ -4696,14 +4829,13 @@ const VK = (() => {
         try { await speakNeural(clean(txt)); } catch (e) { toast('Voz neural indisponível neste navegador/página (' + e.message + '). No GitHub Pages ela funciona; aqui o Vikron usa a voz do navegador.', 'er'); speakBrowser(clean(txt)); }
         bt.textContent = '▶ Testar'; bt.disabled = false;
       };
-      m.querySelector('#vcLab').onclick = () => { m.remove(); voiceLab(); };
       m.querySelector('#vcS').onclick = async () => { rd(); try { await CLOUD.setSetting('vikron_voice', VC, { role: USER.role, email: USER.email }); toast('Voz do Vikron salva para todos os usuários.', 'ok'); m.remove(); } catch (e) { toast('Não foi possível salvar: ' + e.message, 'er'); } };
     };
     m.onclick = e => { if (e.target === m || e.target.dataset.x !== undefined) { m.remove(); loadVoice(); } };
     document.body.appendChild(m); render();
     if (!speechSynthesis.getVoices().length) speechSynthesis.onvoiceschanged = () => { if (document.body.contains(m)) render(); };
   }
-  async function loadVoice() { try { const v = CLOUD && CLOUD.getSetting ? await CLOUD.getSetting('vikron_voice') : null; if (v) VC = Object.assign(VC, v); } catch { } }
+  async function loadVoice() { try { const v = CLOUD && CLOUD.getSetting ? await CLOUD.getSetting('vikron_voice') : null; if (v) { VC = Object.assign(VC, v); delete VC.semi; delete VC.formant; } } catch { } }
   /* ---------- tour guiado ---------- */
   function steps() {
     const mob = innerWidth < 768, mods = (USER.modules || []).map(m => USER.MODULES[m] || m).join(', ');
@@ -4741,11 +4873,12 @@ const VK = (() => {
     if (vis) { const below = r.bottom + 14, above = r.top - 14; const th = 190; if (below + th < innerHeight) y = below; else if (above - th > 0) y = above - th; else y = Math.max(12, innerHeight - th - 40); x = Math.min(Math.max(12, r.left + r.width / 2 - tw / 2), innerWidth - tw - 12); }
     tip.style.left = x + 'px'; tip.style.top = y + 'px';
     $('#vkSkip').onclick = endTour; $('#vkNext').onclick = () => { if (tourI >= tourS.length - 1) return endTour(); tourI++; show(); }; if ($('#vkPrev')) $('#vkPrev').onclick = () => { tourI--; show(); };
-    speak(st.x, 'tour:' + slug(st.t));
+    speak(st.x);
   }
   function endTour() { const ov = $('#vkTourOv'); if (ov) ov.style.display = 'none'; stopVoice(); markTour(); }
   const TKEY = () => 'tecplan.tour.done:' + String(USER.email || '').toLowerCase();
   async function tourDone() {
+    if (USER.role === 'viewer') return true;
     try { if (localStorage.getItem(TKEY()) === '1') return true; } catch { }
     try { if (CLOUD && CLOUD.tourDone && await CLOUD.tourDone(USER.email)) { try { localStorage.setItem(TKEY(), '1'); } catch { } return true; } } catch { }
     return false;
@@ -4764,7 +4897,7 @@ const VK = (() => {
       wait();
     });
   }
-  return { boot, tour, reply, toggle, _fx: fxGraph, _psola: (ctx, b, p, f) => psola(ctx, b, p, f), _det: detectPeriods };
+  return { boot, tour, reply, toggle, _fx: fxGraph };
 })();
 
 /* ======================= ISOMÉTRICO "JOGO" — vista 2D isométrica do MESMO modelo ======================= */
@@ -5046,7 +5179,7 @@ const GEN = (() => {
   const WIN = { sala: { win: 'correr', winW: 2000, winH: 1200, winSill: 1000 }, quarto: { win: 'correr', winW: 1500, winH: 1200, winSill: 1000 }, cozinha: { win: 'correr', winW: 1200, winH: 1000, winSill: 1100 }, banho: { win: 'basculante', winW: 600, winH: 600, winSill: 1500 }, servico: { win: 'basculante', winW: 1000, winH: 800, winSill: 1200 } };
 
   /* ---------------- CASA TÉRREA ---------------- */
-  function casa(o0, { W = 8000, D = 10000, q = 2, b = 1, pd = 2800, laje = false } = {}) {
+  function casa(o0, { W = 8000, D = 10000, q = 2, b = 1, pd = 2800, laje = false, varanda = false, garagem = false } = {}) {
     const o = o0 || origin(), r50 = v => Math.round(v / 50) * 50;
     q = Math.max(1, Math.min(6, q)); b = Math.max(1, Math.min(4, b));
     const csz = 300, half = csz / 2, bh = 400, bb = 140, e = 100, fsz = 1200;
@@ -5131,9 +5264,23 @@ const GEN = (() => {
     const s = add('slab', { L: W + csz, W: D + csz, e, ceil: 'pintura', floor: laje ? 'contrapiso' : 'none' }); s.pos = P(o, -half, pd + bh, -half);
     if (laje) { const yt = pd + bh + e, pl = { H: 900, kind: 'bloco', color: 'areia', finA: 'textura', finB: 'textura' }; wallX(o, yt, -half, W + half, -half + 70, pl); wallX(o, yt, -half, W + half, D + half - 70, pl); wallZ(o, yt, -half + 140, D + half - 140, -half + 70, pl); wallZ(o, yt, -half + 140, D + half - 140, W + half - 70, pl); }
     else { const rf = add('roof', { L: W + csz, S: D + csz, slope: 30, ov: 600, kind: 'ceramica' }); rf.pos = P(o, -half, pd + bh + e, D / 2); }
+    // ---- varanda (frente) e garagem coberta (lateral direita) ----
+    const extra = (x0, x1, z0, z1, floor) => {
+      const xs2 = fill([x0, x1]), zs2 = fill([z0, z1]), has = (x, z) => pts.has(Math.round(x) + ',' + Math.round(z));
+      const corners = [];
+      for (const x of xs2) for (const z of [z0, z1]) corners.push([x, z]);
+      for (const z of zs2) for (const x of [x0, x1]) corners.push([x, z]);
+      const seen = new Set(); for (const [x, z] of corners) { const k = Math.round(x) + ',' + Math.round(z); if (seen.has(k) || has(x, z)) continue; seen.add(k); footCol(o, x, z, 0, pd, csz, fsz); pts.set(k, [x, z]); }
+      for (const z of [z0, z1]) for (let i = 0; i + 1 < xs2.length; i++) beamX(o, pd, xs2[i], xs2[i + 1], z, bb, bh);
+      for (const x of [x0, x1]) for (let i = 0; i + 1 < zs2.length; i++) beamZ(o, pd, zs2[i], zs2[i + 1], x, bb, bh);
+      const f = add('slab', { L: Math.round(x1 - x0 + csz), W: Math.round(z1 - z0 + csz), e, floor }); f.pos = P(o, x0 - half, -e, z0 - half);
+      const c = add('slab', { L: Math.round(x1 - x0 + csz), W: Math.round(z1 - z0 + csz), e, ceil: 'pvc' }); c.pos = P(o, x0 - half, pd + bh, z0 - half);
+    };
+    if (varanda) extra(0, W, -2000, 0, 'ceramica');
+    if (garagem) extra(W, W + 3200, 0, Math.min(D, 5500), 'contrapiso');
     TP.autoConnect(pr);
     const ord = { sala: 0, cozinha: 1, quarto: 2, banho: 3 }, list = rooms.filter(r => r.k !== 'circ').sort((a, c) => ord[a.k] - ord[c.k] || a.n.localeCompare(c.n)).map(r => `${r.n} ${fmt(r.x1 - r.x0)} × ${fmt(r.z1 - r.z0)} m`);
-    return { rooms: list, W, D, pd, cols: pts.size, laje, layout };
+    return { rooms: list, W, D, pd, cols: pts.size, laje, layout, varanda, garagem };
   }
   const fmt = v => (v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
 
@@ -5142,12 +5289,15 @@ const GEN = (() => {
     const o = o0 || origin(); n = Math.max(1, Math.min(12, n));
     const xsA = split(0, W, 5000), zsA = split(0, D, 5000), bh = 500, bb = 200, e = 120, csz = Math.min(600, 300 + 50 * n), fsz = 1400 + 250 * n, half = csz / 2;
     const ch = fh - bh - e;
+    // posição da escada (a mesma em todos os andares) — a laje recebe a abertura correspondente
+    const Ls = Math.ceil(fh / 175) * 280 + 200, stAlongZ = D >= W;
+    const stR = stAlongZ ? { x0: W - half - 200 - 1200, x1: W - half - 200, z0: Math.max(half + 200, D - half - 200 - Ls), z1: D - half - 200 } : { x0: Math.max(half + 200, W - half - 200 - Ls), x1: W - half - 200, z0: D - half - 200 - 1200, z1: D - half - 200 };
     for (let k = 0; k < n; k++) {
       const y = k * fh;
       for (const x of xsA) for (const z of zsA) { if (k === 0) footCol(o, x, z, 0, ch, csz, fsz); else { const c = add('column', { b: csz, h: csz, H: ch }); c.pos = P(o, x, y, z); } }
       for (const z of zsA) for (let i = 0; i + 1 < xsA.length; i++) beamX(o, y + ch, xsA[i], xsA[i + 1], z, bb, bh);
       for (const x of xsA) for (let i = 0; i + 1 < zsA.length; i++) beamZ(o, y + ch, zsA[i], zsA[i + 1], x, bb, bh);
-      const s = add('slab', { L: W + csz, W: D + csz, e, ceil: 'gesso', floor: k === n - 1 ? 'contrapiso' : 'porcelanato' }); s.pos = P(o, -half, y + ch + bh, -half);
+      const s = add('slab', Object.assign({ L: W + csz, W: D + csz, e, ceil: 'gesso', floor: k === n - 1 ? 'contrapiso' : 'porcelanato' }, k < n - 1 && n > 1 ? { hole: 1, hX: stR.x0 + half - 100, hZ: stR.z0 + half - 100, hL: stR.x1 - stR.x0 + 200, hW: stR.z1 - stR.z0 + 200 } : {})); s.pos = P(o, -half, y + ch + bh, -half);
       const ext = { kind: 'bloco', H: ch, color: 'gelo' };
       const mid = Math.floor((xsA.length - 1) / 2);
       for (let i = 0; i + 1 < xsA.length; i++) {
@@ -5163,9 +5313,8 @@ const GEN = (() => {
         wallZ(o, y, a, c, W, Object.assign({}, ext, { finA: 'pintura', finB: 'textura' }, win));
       }
       if (n > 1 && k < n - 1) { // escada dentro do prédio, no sentido do maior lado, encostada no canto do fundo
-        const st = add('stair', { W: 1200, Ht: fh, floor: 'granilite' }); const Ls = TYPES.stair.prims(st).reduce((m, p) => Math.max(m, p.c ? p.c.x + (p.s ? p.s[0] / 2 : 0) : 0), 0) + 20;
-        if (D >= W) { st.q = ALONG_Z; st.pos = P(o, W - half - 200, y, Math.max(half + 200, D - half - 200 - Ls)); }
-        else st.pos = P(o, Math.max(half + 200, W - half - 200 - Ls), y, D - half - 200 - 1200);
+        const st = add('stair', { W: 1200, Ht: fh, floor: 'granilite' });
+        if (stAlongZ) { st.q = ALONG_Z; st.pos = P(o, stR.x1, y, stR.z0); } else st.pos = P(o, stR.x0, y, stR.z0);
       }
     }
     const g = add('slab', { L: W + csz, W: D + csz, e, floor: 'porcelanato' }); g.pos = P(o, -half, -e, -half);
@@ -5178,7 +5327,7 @@ const GEN = (() => {
   }
 
   /* ---------------- GALPÃO METÁLICO (pórticos de alma cheia) ---------------- */
-  function galpao(o0, { L = 30000, S = 20000, H = 8000, slope = 10 } = {}) {
+  function galpao(o0, { L = 30000, S = 20000, H = 8000, slope = 10, clad = true } = {}) {
     const o = o0 || origin();
     const nb = Math.max(2, Math.ceil(L / 6000)), bay = L / nb, rise = S / 2 * slope / 100, colSize = S > 25000 ? 'W310x97' : S > 15000 ? 'W250x73' : 'W200x46,1', rafSize = S > 25000 ? 'W460x52' : S > 15000 ? 'W410x38,8' : 'W360x32,9';
     const prof = (fam, size, len, pos, q) => { const p = add('profile', { fam, size, len: Math.round(len) }); p.pos = pos; p.q = q; return p; };
@@ -5200,10 +5349,15 @@ const GEN = (() => {
     }
     // contraventamento nos vãos das extremidades (laterais)
     for (const x0 of [0, L - bay]) for (const z of [0, S]) { const br = add('bracing', { W: Math.round(bay), H: Math.round(H), rod: 19 }); br.pos = P(o, x0, 0, z); }
+    // fechamento lateral (dois lados) e frontal (oitões), com portão de enrolar na frente
+    if (clad) {
+      for (const z of [-60, S + 60]) { const f = add('cladding', { L: Math.round(L), H: Math.round(H) }); f.pos = P(o, 0, 0, z); }
+      for (const [x, front] of [[-60, true], [L + 60, false]]) { const f = add('cladding', { L: Math.round(S), H: Math.round(H), rise: Math.round(rise), gate: front ? 1 : 0, gW: Math.min(6000, Math.round(S * 0.3 / 500) * 500), gH: Math.min(Math.round(H * 0.7 / 100) * 100, 6000), gX: Math.round(S / 2) }); f.pos = P(o, x, 0, 0); f.q = ALONG_Z; }
+    }
     const rf = add('roof', { L: L + 600, S, slope, ov: 400, kind: 'metalica' }); rf.pos = P(o, -300, H + 25 + 480, S / 2);
     const g = add('slab', { L: L + 1000, W: S + 1000, e: 150, floor: 'epoxi' }); g.pos = P(o, -500, -150, -500);
     TP.autoConnect(pr, 2);
-    return { L, S, H, slope, nb, bay: Math.round(bay), colSize, rafSize };
+    return { L, S, H, slope, nb, bay: Math.round(bay), colSize, rafSize, clad };
   }
 
   /* ---------------- LINHA DE TUBULAÇÃO ---------------- */
@@ -5329,6 +5483,11 @@ const Demo = (() => {
       put(db);
     },
     async deleteGrant(email, actor) { const g = db.grants.find(x => x.email === email); if (!canEdit(actor, g) || actor.role !== 'admin') throw new Error('Somente o administrador remove acessos'); db.grants = db.grants.filter(x => x.email !== email); delete db.pw[email]; put(db); },
+    async createShare(project, name, data) { const sh = JSON.parse(localStorage.getItem('tecplan.demo.shares') || '{}'), t = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())); sh[t] = { project, name, data, owner: me()?.email, created_at: new Date().toISOString() }; localStorage.setItem('tecplan.demo.shares', JSON.stringify(sh)); return t; },
+    async updateShare(t, name, data) { const sh = JSON.parse(localStorage.getItem('tecplan.demo.shares') || '{}'); if (sh[t]) { sh[t].name = name; sh[t].data = data; sh[t].created_at = new Date().toISOString(); } localStorage.setItem('tecplan.demo.shares', JSON.stringify(sh)); },
+    async listShares(project) { const sh = JSON.parse(localStorage.getItem('tecplan.demo.shares') || '{}'); return Object.entries(sh).filter(([, s]) => s.project === project && s.owner === me()?.email).map(([token, s]) => ({ token, created_at: s.created_at })); },
+    async deleteShare(t) { const sh = JSON.parse(localStorage.getItem('tecplan.demo.shares') || '{}'); delete sh[t]; localStorage.setItem('tecplan.demo.shares', JSON.stringify(sh)); },
+    async getShare(t) { const s = JSON.parse(localStorage.getItem('tecplan.demo.shares') || '{}')[t]; return s ? { name: s.name, data: s.data } : null; },
     async listProjects() { const e = me()?.email; return Object.values((db.projects || {})[e] || {}).map(({ id, name, updated_at }) => ({ id, name, updated_at })).sort((a, b) => b.updated_at.localeCompare(a.updated_at)); },
     async getProject(id) { const e = me()?.email; return ((db.projects || {})[e] || {})[id] || null; },
     async saveProject(p) { const e = me()?.email; if (!e) throw new Error('sem sessão'); db.projects = db.projects || {}; db.projects[e] = db.projects[e] || {}; const r = { id: p.id, name: p.name, data: p.data, updated_at: new Date().toISOString() }; db.projects[e][p.id] = r; put(db); return { id: r.id, updated_at: r.updated_at }; },
@@ -5365,6 +5524,11 @@ function SupabaseBackend(sb) {
     async listGrants() { const { data, error } = await sb.from('access_grants').select('*').order('created_at'); if (error) throw error; return data; },
     async saveGrant(g) { g.email = low(g.email); const { error } = await sb.from('access_grants').upsert(g, { onConflict: 'email' }); if (error) throw new Error(error.message); },
     async deleteGrant(email) { const { error } = await sb.from('access_grants').delete().eq('email', email); if (error) throw new Error(error.message); },
+    async createShare(project, name, data) { const { data: r, error } = await sb.from('project_shares').insert({ project, name, data }).select('token').single(); if (error) throw new Error(error.message); return r.token; },
+    async updateShare(t, name, data) { const { error } = await sb.from('project_shares').update({ name, data, created_at: new Date().toISOString() }).eq('token', t); if (error) throw new Error(error.message); },
+    async listShares(project) { const { data, error } = await sb.from('project_shares').select('token,created_at').eq('project', project).order('created_at', { ascending: false }); if (error) throw new Error(error.message); return data; },
+    async deleteShare(t) { const { error } = await sb.from('project_shares').delete().eq('token', t); if (error) throw new Error(error.message); },
+    async getShare(t) { const { data, error } = await sb.rpc('get_share', { t }); if (error) throw new Error(error.message); return Array.isArray(data) ? data[0] || null : data; },
     async listProjects() { const { data, error } = await sb.from('projects').select('id,name,updated_at').order('updated_at', { ascending: false }); if (error) throw error; return data; },
     async getProject(id) { const { data, error } = await sb.from('projects').select('*').eq('id', id).maybeSingle(); if (error) throw error; return data; },
     async saveProject(p) { const { data, error } = await sb.from('projects').upsert({ id: p.id, name: p.name, data: p.data }, { onConflict: 'id' }).select('id,updated_at').single(); if (error) throw new Error(error.message); return data; },
@@ -5697,6 +5861,12 @@ function grantEditor(g, lead, editing) {
 async function boot() {
   const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
   B = await backend();
+  const vm = /[#&]ver=([\w-]{8,64})/.exec(location.hash);
+  if (vm) { // link de visualização somente leitura — não exige login
+    let sh = null; try { sh = await B.getShare(vm[1]); } catch (e) { console.error(e); }
+    if (sh && sh.data) { $('#gate') && $('#gate').remove(); window.TPApp.start({ email: 'visitante', name: 'Visitante', role: 'viewer', modules: ALL, package: 'Visualização', MODULES, share: sh }, null); return; }
+    toast('Link de visualização inválido ou revogado pelo dono do projeto.', 'er'); history.replaceState(null, '', location.pathname);
+  }
   let g = null; try { g = await B.session(); } catch (e) { console.error(e); }
   if (g) enter(g); else showGate();
 }
@@ -5705,5 +5875,6 @@ if (typeof THREE !== 'undefined') boot();
 })();
 
 </script>
+<script>if ('serviceWorker' in navigator && location.protocol === 'https:' && !/claude|claudeusercontent/.test(location.hostname)) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));</script>
 </body>
 </html>
