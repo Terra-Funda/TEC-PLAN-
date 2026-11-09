@@ -83,7 +83,7 @@ footer .er{color:var(--er)}footer .am{color:var(--am)}
 #isoinfo{position:absolute;left:8px;bottom:8px;font-family:var(--mono);font-size:12px;background:rgba(13,15,18,.85);padding:5px 9px;border-radius:5px;border:1px solid var(--ln);pointer-events:none}
 #vsheet,#vbom{overflow:auto}
 #sheetbar{position:sticky;top:0;display:flex;gap:6px;align-items:center;padding:8px;background:var(--p1);border-bottom:1px solid var(--ln);z-index:2;flex-wrap:wrap}
-#sheetwrap{padding:16px;display:flex;justify-content:center}
+#sheetwrap{padding:16px;display:flex;justify-content:center;flex-wrap:wrap;align-content:flex-start}
 #sheetwrap svg{background:#fff;box-shadow:0 4px 30px rgba(0,0,0,.5);height:auto}
 #carimbo{display:none;padding:10px;background:var(--p1);border-bottom:1px solid var(--ln)}
 #carimbo.on{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
@@ -960,6 +960,138 @@ const STEELT = {
 };
 for (const k in STEELT) STEELT[k].weight = civW(STEELT[k]);
 Object.assign(TYPES, STEELT);
+
+/* ---------------- Chapas curvas (calandrada, sela, calota, gomo, tampos) ---------------- */
+// Casca com espessura a partir de uma superfície amostrada S(i,j) → {p:[x,y,z], n:[nx,ny,nz]} (n = normal "para fora")
+function shellTris(S, nu, nv, t, side, mask, wrapV) {
+  const o0 = side === 'in' ? -t : 0, o1 = side === 'in' ? 0 : t, G = [];
+  for (let i = 0; i <= nu; i++) { const row = []; for (let j = 0; j <= nv; j++) row.push(S(i, j)); G.push(row); }
+  const off = (s, o) => [s.p[0] + s.n[0] * o, s.p[1] + s.n[1] * o, s.p[2] + s.n[2] * o];
+  const inC = (i, j) => { if (i < 0 || i >= nu) return false; if (wrapV) j = (j + nv) % nv; else if (j < 0 || j >= nv) return false; return !mask || mask((i + 0.5) / nu, (j + 0.5) / nv, i, j); };
+  const v = [], n = [];
+  const tri = (a, b, c, na, nb, nc) => { v.push(...a, ...b, ...c); n.push(...na, ...nb, ...nc); };
+  const neg = q => [-q[0], -q[1], -q[2]];
+  const quadN = (a, b, c, d) => { const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], w = [d[0] - a[0], d[1] - a[1], d[2] - a[2]], x = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]], l = Math.hypot(...x) || 1; return [x[0] / l, x[1] / l, x[2] / l]; };
+  for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) {
+    if (!inC(i, j)) continue;
+    const s00 = G[i][j], s10 = G[i + 1][j], s11 = G[i + 1][j + 1], s01 = G[i][j + 1];
+    const A = [off(s00, o1), off(s10, o1), off(s11, o1), off(s01, o1)], B = [off(s00, o0), off(s10, o0), off(s11, o0), off(s01, o0)];
+    tri(A[0], A[1], A[2], s00.n, s10.n, s11.n); tri(A[0], A[2], A[3], s00.n, s11.n, s01.n);
+    tri(B[0], B[2], B[1], neg(s00.n), neg(s11.n), neg(s10.n)); tri(B[0], B[3], B[2], neg(s00.n), neg(s01.n), neg(s11.n));
+    for (const [di, dj, a, b] of [[-1, 0, 3, 0], [1, 0, 1, 2], [0, -1, 0, 1], [0, 1, 2, 3]]) if (!inC(i + di, j + dj)) { const q = [A[a], A[b], B[b], B[a]], nn = quadN(...q); tri(q[0], q[1], q[2], nn, nn, nn); tri(q[0], q[2], q[3], nn, nn, nn); }
+  }
+  return { k: 'tris', v, n, mat: 'steel' };
+}
+const deg = a => a * Math.PI / 180;
+const SIDE = ['ext', 'int'], SIDEL = k => k === 'int' ? 'Por dentro (assenta na face interna)' : 'Por fora (assenta na face externa)';
+const plateKg = (A, t) => A * t * STEEL_KG;
+function plateLines(desc, A, t, extra) {
+  const kg = plateKg(A, t);
+  return [{ desc: `Chapa de aço ASTM A36 e = ${t} mm`, unit: 'kg', qty: kg, std: 'ASTM A36', mat: 'Aço ASTM A36', w: kg }, { desc: `Chapa de aço e = ${t} mm (área)`, unit: 'm²', qty: A / 1e6, std: 'ASTM A36', mat: 'Aço ASTM A36', w: 0 }].concat(extra ? [{ desc: extra, unit: 'pç', qty: 1, std: '', mat: '', w: 0 }] : []);
+}
+// perfis de tampo (superfície externa): lista de {r, y, nr, ny} da aba reta até o centro
+function headProfile(kind, Do, sf) {
+  const Ro = Do / 2, P = [{ r: Ro, y: 0, nr: 1, ny: 0 }, { r: Ro, y: sf, nr: 1, ny: 0 }], N = 28;
+  if (kind === 'torisferico') { // Klöpper: raio da coroa = D, raio do rebordeado = 0,1·D
+    const R = Do, rk = 0.1 * Do, yc = sf - Math.sqrt((R - rk) ** 2 - (Ro - rk) ** 2), bt = Math.atan2(sf - yc, Ro - rk);
+    for (let i = 1; i <= 10; i++) { const b = bt * i / 10; P.push({ r: Ro - rk + rk * Math.cos(b), y: sf + rk * Math.sin(b), nr: Math.cos(b), ny: Math.sin(b) }); }
+    for (let i = 1; i <= N; i++) { const b = bt + (Math.PI / 2 - bt) * i / N; P.push({ r: R * Math.cos(b), y: yc + R * Math.sin(b), nr: Math.cos(b), ny: Math.sin(b) }); }
+  } else { const b = kind === 'hemisferico' ? Ro : Ro / 2; // elíptico 2:1 ou hemisférico
+    for (let i = 1; i <= N; i++) { const be = Math.PI / 2 * i / N, r = Ro * Math.cos(be), y = sf + b * Math.sin(be), nr = r / (Ro * Ro), ny = (y - sf) / (b * b), l = Math.hypot(nr, ny) || 1; P.push({ r, y, nr: i === N ? 0 : nr / l, ny: i === N ? 1 : ny / l }); }
+  }
+  return P;
+}
+function arcLen(P, off) { let s = 0; for (let i = 1; i < P.length; i++) { const a = P[i - 1], b = P[i]; s += Math.hypot((b.r - b.nr * off) - (a.r - a.nr * off), (b.y - b.ny * off) - (a.y - a.ny * off)); } return s; }
+const HEADK = ['eliptico', 'torisferico', 'hemisferico'], HEADL = k => ({ eliptico: 'Elíptico 2:1', torisferico: 'Torisférico (Klöpper)', hemisferico: 'Hemisférico' })[k];
+
+const CURVED = {
+  cplate: {
+    name: 'Chapa calandrada', prefix: 'CC', spool: false, struct: true, curved: true,
+    defaults: { dn: 0, Dref: 600, side: 'ext', ang: 120, H: 500, t: 6.35, a0: 0, y0: 0 },
+    fields: [['Dref', 'Diâmetro da superfície onde assenta (mm)'], ['side', 'Lado', SIDE, SIDEL], ['ang', 'Ângulo abraçado (°)'], ['H', 'Largura ao longo do eixo (mm)'], ['t', 'Espessura (mm)'], ['a0', 'Giro em volta do eixo (°)'], ['y0', 'Posição ao longo do eixo (mm)']],
+    desc: p => `Chapa calandrada ${p.ang}° p/ Ø${p.Dref} ${p.side === 'int' ? '(interna)' : '(externa)'} × ${p.H} mm, e = ${p.t} mm`,
+    std: () => 'ASTM A36', mat: () => 'Aço carbono ASTM A36', ports: () => [],
+    prims(p) {
+      const R = p.Dref / 2, a = deg(p.a0), A = deg(Math.min(360, Math.max(5, p.ang))), nu = Math.max(8, Math.ceil(p.ang / 4));
+      return [shellTris((i, j) => { const th = a + A * i / nu, y = p.y0 + p.H * j; return { p: [R * Math.cos(th), y, R * Math.sin(th)], n: [Math.cos(th), 0, Math.sin(th)] }; }, nu, 1, p.t, p.side === 'int' ? 'in' : 'out', null, false)];
+    },
+    flat(p) { const Rm = p.Dref / 2 + (p.side === 'int' ? -p.t / 2 : p.t / 2), L = 2 * Math.PI * Rm * Math.min(360, p.ang) / 360; return { kind: 'rect', L, W: p.H, Rm, note: `Calandrar com raio médio R ${Math.round(Rm)} mm (Ø interno da chapa ${Math.round(p.side === 'int' ? p.Dref - 2 * p.t : p.Dref)} mm) — ${p.ang}°` }; },
+    bomLines(p) { const f = this.flat(p); return plateLines('', f.L * f.W, p.t, `Calandragem de chapa e = ${p.t} mm, R ${Math.round(f.Rm)} mm, ${p.ang}°`); },
+    keys: civKeys,
+  },
+  saddle: {
+    name: 'Sela / colar de reforço', prefix: 'SR', spool: false, struct: true, curved: true,
+    defaults: { dn: 0, D: 168.3, d: 114.3, Dp: 230, t: 7.11, a0: 0, y0: 0 },
+    fields: [['D', 'Ø externo do tubo principal (mm)'], ['d', 'Ø externo do ramal / furo (mm)'], ['Dp', 'Ø externo da sela (mm)'], ['t', 'Espessura (mm)'], ['a0', 'Giro em volta do tubo (°)'], ['y0', 'Posição ao longo do tubo (mm)']],
+    desc: p => `Sela de reforço Ø${p.Dp} p/ derivação Ø${p.d} em tubo Ø${p.D}, e = ${p.t} mm`,
+    std: () => 'ASME B31.3 (304.3)', mat: () => 'Aço carbono ASTM A36 / A516', ports: () => [],
+    geo(p) { const R = p.D / 2, rp = Math.min(p.Dp / 2, R * 2.2), th = Math.min(Math.PI * 0.75, rp < R ? Math.asin(rp / R) * 1.02 : Math.PI / 2 + (rp - R) / R); return { R, rp, th }; },
+    prims(p) {
+      const { R, rp, th } = this.geo(p), a = deg(p.a0), nu = 64, nv = 64;
+      const uv = (i, j) => [-th + 2 * th * i / nu, -rp + 2 * rp * j / nv]; // φ, v
+      // máscara no plano desenvolvido sobre o tubo: anel entre o furo (d/2) e a borda (Dp/2)
+      const inside = (fu, fv) => { const phi = -th + 2 * th * fu, vv = -rp + 2 * rp * fv, uOut = R * phi, uHole = Math.abs(phi) < Math.PI / 2 ? R * Math.sin(phi) : 1e9; return Math.hypot(uOut, vv) <= rp && Math.hypot(uHole, vv) >= p.d / 2; };
+      return [shellTris((i, j) => { const [phi, vv] = uv(i, j), tt = a + phi; return { p: [R * Math.cos(tt), p.y0 + vv, R * Math.sin(tt)], n: [Math.cos(tt), 0, Math.sin(tt)] }; }, nu, nv, p.t, 'out', inside, false)];
+    },
+    flat(p) { // contorno externo (círculo desenvolvido) e furo (boca de lobo) em coordenadas planas s = Rm·φ, v
+      const R = p.D / 2, Rm = R + p.t / 2, rp = p.Dp / 2, outer = [], hole = [];
+      for (let k = 0; k <= 72; k++) { const a = 2 * Math.PI * k / 72; outer.push([rp * Math.cos(a) * Rm / R, rp * Math.sin(a)]); }
+      const r = p.d / 2; if (r < R) { const pm = Math.asin(r / R); for (let k = 0; k <= 72; k++) { const phi = -pm + 2 * pm * (k <= 36 ? k / 36 : (72 - k) / 36), u = R * Math.sin(phi), vv = Math.sqrt(Math.max(0, r * r - u * u)) * (k <= 36 ? 1 : -1); hole.push([Rm * phi, vv]); } }
+      return { kind: 'poly', outer, hole, L: 2 * rp * Rm / R, W: 2 * rp, Rm, note: `Calandrar com R médio ${Math.round(Rm)} mm; furo = boca de lobo do ramal Ø${p.d} (traçar pelo gabarito). Prever furo de teste/respiro 1/4" NPT.` };
+    },
+    bomLines(p) { const f = this.flat(p), A = Math.PI * (p.Dp / 2) ** 2 * (f.L / f.W) - Math.PI * (p.d / 2) ** 2; return plateLines('', Math.max(0, A), p.t, `Sela de reforço Ø${p.Dp}×Ø${p.d} — calandrar R ${Math.round(f.Rm)} mm + furo de respiro 1/4" NPT`); },
+    keys: civKeys,
+  },
+  sphcap: {
+    name: 'Calota esférica', prefix: 'CE', spool: false, struct: true, curved: true,
+    defaults: { dn: 0, Ds: 2000, h: 300, side: 'ext', t: 6.35 },
+    fields: [['Ds', 'Diâmetro da esfera (mm)'], ['h', 'Altura da calota (mm)'], ['side', 'Lado', SIDE, SIDEL], ['t', 'Espessura (mm)']],
+    desc: p => `Calota esférica R${p.Ds / 2} × h ${p.h} mm (Ø base ${Math.round(2 * Math.sqrt(Math.max(0, p.h * (p.Ds - p.h))))}), e = ${p.t} mm`,
+    std: () => 'ASTM A36', mat: () => 'Aço carbono ASTM A36', ports: () => [],
+    prims(p) {
+      const R = p.Ds / 2, h = Math.min(p.Ds, Math.max(5, p.h)), al = Math.acos((R - h) / R), cy = h - R, nu = Math.max(6, Math.ceil(al / deg(4))), nv = 56;
+      return [shellTris((i, j) => { const ph = al * i / nu, th = 2 * Math.PI * j / nv, n = [Math.sin(ph) * Math.cos(th), Math.cos(ph), Math.sin(ph) * Math.sin(th)]; return { p: [R * n[0], cy + R * n[1], R * n[2]], n }; }, nu, nv, p.t, p.side === 'int' ? 'in' : 'out', null, true)];
+    },
+    flat(p) { const R = p.Ds / 2, Rm = R + (p.side === 'int' ? -p.t / 2 : p.t / 2), al = Math.acos((R - Math.min(p.Ds, p.h)) / R), Db = 2 * Rm * al; return { kind: 'disk', D: Db, Rm, note: `Disco Ø${Math.round(Db)} mm (comprimento do arco na fibra média) — conformar/prensar com R médio ${Math.round(Rm)} mm` }; },
+    bomLines(p) { const f = this.flat(p); return plateLines('', Math.PI * (f.D / 2) ** 2, p.t, `Conformação de calota R ${Math.round(f.Rm)} mm`); },
+    keys: civKeys,
+  },
+  gore: {
+    name: 'Gomo de esfera', prefix: 'GE', spool: false, struct: true, curved: true,
+    defaults: { dn: 0, Ds: 6000, lat0: -30, lat1: 30, larg: 30, side: 'ext', t: 9.5, a0: 0 },
+    fields: [['Ds', 'Diâmetro da esfera (mm)'], ['lat0', 'Latitude inicial (°, −90 a 90)'], ['lat1', 'Latitude final (°)'], ['larg', 'Largura do gomo (°)'], ['side', 'Lado', SIDE, SIDEL], ['t', 'Espessura (mm)'], ['a0', 'Giro em volta do eixo (°)']],
+    desc: p => `Gomo de esfera Ø${p.Ds} — lat. ${p.lat0}° a ${p.lat1}°, ${p.larg}° de largura, e = ${p.t} mm`,
+    std: () => 'ASTM A516 Gr.70', mat: () => 'Aço carbono ASTM A516 Gr.70', ports: () => [],
+    prims(p) {
+      const R = p.Ds / 2, l0 = deg(Math.max(-90, Math.min(p.lat0, p.lat1))), l1 = deg(Math.min(90, Math.max(p.lat0, p.lat1))), W = deg(Math.max(2, Math.min(360, p.larg))), a = deg(p.a0);
+      const nu = Math.max(6, Math.ceil((l1 - l0) / deg(3))), nv = Math.max(6, Math.ceil(W / deg(3)));
+      return [shellTris((i, j) => { const ph = l0 + (l1 - l0) * i / nu, th = a - W / 2 + W * j / nv, n = [Math.cos(ph) * Math.cos(th), Math.sin(ph), Math.cos(ph) * Math.sin(th)]; return { p: [R * n[0], R * n[1], R * n[2]], n }; }, nu, nv, p.t, p.side === 'int' ? 'in' : 'out', null, false)];
+    },
+    flat(p) { // molde de gomo: comprimento no meridiano e meia-largura em cada latitude
+      const R = p.Ds / 2, Rm = R + (p.side === 'int' ? -p.t / 2 : p.t / 2), l0 = deg(Math.min(p.lat0, p.lat1)), l1 = deg(Math.max(p.lat0, p.lat1)), W = deg(p.larg), L = [], Rt = [];
+      for (let k = 0; k <= 24; k++) { const ph = l0 + (l1 - l0) * k / 24, s = Rm * (ph - l0), hw = Rm * Math.cos(ph) * W / 2; L.push([-hw, s]); Rt.push([hw, s]); }
+      const outer = L.concat(Rt.reverse()); return { kind: 'poly', outer, hole: [], L: Rm * W * Math.cos(Math.min(Math.abs(l0), Math.abs(l1)) * (l0 * l1 < 0 ? 0 : 1)), W: Rm * (l1 - l0), Rm, note: `Molde de gomo (dupla curvatura — conformar com R ${Math.round(Rm)} mm). Gomos iguais: ${Math.round(360 / Math.max(1, p.larg))} por volta.` };
+    },
+    bomLines(p) { const R = p.Ds / 2, A = R * R * deg(p.larg) * Math.abs(Math.sin(deg(Math.max(p.lat0, p.lat1))) - Math.sin(deg(Math.min(p.lat0, p.lat1)))); return plateLines('', A, p.t, `Conformação de gomo R ${Math.round(R)} mm`); },
+    keys: civKeys,
+  },
+  head: {
+    name: 'Tampo (vaso)', prefix: 'TP', spool: false, struct: true, curved: true,
+    defaults: { dn: 0, D: 1000, kind: 'eliptico', sf: 38, t: 6.35 },
+    fields: [['kind', 'Tipo', HEADK, HEADL], ['D', 'Diâmetro externo (mm)'], ['sf', 'Aba reta (mm)'], ['t', 'Espessura (mm)']],
+    desc: p => `Tampo ${HEADL(p.kind).toLowerCase()} Ø${p.D} × ${p.t} mm, aba reta ${p.sf} mm`,
+    std: () => 'ASME VIII Div.1 (UG-32)', mat: () => 'Aço carbono ASTM A516 Gr.70', ports: () => [],
+    prims(p) {
+      const P = headProfile(p.kind, p.D, p.sf), nu = P.length - 1, nv = 56;
+      return [shellTris((i, j) => { const q = P[i], th = 2 * Math.PI * j / nv; return { p: [q.r * Math.cos(th), q.y, q.r * Math.sin(th)], n: [q.nr * Math.cos(th), q.ny, q.nr * Math.sin(th)] }; }, nu, nv, p.t, 'in', null, true)];
+    },
+    flat(p) { const P = headProfile(p.kind, p.D, p.sf), s = arcLen(P, p.t / 2), Db = 2 * s; return { kind: 'disk', D: Db, note: `Disco Ø${Math.round(Db)} mm (fibra média, sem sobremetal de repuxo) — tampo ${HEADL(p.kind)}, altura total ≈ ${Math.round(P[P.length - 1].y)} mm` }; },
+    bomLines(p) { const f = this.flat(p); return plateLines('', Math.PI * (f.D / 2) ** 2, p.t, `Tampo ${HEADL(p.kind)} Ø${p.D} × ${p.t} — conformação (repuxo/prensa)`); },
+    keys: civKeys,
+  },
+};
+for (const k in CURVED) CURVED[k].weight = civW(CURVED[k]);
+Object.assign(TYPES, CURVED);
 
 /* ---------------- Inserir válvula / flanges no meio de um tubo ---------------- */
 const INLINE = {
@@ -2031,7 +2163,7 @@ function boltedOf(pr, id) {
 }
 
 const fmtQty = g => (g.unit === 'pç' || g.unit === 'un') ? String(Math.round(g.qty)) : (Math.round(g.qty * 100) / 100).toFixed(2) + ' ' + g.unit;
-const TP = { boltSpec, boltedOf, valvePrims, extraOf, WIN_T, DOOR_T, FIN_T, PAINT, FLOOR_T, CEIL_T, PMAT, DISC, PIPING, PROFILES, profSec, fieldsOf, INLINE, inlineLen, insertInline, WALL_K, ROOF_K, V3, Q, UP, AX, AZ, D2R, DNS, DIM, CLASSES, FLANGE_STDS, flg, TYPES, VALVE_SUBS, Project, localPorts, worldPorts, worldPort, worldPt,
+const TP = { shellTris, headProfile, boltSpec, boltedOf, valvePrims, extraOf, WIN_T, DOOR_T, FIN_T, PAINT, FLOOR_T, CEIL_T, PMAT, DISC, PIPING, PROFILES, profSec, fieldsOf, INLINE, inlineLen, insertInline, WALL_K, ROOF_K, V3, Q, UP, AX, AZ, D2R, DNS, DIM, CLASSES, FLANGE_STDS, flg, TYPES, VALVE_SUBS, Project, localPorts, worldPorts, worldPort, worldPt,
   compatible, jointType, snapPose, component, branch, applyRigid, pivotPort, rotateBranch, roll, tilt, orient, moveGroup, updateParams, autoConnect, acoplar,
   segSegDist, capsules, detectClashes, ISO_AXES, PLANES, latticeToScreen, screenToLattice, snapLattice, classifyIso, isoDelta, isoTo3D, buildFromIso,
   joints, analyze, bom, fmtQty, pcf, testNotes, nextDown, nextUp, odOf, r1, C30, S30 };
@@ -2069,6 +2201,7 @@ function geomOf(pc) { // primitivas em coordenadas do mundo
     else if (p.k === 'loft') { const pts = []; for (const [x, [w, h]] of [[p.x0, p.a], [p.x0 + p.L, p.b]]) for (const a of [-1, 1]) for (const b of [-1, 1]) pts.push(worldPt(pc, new V3(x, a * h / 2, b * w / 2))); out.push({ k: 'hull', pts }); }
     else if (p.k === 'rev') { const r = Math.max(...p.pts.map(q => q[0])); out.push({ k: 'seg', a: worldPt(pc, p.o.add(p.dir.scale(p.pts[0][1]))), b: worldPt(pc, p.o.add(p.dir.scale(p.pts[p.pts.length - 1][1]))), r: r * 0.85, rmax: r, center: p.clash !== false }); }
     else if (p.k === 'lathe') out.push({ k: 'seg', a: worldPt(pc, new V3(0, 0, 0)), b: worldPt(pc, new V3(0, p.h, 0)), r: p.ro, rmax: p.ro, center: true });
+    else if (p.k === 'tris') { const pts = [], st = Math.max(9, Math.floor(p.v.length / 9 / 400) * 9); for (let i = 0; i + 2 < p.v.length; i += st) pts.push(worldPt(pc, new V3(p.v[i], p.v[i + 1], p.v[i + 2]))); out.push({ k: 'hull', pts }); }
     else if (p.k === 'prism') { const pts = []; for (const y of [p.y0, p.y1]) for (const [x, z] of p.pts) pts.push(worldPt(pc, new V3(x, y, z))); out.push({ k: 'hull', pts }); }
     else if (p.mat && (p.k === 'box' || p.k === 'cbox' || p.k === 'rtube')) {
       const pts = []; for (const a of [-1, 1]) for (const b of [-1, 1]) for (const c of [-1, 1]) { let v = new V3(a * p.s[0] / 2, b * p.s[1] / 2, c * p.s[2] / 2); if (p.rq) v = p.rq.rot(v); pts.push(worldPt(pc, p.c.add(v))); }
@@ -2118,6 +2251,7 @@ function dimSegments(pr, ids) {
 }
 
 function sheetSVG(pr, opts = {}) {
+  if (opts.spool === 'FLAT') return flatSVG(pr, opts);
   const size = opts.size || 'A3';
   const [W, H] = size === 'A4' ? [297, 210] : [420, 297];
   const k = H / 297, m = pr.meta;
@@ -2308,6 +2442,63 @@ function sheetSVG(pr, opts = {}) {
   return { svg: out.join(''), scale: den, spools: an.spools.map(s => s.name) };
 }
 
+/* ---------- Prancha de PLANIFICAÇÃO das chapas curvas (calandrada, sela, calota, gomo, tampo) ---------- */
+function flatSVG(pr, opts = {}) {
+  const size = opts.size || 'A3', [W, H] = size === 'A4' ? [297, 210] : [420, 297], k = H / 297, m = pr.meta;
+  const esc2 = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const txt = (x, y, t, sz, o = {}) => `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" font-size="${(sz * k).toFixed(2)}" fill="${o.fill || '#111'}" ${o.anchor ? `text-anchor="${o.anchor}"` : ''} ${o.bold ? 'font-weight="700"' : ''} stroke="none">${esc2(t)}</text>`;
+  const pcs = [...pr.pieces.values()].filter(p => TYPES[p.type].flat).sort((a, b) => a.tag.localeCompare(b.tag));
+  const out = [`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}mm" height="${H}mm" font-family="'IBM Plex Mono','Consolas',monospace" fill="none">`, `<rect x="0" y="0" width="${W}" height="${H}" fill="#fff"/>`, `<rect x="10" y="10" width="${W - 20}" height="${H - 20}" stroke="#111" stroke-width="0.5"/>`];
+  const tbH = 34 * k, ax = 10, ay = 10, aw = W - 20, ah = H - 20 - tbH;
+  if (!pcs.length) out.push(txt(W / 2, H / 2, 'Nenhuma chapa curva no projeto (chapa calandrada, sela, calota, gomo ou tampo).', 3, { anchor: 'middle' }));
+  const page = Math.max(0, opts.page || 0), per = 6, list = pcs.slice(page * per, page * per + per), pages = Math.max(1, Math.ceil(pcs.length / per));
+  const cols = list.length <= 2 ? list.length || 1 : 3, rows = list.length <= 3 ? 1 : 2, cw = aw / cols, ch = ah / rows;
+  const dim = (x1, y1, x2, y2, label, off) => { // cota alinhada simples
+    const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1, nx = -dy / L * off, ny = dx / L * off, a = Math.atan2(dy, dx) * 180 / Math.PI;
+    const p1 = [x1 + nx, y1 + ny], p2 = [x2 + nx, y2 + ny], mx = (p1[0] + p2[0]) / 2, my = (p1[1] + p2[1]) / 2;
+    return `<line x1="${x1}" y1="${y1}" x2="${p1[0]}" y2="${p1[1]}" stroke="#2563eb" stroke-width="0.15"/><line x1="${x2}" y1="${y2}" x2="${p2[0]}" y2="${p2[1]}" stroke="#2563eb" stroke-width="0.15"/><line x1="${p1[0]}" y1="${p1[1]}" x2="${p2[0]}" y2="${p2[1]}" stroke="#2563eb" stroke-width="0.2" marker-start="url(#ar)" marker-end="url(#ar)"/><text x="${mx}" y="${my - 0.8}" font-size="${(1.9 * k).toFixed(2)}" fill="#2563eb" text-anchor="middle" transform="rotate(${(a > 90 || a < -90) ? a + 180 : a} ${mx} ${my})" stroke="none">${label}</text>`;
+  };
+  out.push(`<defs><marker id="ar" viewBox="0 0 6 6" refX="3" refY="3" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0 0L6 3L0 6z" fill="#2563eb"/></marker></defs>`);
+  list.forEach((pc, i) => {
+    const T0 = TYPES[pc.type], f = T0.flat(pc), cx0 = ax + (i % cols) * cw, cy0 = ay + Math.floor(i / cols) * ch;
+    out.push(`<rect x="${cx0 + 2}" y="${cy0 + 2}" width="${cw - 4}" height="${ch - 4}" stroke="#ccc" stroke-width="0.2"/>`);
+    out.push(txt(cx0 + 4, cy0 + 6 * k, `${pc.tag} — ${T0.name.toUpperCase()}`, 2.4, { bold: true }), txt(cx0 + 4, cy0 + 9.4 * k, T0.desc(pc).slice(0, 70), 1.6, { fill: '#444' }));
+    const boxW = cw - 22, boxH = ch - 34 * k, bx = cx0 + 11, by = cy0 + 13 * k;
+    let geo = [];
+    if (f.kind === 'rect') geo = [[[0, 0], [f.L, 0], [f.L, f.W], [0, f.W]]];
+    else if (f.kind === 'disk') { const r = f.D / 2, c = []; for (let a = 0; a < 72; a++) c.push([r + r * Math.cos(a / 72 * 2 * Math.PI), r + r * Math.sin(a / 72 * 2 * Math.PI)]); geo = [c]; }
+    else { geo = [f.outer]; if (f.hole && f.hole.length) geo.push(f.hole); }
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const p of geo[0]) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }
+    const sc = Math.min(boxW / Math.max(1, x1 - x0), boxH / Math.max(1, y1 - y0)), ox = bx + (boxW - (x1 - x0) * sc) / 2 - x0 * sc, oy = by + (boxH - (y1 - y0) * sc) / 2 + y1 * sc;
+    const P = p => [+(ox + p[0] * sc).toFixed(2), +(oy - p[1] * sc).toFixed(2)];
+    geo.forEach((poly, gi) => out.push(`<polygon points="${poly.map(P).map(q => q.join(',')).join(' ')}" fill="${gi ? '#fff' : '#eef3fb'}" stroke="#111" stroke-width="${gi ? 0.3 : 0.4}"/>`));
+    // linhas de dobra/calandragem (tracejado) e cotas
+    if (f.kind === 'rect') {
+      for (let j = 1; j < 6; j++) { const a = P([f.L * j / 6, 0]), b = P([f.L * j / 6, f.W]); out.push(`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#999" stroke-width="0.15" stroke-dasharray="1.5 1"/>`); }
+      const a = P([0, 0]), b = P([f.L, 0]), c = P([f.L, f.W]); out.push(dim(a[0], a[1], b[0], b[1], `${Math.round(f.L)} (desenvolvido)`, 4), dim(b[0], b[1], c[0], c[1], `${Math.round(f.W)}`, -4));
+    } else if (f.kind === 'disk') { const a = P([0, f.D / 2]), b = P([f.D, f.D / 2]); out.push(dim(a[0], a[1], b[0], b[1], `Ø${Math.round(f.D)}`, 0)); const c = P([f.D / 2, f.D / 2]); out.push(`<circle cx="${c[0]}" cy="${c[1]}" r="0.6" fill="#111"/>`); }
+    else { const a = P([x0, y0]), b = P([x1, y0]), c = P([x1, y1]); out.push(dim(a[0], a[1], b[0], b[1], `${Math.round(x1 - x0)}`, 4), dim(b[0], b[1], c[0], c[1], `${Math.round(y1 - y0)}`, -4));
+      if (f.hole && f.hole.length) { let hx0 = 1e9, hx1 = -1e9, hy0 = 1e9, hy1 = -1e9; for (const p of f.hole) { hx0 = Math.min(hx0, p[0]); hx1 = Math.max(hx1, p[0]); hy0 = Math.min(hy0, p[1]); hy1 = Math.max(hy1, p[1]); } const h1 = P([hx0, 0]), h2 = P([hx1, 0]); out.push(dim(h1[0], h1[1], h2[0], h2[1], `furo ${Math.round(hx1 - hx0)}×${Math.round(hy1 - hy0)}`, 0)); }
+      // ordenadas do gabarito (a cada 1/8)
+      if (f.hole && f.hole.length) { const n = 8, r = pc.d / 2, R = pc.D / 2, Rm = f.Rm, pm = Math.asin(Math.min(1, r / R)); for (let j = 0; j <= n; j++) { const phi = -pm + 2 * pm * j / n, u = R * Math.sin(phi), v = Math.sqrt(Math.max(0, r * r - u * u)), q = P([Rm * phi, v]), q2 = P([Rm * phi, -v]); out.push(`<line x1="${q[0]}" y1="${q[1]}" x2="${q2[0]}" y2="${q2[1]}" stroke="#d97706" stroke-width="0.12"/>`); } out.push(txt(cx0 + 4, cy0 + ch - 14 * k, `Gabarito do furo: ordenadas ±√(r²−(R·sen φ)²) em s = Rm·φ, 9 estações (laranja).`, 1.45, { fill: '#b45309' })); }
+    }
+    const note = f.note || ''; const words = note.split(' '); let line = '', ly = cy0 + ch - 10.5 * k;
+    for (const w of words) { if ((line + ' ' + w).length > Math.floor(cw / 1.05)) { out.push(txt(cx0 + 4, ly, line.trim(), 1.55)); ly += 2.5 * k; line = ''; } line += ' ' + w; }
+    if (line.trim()) out.push(txt(cx0 + 4, ly, line.trim(), 1.55));
+    out.push(txt(cx0 + cw - 4, cy0 + 6 * k, `e = ${pc.t} mm · ${(T0.weight(pc)).toFixed(1)} kg`, 1.8, { anchor: 'end', bold: true }));
+  });
+  // carimbo
+  const by = H - 10 - tbH, bw = W - 20, rh = tbH / 3;
+  out.push(`<rect x="10" y="${by}" width="${bw}" height="${tbH}" stroke="#111" stroke-width="0.5"/>`, `<rect x="10" y="${by}" width="${bw * 0.18}" height="${tbH}" fill="#111"/>`, txt(10 + bw * 0.09, by + tbH / 2 + 1.5, 'TEC PLAN', 3.6, { anchor: 'middle', bold: true, fill: '#f59e0b' }));
+  const cell = (x, y, w, h, l, v) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" stroke="#111" stroke-width="0.25"/>` + txt(x + 1, y + 2.6 * k, l, 1.5, { fill: '#555' }) + txt(x + 1, y + h - 2 * k, String(v).slice(0, l === 'NOTAS' ? 160 : 60), l === 'NOTAS' ? 1.8 : 2.2, { bold: true });
+  const x1 = 10 + bw * 0.18, w1 = bw * 0.82;
+  out.push(cell(x1, by, w1 * 0.5, rh, 'TÍTULO DO PROJETO', (m.title || '').toUpperCase()), cell(x1 + w1 * 0.5, by, w1 * 0.5, rh, 'DESENHO', `PLANIFICAÇÃO DE CHAPAS — FOLHA ${page + 1}/${pages}`));
+  out.push(cell(x1, by + rh, w1 * 0.25, rh, 'PROJETISTA', m.designer || '—'), cell(x1 + w1 * 0.25, by + rh, w1 * 0.25, rh, 'APROVADOR', m.approver || '—'), cell(x1 + w1 * 0.5, by + rh, w1 * 0.25, rh, 'DATA', m.date || ''), cell(x1 + w1 * 0.75, by + rh, w1 * 0.25, rh, 'REV.', m.rev || '0'));
+  out.push(cell(x1, by + 2 * rh, w1, rh, 'NOTAS', 'Medidas em mm na fibra média, sem sobremetal. Conferir em gabarito antes do corte. Aço ASTM A36/A516 conforme lista de materiais.'));
+  out.push('</svg>');
+  return { svg: out.join(''), scale: 0, spools: [], pages };
+}
+
 function isoThumb(pr, W = 320, H = 200) {
   const geo = [...pr.pieces.values()].map(pc => geomOf(pc).map(g => Object.assign(g, { acc: false }))).flat();
   const pj = PROJ.iso;
@@ -2456,6 +2647,32 @@ function insertSupport(params) {
     S.sel = pc.id;
   });
 }
+/* encaixe automático das chapas curvas na peça selecionada (cilindro, tubo, curva não; tampo/calota/esfera) */
+function fitCurved(pc, params) {
+  const host = S.sel && pr.get(S.sel); if (!host || host.id === pc.id) return false;
+  const ht = host.type, AZ90 = Q.axisAngle(TP.AZ, -Math.PI / 2); // eixo local Y → eixo X do tubo
+  let msg = '';
+  if (ht === 'cylinder') {
+    pc.pos = host.pos; pc.q = host.q;
+    if (pc.type === 'cplate') { pc.Dref = host.D; pc.H = Math.min(pc.H, host.H); pc.y0 = Math.max(0, (host.H - pc.H) / 2); }
+    else if (pc.type === 'saddle') { pc.D = host.D; pc.y0 = host.H / 2; pc.d = Math.min(pc.d, host.D * 0.6); pc.Dp = Math.round(pc.d * 2); pc.t = host.t || pc.t; }
+    else if (pc.type === 'head') { pc.D = host.D; pc.t = host.t || pc.t; pc.pos = host.pos.add(host.q.rot(new V3(0, host.H, 0))); }
+    else if (pc.type === 'sphcap') { pc.Ds = Math.max(pc.Ds, host.D); pc.h = Math.round(pc.Ds / 2 - Math.sqrt(Math.max(0, (pc.Ds / 2) ** 2 - (host.D / 2) ** 2))); pc.pos = host.pos.add(host.q.rot(new V3(0, host.H, 0))); }
+    else return false;
+    msg = 'encaixada no cilindro ' + host.tag;
+  } else if (ht === 'pipe' || ht === 'custom') {
+    const od = TP.DIM[host.dn] ? TP.DIM[host.dn].od : host.od || 100, L = host.len || 1000;
+    pc.pos = host.pos; pc.q = host.q.mul ? host.q.mul(AZ90) : host.q;
+    if (pc.type === 'cplate') { pc.Dref = od; pc.H = Math.min(pc.H, L); pc.y0 = Math.max(0, (L - pc.H) / 2); pc.t = Math.max(3, Math.round((TP.DIM[host.dn]?.wt || 6) * 10) / 10); }
+    else if (pc.type === 'saddle') { pc.D = od; pc.y0 = L / 2; const br = Object.entries(TP.DIM).filter(([, d]) => d.od < od * 0.8).pop(); pc.d = br ? br[1].od : Math.round(od * 0.6); pc.Dp = Math.round(Math.min(2 * pc.d, od * 1.4)); pc.t = Math.max(3, Math.round((TP.DIM[host.dn]?.wt || 6) * 100) / 100); }
+    else return false;
+    msg = 'encaixada no tubo ' + host.tag;
+  } else if (ht === 'sphcap' || ht === 'gore') {
+    if (pc.type === 'gore') { pc.Ds = host.Ds; pc.pos = host.pos; pc.q = host.q; pc.a0 = (host.a0 || 0) + (host.larg || 30); msg = 'na mesma esfera de ' + host.tag; } else return false;
+  } else return false;
+  setTimeout(() => toast('Chapa ' + msg + '. Ajuste giro e posição no painel da direita.'), 0);
+  return true;
+}
 function insertCivil(type, params) {
   if (type === 'support') return insertSupport(params);
   mutate(() => {
@@ -2482,6 +2699,7 @@ function insertCivil(type, params) {
         else { pc.pos = tp.pos; placed = true; }
       }
     }
+    if (!placed && TYPES[type].curved) placed = fitCurved(pc, params);
     if (!placed) { const b = bbox(); if (b && pr.pieces.size > 1) pc.pos = new V3(b.mx.x + 1500, 0, 0); }
     S.sel = pc.id;
     const pref = { footing: 'TOP', column: 'TOPO', beam: 'B', wall: 'P2', profile: 'B', baseplate: 'TOP', tray: 'B', traybend: 'B', panel: 'TOP', duct: 'B', hvelbow: 'P2', transition: 'B', damper: 'B', diffuser: 'P1', conduit: 'B', conduitbend: 'B', railing: 'B', jbox: 'B', grille: 'P1', fancoil: 'S', fan: 'B' }[type];
@@ -2712,6 +2930,9 @@ const R = (() => {
     } else if (p.k === 'rev') {
       g = new THREE.LatheGeometry(p.pts.map(q => new THREE.Vector2(Math.max(0.01, q[0]), q[1])), 32); m = new THREE.Mesh(g, mat);
       m.quaternion.setFromUnitVectors(UPY, v(p.dir).normalize()); m.position.copy(v(p.o));
+    } else if (p.k === 'tris') {
+      g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(p.v, 3)); if (p.n) g.setAttribute('normal', new THREE.Float32BufferAttribute(p.n, 3)); else g.computeVertexNormals();
+      m = new THREE.Mesh(g, mat);
     } else if (p.k === 'lathe') {
       const pts = p.ri > 0 ? [[p.ri, 0], [p.ro, 0], [p.ro, p.h], [p.ri, p.h], [p.ri, 0]] : [[0, 0], [p.ro, 0], [p.ro, p.h], [0, p.h]];
       g = new THREE.LatheGeometry(pts.map(q => new THREE.Vector2(q[0], q[1])), 40); m = new THREE.Mesh(g, mat);
@@ -2997,6 +3218,9 @@ function onPieceTap(id) { S.sel = id; refresh(); if (id && innerWidth < 768) ope
 
 /* ======================= PAINEL ESQUERDO ======================= */
 const ICON = {
+  cpl: '<path d="M4 20a11 11 0 0 1 18 0M7 22a8 8 0 0 1 12 0"/>', sad: '<path d="M2 15a11 6 0 0 0 22 0M2 11a11 6 0 0 1 22 0"/><circle cx="13" cy="13" r="3"/>', cap2: '<path d="M3 19a10 10 0 0 1 20 0z"/>',
+  gore: '<path d="M13 2c5 4 5 18 0 22c-5-4-5-18 0-22z"/>', headE: '<path d="M3 20v-4a10 7 0 0 1 20 0v4"/>', headT: '<path d="M3 20v-4c0-2 1-3 3-4a24 24 0 0 1 14 0c2 1 3 2 3 4v4"/>', headH: '<path d="M3 21v-3a10 10 0 0 1 20 0v3"/>',
+  plt: '<path d="M3 9l10-5 10 5-10 5z M3 9v3l10 5 10-5V9"/>', cylr: '<ellipse cx="13" cy="6" rx="7" ry="3"/><path d="M6 6v14a7 3 0 0 0 14 0V6"/>',
   pipe: '<path d="M2 10h22v6H2z"/>', elbow: '<path d="M2 8h9a9 9 0 0 1 9 9v7M2 15h9a2 2 0 0 1 2 2v7"/>', elbow45: '<path d="M2 9h9l9 9M2 15h7l7 7"/>',
   tee: '<path d="M2 10h22M2 16h22M10 10V2M16 10V2"/>', reducer: '<path d="M2 6h7l8 4h7M2 20h7l8-4h7"/>', reducerE: '<path d="M2 6h7l8 6h7M2 20h22"/>',
   flange: '<path d="M8 3v20M12 3v20M2 10h6M2 16h6M12 10h12M12 16h12"/>', blind: '<path d="M10 3v20M14 3v20M2 10h8M2 16h8"/>',
@@ -3030,6 +3254,8 @@ const CAT = [
   { g: 'Válvulas', mod: 'TB', items: [['valve', { sub: 'gate' }, 'Gaveta', 'valve'], ['valve', { sub: 'ball' }, 'Esfera', 'ball'], ['valve', { sub: 'globe' }, 'Globo', 'valve'], ['valve', { sub: 'butterfly' }, 'Borboleta', 'bfly'], ['valve', { sub: 'check' }, 'Retenção', 'check'], ['valve', { sub: 'plug' }, 'Macho', 'plug'], ['valve', { sub: 'needle' }, 'Agulha', 'needle'], ['valve', { sub: 'diaphragm' }, 'Diafragma', 'diaph'], ['psv', {}, 'PSV', 'psv']] },
   { g: 'Acessórios e instrumentos', mod: 'TB', items: [['strainer', {}, 'Filtro Y', 'strainer'], ['expjoint', {}, 'Junta expansão', 'exp'], ['sightglass', {}, 'Visor de fluxo', 'glass'], ['pgauge', {}, 'Manômetro', 'pg'], ['tgauge', {}, 'Termômetro', 'tg'],
     ['support', { sub: 'sapata' }, 'Suporte sapata', 'sup'], ['support', { sub: 'guia' }, 'Suporte guia', 'sup'], ['support', { sub: 'abracadeira' }, 'Abraçadeira U', 'sup'], ['support', { sub: 'mola' }, 'Suporte de mola', 'supm']] },
+  { g: 'Caldeiraria (chapas)', mod: 'TB', items: [['plate', {}, 'Chapa plana', 'plt'], ['cylinder', {}, 'Cilindro / costado', 'cylr'], ['cplate', {}, 'Chapa calandrada', 'cpl'], ['saddle', {}, 'Sela de reforço', 'sad'],
+    ['sphcap', {}, 'Calota esférica', 'cap2'], ['gore', {}, 'Gomo de esfera', 'gore'], ['head', { kind: 'eliptico' }, 'Tampo elíptico 2:1', 'headE'], ['head', { kind: 'torisferico' }, 'Tampo torisférico', 'headT'], ['head', { kind: 'hemisferico' }, 'Tampo hemisférico', 'headH']] },
   { g: 'Estruturas metálicas', mod: 'ES', items: [['baseplate', {}, 'Chapa de base', 'base'], ['profile', { fam: 'W', size: 'W200x15' }, 'Perfil I (W)', 'pI'], ['profile', { fam: 'H', size: 'W200x46,1' }, 'Perfil H', 'pH'],
     ['profile', { fam: 'U', size: 'U 6"' }, 'Perfil U', 'pU'], ['profile', { fam: 'L', size: 'L 3"x1/4"' }, 'Cantoneira L', 'pL'], ['profile', { fam: 'CHS', size: 'Ø114,3x4,5' }, 'Tubo circular', 'pO'], ['profile', { fam: 'RHS', size: '100x100x5' }, 'Tubo retangular', 'pR'], ['gusset', {}, 'Enrijecedor', 'gus'], ['railing', {}, 'Guarda-corpo', 'rail'], ['grating', {}, 'Piso em grade', 'grate'], ['ladder', {}, 'Escada marinheiro', 'ladder'], ['bracing', {}, 'Contraventamento X', 'brace']] },
   { g: 'Eletromecânico', mod: 'EL', items: [['panel', {}, 'Painel elétrico', 'panel'], ['tray', { sub: 'leito' }, 'Leito de cabos', 'tray'], ['tray', { sub: 'eletrocalha' }, 'Eletrocalha', 'tray'],
@@ -3634,10 +3860,10 @@ body>*{display:none!important}#printarea{display:block!important}
 }
 function renderSheet() {
   const an = TP.analyze(pr);
-  if (S.sheet.spool !== 'ALL' && !an.spools.find(s => s.name === S.sheet.spool)) S.sheet.spool = 'ALL';
+  if (S.sheet.spool !== 'ALL' && S.sheet.spool !== 'FLAT' && !an.spools.find(s => s.name === S.sheet.spool)) S.sheet.spool = 'ALL';
   const m = pr.meta;
   $('#sheetbar').innerHTML = `<select class="in" id="shSize" style="width:auto"><option ${S.sheet.size === 'A3' ? 'selected' : ''}>A3</option><option ${S.sheet.size === 'A4' ? 'selected' : ''}>A4</option></select>
-    <select class="in" id="shSp" style="width:auto"><option value="ALL">Linha completa</option>${an.spools.map(s => `<option ${S.sheet.spool === s.name ? 'selected' : ''}>${s.name}</option>`).join('')}</select>
+    <select class="in" id="shSp" style="width:auto"><option value="ALL">Linha completa</option>${an.spools.map(s => `<option ${S.sheet.spool === s.name ? 'selected' : ''}>${s.name}</option>`).join('')}${[...pr.pieces.values()].some(p => TYPES[p.type].flat) ? `<option value="FLAT" ${S.sheet.spool === 'FLAT' ? 'selected' : ''}>Planificação de chapas</option>` : ''}</select>
     <button class="ib sm" id="shZo">−</button><button class="ib sm" id="shZi">+</button>
     <button class="ib sm ${S.sheet.carimbo ? 'on' : ''}" id="shCar">Carimbo</button><span style="flex:1"></span>
     <button class="ib sm am" id="shPrint">Imprimir / PDF</button><button class="ib sm" id="shCopy">Copiar SVG</button><button class="ib sm" id="shDl">Baixar SVG</button>`;
@@ -3654,7 +3880,7 @@ function renderSheet() {
     });
   } else cb.querySelectorAll('[data-m]').forEach(i => { if (i !== document.activeElement) i.value = m[i.dataset.m] ?? ''; });
   $('#shSize').onchange = e => { S.sheet.size = e.target.value; renderSheet(); };
-  $('#shSp').onchange = e => { S.sheet.spool = e.target.value; renderSheet(); };
+  $('#shSp').onchange = e => { S.sheet.spool = e.target.value; S.sheet.page = 0; renderSheet(); };
   $('#shZo').onclick = () => { S.sheet.zoom = Math.max(0.4, S.sheet.zoom / 1.25); renderSheet(); };
   $('#shZi').onclick = () => { S.sheet.zoom = Math.min(5, S.sheet.zoom * 1.25); renderSheet(); };
   $('#shCar').onclick = () => { S.sheet.carimbo = !S.sheet.carimbo; renderSheet(); };
@@ -3666,8 +3892,10 @@ function renderSheet() {
 function sheetOnly() {
   const wrap = $('#sheetwrap');
   if (!pr.pieces.size) { wrap.innerHTML = '<div class="mut" style="padding:40px">Modelo vazio — insira peças no 3D ou converta um isométrico.</div>'; return; }
-  const out = TPSheet.sheetSVG(pr, { size: S.sheet.size, spool: S.sheet.spool });
-  lastSVG = out.svg; wrap.innerHTML = out.svg;
+  const out = TPSheet.sheetSVG(pr, { size: S.sheet.size, spool: S.sheet.spool, page: S.sheet.page || 0 });
+  if (out.pages && (S.sheet.page || 0) >= out.pages) { S.sheet.page = out.pages - 1; return sheetOnly(); }
+  lastSVG = out.svg; wrap.innerHTML = (out.pages > 1 ? `<div class="row" style="justify-content:center;gap:8px;margin-bottom:8px;flex-basis:100%"><button class="ib sm" id="pgPrev" ${(S.sheet.page || 0) ? '' : 'disabled'}>◀</button><span class="mut">Folha ${(S.sheet.page || 0) + 1} de ${out.pages}</span><button class="ib sm" id="pgNext" ${(S.sheet.page || 0) < out.pages - 1 ? '' : 'disabled'}>▶</button></div>` : '') + out.svg;
+  if (out.pages > 1) { $('#pgPrev').onclick = () => { S.sheet.page = Math.max(0, (S.sheet.page || 0) - 1); sheetOnly(); }; $('#pgNext').onclick = () => { S.sheet.page = (S.sheet.page || 0) + 1; sheetOnly(); }; }
   const svg = wrap.querySelector('svg'); svg.removeAttribute('height'); svg.style.width = Math.round((wrap.clientWidth - 32) * S.sheet.zoom) + 'px';
 }
 
@@ -3946,6 +4174,7 @@ const VK = (() => {
     { t: 'Inserir peças', k: ['inserir', 'inserir peca', 'adicionar peca', 'catalogo', 'colocar peca', 'como coloco'], a: 'Abra o <b>catálogo</b> (painel da esquerda, ou ☰ no celular), escolha o diâmetro e toque na peça. Se houver uma <b>esfera verde</b> (porta ativa), a peça nasce encaixada nela; senão, entra solta ao lado do modelo. Você também pode me pedir: <i>"insira uma válvula gaveta de 4 polegadas"</i>.' },
     { t: 'Continuar uma linha', k: ['continuar', 'esfera', 'porta ativa', 'esfera ambar', 'esfera verde', 'continuar linha', 'porta livre'], a: 'As <b>esferas âmbar</b> são portas livres. Toque numa delas e ela fica <b>verde</b>: a próxima peça do catálogo encaixa exatamente ali, face a face. Depois de inserir, a porta ativa passa sozinha para a ponta nova, então dá para ir tocando tubo → curva → tubo em sequência.' },
     { t: 'Girar e inclinar sem desconectar', k: ['girar', 'inclinar', 'rotacionar', 'desconecta', 'solta', 'girar no eixo', 'virar curva', 'desviar'], a: '<b>Girar no eixo</b> gira a peça em torno da face da conexão e leva junto tudo o que vem depois — a junta continua perfeita. É assim que você vira uma curva para cima, para baixo ou para os lados. <b>Inclinar/Desviar</b> também gira na face, mas cria uma junta em ângulo (aparece aviso vermelho). Para trechos inclinados de verdade, mude o <b>ângulo da curva</b>.' },
+    { t: 'Chapas curvas e planificação', k: ['chapa calandrada', 'calandrada', 'calandrar', 'sela', 'colar de reforco', 'calota', 'gomo', 'esfera', 'tampo', 'torisferico', 'eliptico', 'planificacao', 'planificar', 'desenvolvimento', 'boca de lobo'], a: 'No catálogo <b>Caldeiraria (chapas)</b>: chapa calandrada, sela de reforço, calota esférica, gomo de esfera e tampos elíptico 2:1, torisférico e hemisférico. <b>Selecione antes</b> um cilindro ou tubo e a chapa entra já encaixada na superfície (por fora ou por dentro); depois ajuste <b>giro</b> e <b>posição</b> no painel. Selecionando um gomo e inserindo outro, ele entra ao lado na mesma esfera. Na <b>Prancha</b>, escolha <b>Planificação de chapas</b>: cada peça sai planificada na fibra média com cotas, raio de calandragem, diâmetro do disco dos tampos e o gabarito da boca de lobo da sela.' },
     { t: 'Gerar projeto', k: ['gerar projeto', 'gerar casa', 'fazer uma casa', 'gerar predio', 'gerar galpao', 'projeto automatico', 'casa pronta', 'gerador'], a: 'Eu monto rascunhos completos com as peças do app. Exemplos: <i>"gere uma casa de 8 por 10 com 3 quartos e 2 banheiros"</i>, <i>"crie uma casa 10x12 com laje"</i>, <i>"faça um sobrado 7x12"</i>, <i>"gere um prédio de 5 andares 12x15"</i>, <i>"monte um galpão 30x20 com altura 9 m"</i>, <i>"gere uma linha de 4 polegadas de 15 m com 2 válvulas gaveta e filtro"</i>. Tudo fica editável e um <b>desfazer</b> remove o projeto inteiro.' },
     { t: 'Parafusos e torque', k: ['parafuso', 'parafusos', 'estojo', 'estojos', 'torque', 'aperto', 'porca', 'chave', 'junta espiralada', 'sequencia de aperto'], a: 'O TEC PLAN recomenda o parafusamento de cada junta flangeada pela ASME B16.5: quantidade e bitola dos estojos (A193 B7), comprimento comercial, porcas pesadas A194 2H, chave, junta espiralada e <b>torque de referência</b> com a <b>sequência em cruz</b> (ASME PCC-1). Selecione uma flange ou válvula e veja <b>Parafusos e aperto</b> no painel da direita — ou me pergunte "quais parafusos dessa flange?". Tudo também sai somado na BOM.' },
     { t: 'Pintar peças', k: ['pintar', 'pintura', 'cor', 'cores', 'mudar cor', 'colorir', 'nbr 6493', 'cor da tubulacao', 'cor da parede'], a: 'Selecione a peça e use o bloco <b>Cor / pintura</b> no painel da direita: as amostras são as cores de identificação da <b>NBR 6493</b> (verde água, azul ar comprimido, amarelo gases, laranja químicos, vermelho incêndio, branco vapor…), ou escolha qualquer cor. Válvulas têm uma segunda cor para o <b>volante/alavanca</b>. <b>Pintar todas</b> aplica a todas as peças do mesmo tipo; <b>Pintar a linha conectada</b> pinta o trecho inteiro, mantendo as válvulas. Também pode me pedir: <i>"pinte todas as válvulas de vermelho"</i> ou <i>"pinte a linha de verde"</i>.' },
@@ -4602,6 +4831,7 @@ const ISOM = (() => {
     } else if (k === 'gusset') extrude(F, [[0, 0], [p.a, 0], [0, p.b]], (x, y, t) => [x, y, (t - 0.5) * p.t]);
     else if (k === 'prism') extrude(F, p.pts, (x, z, t) => [x, p.y1 - t * (p.y1 - p.y0), z]);
     else if (k === 'loft') { const [aw, ah] = p.a, [bw, bh] = p.b, x0 = p.x0 || 0, x1 = x0 + p.L, Aq = [[x0, -ah / 2, -aw / 2], [x0, -ah / 2, aw / 2], [x0, ah / 2, aw / 2], [x0, ah / 2, -aw / 2]], Bq = [[x1, -bh / 2, -bw / 2], [x1, -bh / 2, bw / 2], [x1, bh / 2, bw / 2], [x1, bh / 2, -bw / 2]]; for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; F.push([Aq[i], Aq[j], Bq[j], Bq[i]]); } }
+    else if (k === 'tris') { const v = p.v; for (let i = 0; i + 8 < v.length; i += 9) F.push([[v[i], v[i + 1], v[i + 2]], [v[i + 3], v[i + 4], v[i + 5]], [v[i + 6], v[i + 7], v[i + 8]]]); }
     else if (k === 'frustum') { const [bx, bz] = p.b, [tx, tz] = p.t, B = [[-bx / 2, p.y0, -bz / 2], [bx / 2, p.y0, -bz / 2], [bx / 2, p.y0, bz / 2], [-bx / 2, p.y0, bz / 2]], T = [[-tx / 2, p.y1, -tz / 2], [tx / 2, p.y1, -tz / 2], [tx / 2, p.y1, tz / 2], [-tx / 2, p.y1, tz / 2]]; for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; F.push([B[i], B[j], T[j], T[i]]); } F.push(T, B); }
     return F;
   }
@@ -4629,6 +4859,7 @@ const ISOM = (() => {
       let prims; try { prims = TYPES[pc.type].prims(pc); } catch { continue; }
       for (const p of prims) {
         const col = R.primColor(pc, p, base);
+        const isTri = p.k === 'tris';
         for (const f0 of tess(p)) for (const f of subdiv(f0)) {
           const W3 = f.map(v => add3(qrot(q, v), o)), hole = f.hole ? f.hole.map(v => add3(qrot(q, v), o)) : null;
           let n = norm3(cross3(sub3(W3[1], W3[0]), sub3(W3[2], W3[0]))); if (!isFinite(n[0])) n = [0, 1, 0];
@@ -4638,7 +4869,7 @@ const ISOM = (() => {
           if (dot3(n, vdir) < 0) n = sc3(n, -1);
           let z = 0, zmax = -1e18; for (const s of S2) { z += s[2]; if (s[2] > zmax) zmax = s[2]; } z /= S2.length;
           { const cc = centers.get(pc.id) || [0, 0, 0, 0]; for (const q of S2) { cc[0] += q[0]; cc[1] += q[1]; cc[3]++; } if (z > cc[2] || !cc[2]) cc[2] = z; centers.set(pc.id, cc); }
-          const yAvg = W3.reduce((m, v) => m + v[1], 0) / W3.length; faces.push({ s: S2, h: Hs, z: z + 0.04 * yAvg + (pc.type === 'roof' ? 250 : 0), fill: shade(col, n, sel ? 0.08 : 0), pid: pc.id, sel });
+          const yAvg = W3.reduce((m, v) => m + v[1], 0) / W3.length; faces.push({ tri: isTri, s: S2, h: Hs, z: z + 0.04 * yAvg + (pc.type === 'roof' ? 250 : 0), fill: shade(col, n, sel ? (isTri ? 0.22 : 0.08) : 0), pid: pc.id, sel });
         }
       }
       if (S.ports !== false) { let w; try { w = TP.worldPorts(pc); } catch { w = {}; } for (const k in w) if (!pc.conn[k] && !['CV', 'ES', 'EL', 'HV'].includes(w[k].end) && TP.DIM[w[k].dn]) markers.push({ pid: pc.id, port: k, p: P3(w[k].pos), d: P3(w[k].dir), dn: w[k].dn, s: proj(P3(w[k].pos)) }); }
@@ -4690,7 +4921,7 @@ const ISOM = (() => {
       ctx.beginPath(); f.s.forEach((q, k) => { const p = toS(q); k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }); ctx.closePath();
       if (f.h) { f.h.forEach((q, k) => { const p = toS(q); k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }); ctx.closePath(); ctx.fillStyle = f.fill; ctx.fill('evenodd'); }
       else { ctx.fillStyle = f.fill; ctx.fill(); }
-      ctx.strokeStyle = f.sel ? 'rgba(245,170,60,.9)' : f.fill; ctx.lineWidth = f.sel ? 0.9 : 0.6; ctx.stroke();
+      ctx.strokeStyle = f.sel && !f.tri ? 'rgba(245,170,60,.9)' : f.fill; ctx.lineWidth = f.sel && !f.tri ? 0.9 : 0.6; ctx.stroke();
     }
     // tags (sem sobreposição; a peça selecionada sempre aparece)
     if (showTags && view.k > 0.02) {
