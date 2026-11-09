@@ -76,7 +76,7 @@ label.f{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--mu
 footer{display:flex;align-items:center;gap:14px;padding:0 10px;background:var(--p1);border-top:1px solid var(--ln);font-family:var(--mono);font-size:11px;color:var(--mu);white-space:nowrap;overflow:hidden}
 footer .er{color:var(--er)}footer .am{color:var(--am)}
 #isom{position:absolute;inset:0;display:none;z-index:5;background:#0c0f12}#isom.on{display:block}#isomc{position:absolute;inset:0;width:100%;height:100%;touch-action:none}#isombar{position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;gap:6px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:rgba(22,25,31,.94);border-top:1px solid var(--ln);z-index:2;overflow-x:auto;scrollbar-width:none}#isombar .ibrow{flex-wrap:nowrap}#isombar .mq .ib{border-color:rgba(232,163,61,.45)}
-#isomode{position:absolute;top:8px;right:8px;z-index:7;display:flex;border:1px solid var(--ln);border-radius:9px;overflow:hidden;background:rgba(22,25,31,.95)}#isomode button{background:none;border:0;color:var(--mu,#8b949e);padding:6px 10px;font:600 12px system-ui;cursor:pointer}#isomode button.on{background:var(--am,#e8a33d);color:#141414}
+#isomode{display:none}.ims{display:inline-flex;border:1px solid var(--ln);border-radius:9px;overflow:hidden;background:rgba(22,25,31,.95);flex:none}.ims button{background:none;border:0;color:var(--mu,#8b949e);padding:6px 10px;font:600 12px system-ui;cursor:pointer}.ims button.on{background:var(--am,#e8a33d);color:#141414}
 #isobar{position:absolute;top:0;left:0;right:0;display:flex;flex-direction:column;gap:6px;padding:8px;background:rgba(22,25,31,.95);border-bottom:1px solid var(--ln);overflow-x:auto;z-index:3;scrollbar-width:none}
 #isobar .ibrow{display:flex;gap:6px;align-items:center;overflow-x:auto;scrollbar-width:none}
 #isobar .ibrow>*{flex:none}
@@ -204,7 +204,6 @@ input[type=range]{accent-color:#f59e0b}
         <canvas id="isoc"></canvas>
         <div id="isoinfo">—</div>
         <div id="isom"><div id="isombar"></div><canvas id="isomc"></canvas></div>
-        <div id="isomode"><button data-im="draw">✏ Desenho</button><button data-im="model">🧊 Modelo</button></div>
       </div>
       <div class="view" id="vsheet">
         <div id="sheetbar"></div>
@@ -3611,7 +3610,7 @@ function renderStatus() {
 /* ======================= ISOMÉTRICO ======================= */
 const ISO = (() => {
   const K = 'tecplan.iso.v2';
-  const blank = { segs: [], strokes: [], ells: [], syms: [], boxes: [], plates: [], cyls: [] };
+  const blank = { segs: [], strokes: [], ells: [], syms: [], boxes: [], plates: [], cyls: [], wraps: [] };
   const st = Object.assign({}, blank, { tool: 'line', skew: false, plane: 'EN', grid: 100, dn: 100, view: { k: 38, x: 0, y: 0 },
     sym: 'gate', bShape: 'rect', bH: 500, bHollow: 1, bT: 6.35, bLid: 0, pT: 6.35, pMat: 'steel', cH: 1000, cHollow: 1, cT: 6.35, cCaps: 1, elev: 0 }, store.get('tecplan.iso.v1', {}), store.get(K, {}));
   for (const k in blank) if (!Array.isArray(st[k])) st[k] = [];
@@ -3630,7 +3629,7 @@ const ISO = (() => {
     const [un, vn] = TP.PLANES[plane], u = AX(un), v = AX(vn), det = u[0] * v[1] - u[1] * v[0];
     return [(dx * v[1] - dy * v[0]) / det, (u[0] * dy - u[1] * dx) / det];
   }
-  const TOOLS = [['line', '✏ Linha'], ['sym', '⧓ Símbolo'], ['box', '▣ Caixa'], ['plate', '🪣 Chapa'], ['cyl', '◎ Cilindro'], ['free', '∿ Livre'], ['ell', '◯ Elipse'], ['erase', '⌫ Borracha'], ['pan', '✋ Mover']];
+  const TOOLS = [['line', '✏ Linha'], ['sym', '⧓ Símbolo'], ['box', '▣ Caixa'], ['plate', '🪣 Chapa'], ['cyl', '◎ Cilindro'], ['wrap', '⌒ Chapa curva'], ['free', '∿ Livre'], ['ell', '◯ Elipse'], ['erase', '⌫ Borracha'], ['pan', '✋ Mover']];
   const SYMS = { gate: 'Válvula gaveta', ball: 'Válvula esfera', globe: 'Válvula globo', butterfly: 'Válvula borboleta', check: 'Retenção', strainer: 'Filtro Y', flanges: 'Par de flanges' };
   const PLANE_L = { EN: 'Horizontal (E-N)', EU: 'Vertical (E-Cima)', NU: 'Vertical (N-Cima)' };
   function init() {
@@ -3651,13 +3650,19 @@ const ISO = (() => {
     if (t === 'box') return `${sel('iBShape', { rect: 'Base retangular', tri: 'Base triangular' }, st.bShape)}${L('Altura')}${num('iBH', st.bH)}${L('mm')}${st.bShape === 'rect' ? sel('iBHollow', { 1: 'Oca (chapas)', 0: 'Maciça' }, st.bHollow) + (st.bHollow ? L('parede') + num('iBT', st.bT, 60) + L('mm') + sel('iBLid', { 0: 'Sem tampa', 1: 'Com tampa' }, st.bLid) : '') : ''}${L('EL base')}${num('iElev', st.elev)}`;
     if (t === 'plate') return `${plane}${sel('iPMat', has('CL') ? { steel: 'Chapa de aço', wall: 'Parede de alvenaria' } : { steel: 'Chapa de aço' }, st.pMat)}${st.pMat === 'steel' ? L('espessura') + num('iPT', st.pT, 60) + L('mm') : ''}${L('EL base')}${num('iElev', st.elev)}`;
     if (t === 'cyl') return `${plane}${L('Comprimento')}${num('iCH', st.cH)}${L('mm')}${sel('iCHollow', { 1: 'Oco (costado)', 0: 'Maciço' }, st.cHollow)}${st.cHollow ? L('parede') + num('iCT', st.cT, 60) + L('mm') + sel('iCCaps', { 1: 'Com tampos', 0: 'Sem tampos' }, st.cCaps) : ''}${L('EL base')}${num('iElev', st.elev)}`;
+    if (t === 'wrap') {
+      const k = st.wK || 'cal', h = L('Toque num cilindro para aplicar:') + sel('iWK', { cal: 'Chapa calandrada', sela: 'Sela de reforço', tampo: 'Tampo' }, k);
+      if (k === 'cal') return h + sel('iWSide', { ext: 'Por fora', int: 'Por dentro' }, st.wSide || 'ext') + L('ângulo') + num('iWAng', st.wAng ?? 120, 60) + L('° largura') + num('iWH', st.wH ?? 500, 66) + L('mm a') + num('iWY0', st.wY0 ?? 0, 62) + L('mm da base · giro') + num('iWA0', st.wA0 ?? 0, 56) + L('° · e') + num('iWT', st.wT ?? 6.35, 56) + L('mm');
+      if (k === 'sela') return h + L('Ø ramal') + num('iWD', st.wD ?? 114.3, 66) + L('Ø sela') + num('iWDp', st.wDp ?? 230, 66) + L('a') + num('iWY0', st.wY0 ?? 0, 62) + L('mm da base · giro') + num('iWA0', st.wA0 ?? 0, 56) + L('° · e') + num('iWT', st.wT ?? 6.35, 56) + L('mm');
+      return h + sel('iWHead', { eliptico: 'Elíptico 2:1', torisferico: 'Torisférico', hemisferico: 'Hemisférico' }, st.wHead || 'eliptico') + sel('iWEnd', { top: 'No topo', base: 'Na base', both: 'Nas duas pontas' }, st.wEnd || 'top') + L('aba reta') + num('iWSf', st.wSf ?? 38, 56) + L('mm · e') + num('iWT', st.wT ?? 6.35, 56) + L('mm');
+    }
     if (t === 'ell') return `${plane}${L('Elipse de anotação (não vira peça)')}`;
     if (t === 'free') return L('Rabisco de anotação (não vira peça)');
     if (t === 'erase') return L('Toque num traço, símbolo ou objeto para apagar');
     return L('Arraste para mover a folha · pinça ou roda: zoom');
   }
   function bar() {
-    $('#isobar').innerHTML = `<div class="ibrow">${TOOLS.map(([t, l]) => `<button class="ib sm ${st.tool === t ? 'on' : ''}" data-tool="${t}">${l}</button>`).join('')}
+    $('#isobar').innerHTML = `<div class="ibrow">${isoModeHTML()}<span class="sep"></span>${TOOLS.map(([t, l]) => `<button class="ib sm ${st.tool === t ? 'on' : ''}" data-tool="${t}">${l}</button>`).join('')}
       <span class="sep"></span><span class="mut">Grade</span>${num('iGrid', st.grid, 64)}<span class="mut">mm</span>
       <span class="sep"></span><button class="ib sm" id="iUndo">↶</button><button class="ib sm" id="iClr">Limpar</button><button class="ib sm" id="iCenter">Centralizar</button><button class="ib sm am" id="iConv">Converter para 3D</button></div>
       <div class="ibrow" id="iprops">${props()}</div>`;
@@ -3666,12 +3671,14 @@ const ISO = (() => {
     on('iSkew', 'onclick', () => { st.skew = !st.skew; persist(); bar(); });
     const setv = (id, key, numeric, rebar) => on(id, 'onchange', e => { st[key] = numeric ? Math.max(0, +e.target.value || 0) : e.target.value; if (key === 'bHollow' || key === 'cHollow' || key === 'bLid' || key === 'cCaps') st[key] = +e.target.value; persist(); if (rebar) bar(); draw(); });
     setv('iPlane', 'plane'); setv('iDn', 'dn', true); setv('iSym', 'sym'); setv('iBShape', 'bShape', false, true); setv('iBH', 'bH', true); setv('iBHollow', 'bHollow', true, true); setv('iBT', 'bT', true); setv('iBLid', 'bLid', true);
+    setv('iWK', 'wK', false, true); setv('iWSide', 'wSide'); setv('iWAng', 'wAng', true); setv('iWH', 'wH', true); setv('iWY0', 'wY0', true); setv('iWA0', 'wA0', true); setv('iWT', 'wT', true); setv('iWD', 'wD', true); setv('iWDp', 'wDp', true); setv('iWHead', 'wHead'); setv('iWEnd', 'wEnd'); setv('iWSf', 'wSf', true);
     setv('iPMat', 'pMat', false, true); setv('iPT', 'pT', true); setv('iCH', 'cH', true); setv('iCHollow', 'cHollow', true, true); setv('iCT', 'cT', true); setv('iCCaps', 'cCaps', true); setv('iElev', 'elev', true);
     on('iGrid', 'onchange', e => { st.grid = Math.max(10, +e.target.value || 100); persist(); draw(); info(); });
     on('iUndo', 'onclick', () => { if (!hist.length) return; Object.assign(st, JSON.parse(hist.pop())); persist(); draw(); info(); });
     on('iClr', 'onclick', () => { if (!DATA.some(k => st[k].length)) return; push(); DATA.forEach(k => st[k] = []); persist(); draw(); info(); toast('Desenho limpo (↶ desfaz).'); });
     on('iCenter', 'onclick', center);
     on('iConv', 'onclick', convert);
+    bindIsoMode();
   }
   function allPts() {
     const p = st.segs.flatMap(s => [s.a, s.b]);
@@ -3703,6 +3710,25 @@ const ISO = (() => {
   function platePts(p) { const [un, vn] = TP.PLANES[p.plane], u = AX(un), v = AX(vn); const p1 = add2(p.a, u, p.du), p2 = add2(p1, v, p.dv), p3 = add2(p.a, v, p.dv); return [p.a, p1, p2, p3]; }
   function ellPts(e, n = 48) { const [un, vn] = TP.PLANES[e.plane], u = AX(un), v = AX(vn), out = []; for (let i = 0; i <= n; i++) { const t = i / n * Math.PI * 2; out.push([e.c[0] + e.r * (Math.cos(t) * u[0] + Math.sin(t) * v[0]), e.c[1] + e.r * (Math.cos(t) * u[1] + Math.sin(t) * v[1])]); } return out; }
   const cylAxis = plane => AX({ EN: 'Cima', EU: 'N', NU: 'E' }[plane]);
+  // geometria 3D local → desenho isométrico (mesma pose usada na conversão), para as chapas curvas
+  const cylQ = c => c.plane === 'EN' ? new Q() : Q.fromUnitVectors(TP.UP, c.plane === 'EU' ? new V3(0, 0, -1) : new V3(1, 0, 0));
+  const iso2 = (c, v) => { const w = cylQ(c).rot(v), g = st.grid, e = AX('E'), n = AX('N'), up = AX('Cima'); return [c.c[0] + (w.x * e[0] - w.z * n[0] + w.y * up[0]) / g, c.c[1] + (w.x * e[1] - w.z * n[1] + w.y * up[1]) / g]; };
+  const cylOf = w => st.cyls.find(c => c.id === w.cyl);
+  function wrapLines(w) { // polilinhas 2D do contorno da chapa curva sobre o cilindro
+    const c = cylOf(w); if (!c) return []; const R = c.r * st.grid, out = [];
+    if (w.kind === 'cal') {
+      const Rr = w.side === 'int' ? R - (c.t || 0) : R + w.t, a0 = w.a0 * Math.PI / 180, A = Math.min(360, w.ang) * Math.PI / 180, arc = y => Array.from({ length: 33 }, (_, i) => { const th = a0 + A * i / 32; return iso2(c, new V3(Rr * Math.cos(th), y, Rr * Math.sin(th))); });
+      const b = arc(w.y0), t = arc(w.y0 + w.H); out.push(b, t, [b[0], t[0]], [b[b.length - 1], t[t.length - 1]]);
+    } else if (w.kind === 'sela') {
+      const a0 = w.a0 * Math.PI / 180, ring = (r, R2) => Array.from({ length: 49 }, (_, i) => { const s = i / 48 * 2 * Math.PI, u = r * Math.cos(s), v = r * Math.sin(s), phi = Math.abs(u) < R2 ? Math.asin(u / R2) : Math.sign(u) * Math.PI / 2; return iso2(c, new V3(R2 * Math.cos(a0 + phi), w.y0 + v, R2 * Math.sin(a0 + phi))); });
+      out.push(ring(w.Dp / 2, R + w.t), ring(w.d / 2, R + w.t));
+      const dir = new V3(Math.cos(a0), 0, Math.sin(a0)); out.push([iso2(c, new V3(dir.x * R, w.y0, dir.z * R)), iso2(c, new V3(dir.x * (R + w.d * 1.2), w.y0, dir.z * (R + w.d * 1.2)))]);
+    } else {
+      const P = TP.headProfile(w.head, 2 * R, w.sf), ends = w.end === 'both' ? ['top', 'base'] : [w.end];
+      for (const e of ends) { const y0 = e === 'top' ? c.H : 0, sg = e === 'top' ? 1 : -1; for (let k = 0; k < 4; k++) { const th = k * Math.PI / 4; out.push(P.map(q => iso2(c, new V3(q.r * Math.cos(th), y0 + sg * q.y, q.r * Math.sin(th))))); } out.push(Array.from({ length: 37 }, (_, i) => { const th = i / 36 * 2 * Math.PI, q = P[1]; return iso2(c, new V3(q.r * Math.cos(th), y0 + sg * q.y, q.r * Math.sin(th))); })); }
+    }
+    return out;
+  }
   function cylOutline(c) { const ax = cylAxis(c.plane), h = c.H / st.grid; return ellPts(c).concat(ellPts({ c: add2(c.c, ax, h), r: c.r, plane: c.plane })); }
   function symAt(sy) { const s = st.segs.find(x => segKey(x) === sy.seg); if (!s) return null; const L = Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1]); const f = sy.k / L; return { s, p: [s.a[0] + (s.b[0] - s.a[0]) * f, s.a[1] + (s.b[1] - s.a[1]) * f], dir: [(s.b[0] - s.a[0]) / L, (s.b[1] - s.a[1]) / L], L }; }
   function nearestSeg(w) {
@@ -3732,6 +3758,15 @@ const ISO = (() => {
         if (!n || n.d * st.view.k > 22) { toast('Toque sobre um trecho de tubulação desenhado.', 'er'); }
         else { const k = Math.max(0.5, Math.min(n.L - 0.5, Math.round(n.t * n.L * 2) / 2)); push(); st.syms = st.syms.filter(x => !(x.seg === segKey(n.s) && Math.abs(x.k - k) < 0.4)); st.syms.push({ seg: segKey(n.s), k, kind: st.sym }); persist(); toast(`Símbolo colocado: ${SYMS[st.sym]}.`, 'ok'); }
         drag = null;
+      }
+      else if (tool === 'wrap') {
+        const p = [e.offsetX, e.offsetY], hitC = st.cyls.slice().reverse().find(c => { const a = toS(c.c), b = toS(add2(c.c, cylAxis(c.plane), c.H / st.grid)); return distSeg(p, a, b) <= c.r * st.view.k * 1.05 + 8; });
+        if (!hitC) { toast('Toque sobre um cilindro desenhado (◎ Cilindro).', 'er'); return; }
+        if (!hitC.id) hitC.id = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+        push(); const k = st.wK || 'cal', D = 2 * hitC.r * st.grid;
+        const w = { cyl: hitC.id, kind: k, t: st.wT ?? 6.35, a0: st.wA0 ?? 0, y0: Math.min(st.wY0 ?? 0, hitC.H), side: st.wSide || 'ext', ang: st.wAng ?? 120, H: Math.min(st.wH ?? 500, hitC.H), d: Math.min(st.wD ?? 114.3, D * 0.8), Dp: st.wDp ?? 230, head: st.wHead || 'eliptico', end: st.wEnd || 'top', sf: st.wSf ?? 38 };
+        if (k === 'sela') { w.y0 = st.wY0 || hitC.H / 2; w.Dp = Math.max(w.d * 1.3, Math.min(w.Dp, D * 1.4)); }
+        st.wraps.push(w); persist(); draw(); info(); toast(k === 'cal' ? 'Chapa calandrada aplicada no cilindro.' : k === 'sela' ? 'Sela aplicada — vira peça 3D na conversão.' : 'Tampo aplicado.', 'ok'); return;
       }
       else if (tool === 'erase') { drag = { tool, pushed: false }; erase(e.offsetX, e.offsetY, drag); }
       else drag = { tool: 'pan', x: e.offsetX, y: e.offsetY };
@@ -3763,7 +3798,7 @@ const ISO = (() => {
       if (d.tool === 'line' && preview && (preview.a[0] !== preview.b[0] || preview.a[1] !== preview.b[1])) { push(); st.segs.push({ a: preview.a, b: preview.b, plane: st.skew ? st.plane : 'EN' }); }
       if (d.tool === 'free' && d.pts.length > 2) { push(); st.strokes.push(d.pts.filter((p, i) => i % 2 === 0)); }
       if (d.tool === 'ell' && d.r > 0) { push(); st.ells.push({ c: d.c, r: d.r, plane: st.plane }); }
-      if (d.tool === 'cyl' && d.r > 0) { push(); st.cyls.push({ c: d.c, r: d.r, plane: st.plane, H: st.cH, hollow: st.cHollow, t: st.cT, caps: st.cCaps, elev: st.elev }); }
+      if (d.tool === 'cyl' && d.r > 0) { push(); st.cyls.push({ id: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), c: d.c, r: d.r, plane: st.plane, H: st.cH, hollow: st.cHollow, t: st.cT, caps: st.cCaps, elev: st.elev }); }
       if (d.tool === 'box' && d.du && d.dv) { push(); st.boxes.push({ a: d.a, da: d.du, db: d.dv, shape: st.bShape, H: st.bH, hollow: st.bHollow, t: st.bT, lid: st.bLid, elev: st.elev }); }
       if (d.tool === 'plate' && d.du && d.dv) { push(); st.plates.push({ a: d.a, du: d.du, dv: d.dv, plane: st.plane, mat: st.pMat, t: st.pT, elev: st.elev }); }
       drag = null; preview = null; persist(); info(); draw();
@@ -3775,18 +3810,19 @@ const ISO = (() => {
   const nearPoly = (p, pts, closed) => pts.some((q, i) => (i || closed) && distSeg(p, toS(pts[(i || pts.length) - 1]), toS(q)) < 12);
   function erase(x, y, d) {
     const p = [x, y];
-    const hit = (key, f) => { const arr = st[key], i = arr.findIndex(f); if (i >= 0) { if (!d.pushed) { push(); d.pushed = true; } const [it] = arr.splice(i, 1); if (key === 'segs') st.syms = st.syms.filter(s => s.seg !== segKey(it)); return true; } };
+    const hit = (key, f) => { const arr = st[key], i = arr.findIndex(f); if (i >= 0) { if (!d.pushed) { push(); d.pushed = true; } const [it] = arr.splice(i, 1); if (key === 'segs') st.syms = st.syms.filter(s => s.seg !== segKey(it)); if (key === 'cyls') st.wraps = st.wraps.filter(w => w.cyl !== it.id); return true; } };
     hit('syms', sy => { const a = symAt(sy); return a && Math.hypot(...toS(a.p).map((v, i) => v - p[i])) < 14; })
       || hit('segs', s => distSeg(p, toS(s.a), toS(s.b)) < 12)
       || hit('boxes', b => { const pts = boxPts(b), n = pts.length / 2; return nearPoly(p, pts.slice(0, n), true) || nearPoly(p, pts.slice(n), true); })
       || hit('plates', b => nearPoly(p, platePts(b), true))
+      || hit('wraps', w => wrapLines(w).some(l => nearPoly(p, l, false)))
       || hit('cyls', c => nearPoly(p, ellPts(c), false) || nearPoly(p, ellPts({ c: add2(c.c, cylAxis(c.plane), c.H / st.grid), r: c.r, plane: c.plane }), false))
       || hit('strokes', s => nearPoly(p, s, false)) || hit('ells', e => nearPoly(p, ellPts(e), false));
   }
   function info(t) {
     if (t) { $('#isoinfo').textContent = t; return; }
     const tot = st.segs.reduce((s, g) => s + segInfo(g.a, g.b, g.plane).L, 0);
-    const extra = [st.syms.length && `${st.syms.length} símbolos`, st.boxes.length && `${st.boxes.length} caixas`, st.plates.length && `${st.plates.length} chapas`, st.cyls.length && `${st.cyls.length} cilindros`].filter(Boolean).join(' · ');
+    const extra = [st.syms.length && `${st.syms.length} símbolos`, st.boxes.length && `${st.boxes.length} caixas`, st.plates.length && `${st.plates.length} chapas`, st.cyls.length && `${st.cyls.length} cilindros`, st.wraps.length && `${st.wraps.length} chapas curvas`].filter(Boolean).join(' · ');
     $('#isoinfo').textContent = `${st.segs.length} trechos · ${fmt(tot / 1000, 2)} m${extra ? ' · ' + extra : ''} · grade ${st.grid} mm · ${DIM[st.dn].nps}`;
   }
   const poly = (pts, fill, stroke, lw = 1.5) => { ctx.beginPath(); pts.forEach((p, i) => { const q = toS(p); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.closePath(); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); } };
@@ -3854,6 +3890,7 @@ const ISO = (() => {
     [['E', '#ef4444'], ['N', '#3b82f6'], ['Cima', '#22c55e']].forEach(([n, c]) => { const ax = AX(n); ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(o[0] + ax[0] * 40, o[1] + ax[1] * 40); ctx.stroke(); ctx.fillStyle = c; ctx.font = '11px IBM Plex Mono, monospace'; ctx.fillText(n, o[0] + ax[0] * 46 - 4, o[1] + ax[1] * 46 + 4); });
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     st.plates.forEach(p => drawPlate(p)); st.boxes.forEach(b => drawBox(b)); st.cyls.forEach(c => drawCyl(c));
+    st.wraps.forEach(w => { const ls = wrapLines(w); ls.forEach(l => line(l, '#60a5fa', 2)); const c = cylOf(w); if (ls[0] && c) { const q = toS(ls[0][Math.floor(ls[0].length / 2)]); ctx.fillStyle = '#93c5fd'; ctx.font = '600 11px IBM Plex Mono, monospace'; ctx.fillText(w.kind === 'cal' ? `Calandrada ${w.ang}° · ${w.t}mm` : w.kind === 'sela' ? `Sela Ø${w.Dp}/Ø${w.d}` : `Tampo ${w.head}`, q[0] + 6, q[1] + 14); } });
     if (drag && drag.tool === 'box' && drag.du && drag.dv) drawBox({ a: drag.a, da: drag.du, db: drag.dv, shape: st.bShape, H: st.bH, hollow: st.bHollow, t: st.bT }, true);
     if (drag && drag.tool === 'plate' && drag.du && drag.dv) drawPlate({ a: drag.a, du: drag.du, dv: drag.dv, plane: st.plane, mat: st.pMat, t: st.pT }, true);
     if (drag && drag.tool === 'cyl' && drag.r) drawCyl({ c: drag.c, r: drag.r, plane: st.plane, H: st.cH, hollow: st.cHollow, t: st.cT }, true);
@@ -3928,6 +3965,12 @@ const ISO = (() => {
         const pc = pr.create('cylinder', { D: 2 * c.r * g, H: c.H, hollow: c.hollow, t: c.t, caps: c.caps });
         pc.pos = P0; pc.q = c.plane === 'EN' ? new Q() : Q.fromUnitVectors(TP.UP, c.plane === 'EU' ? new V3(0, 0, -1) : new V3(1, 0, 0));
         res.created.push(pc); counts['Cilindro'] = (counts['Cilindro'] || 0) + 1;
+        for (const w of st.wraps.filter(w => c.id && w.cyl === c.id)) {
+          const D = 2 * c.r * g, q = pc.q;
+          if (w.kind === 'cal') { const cp = pr.create('cplate', { Dref: w.side === 'int' && c.hollow ? D - 2 * c.t : D, side: w.side, ang: w.ang, H: w.H, t: w.t, a0: w.a0, y0: w.y0 }); cp.pos = P0; cp.q = q; res.created.push(cp); counts['Chapa calandrada'] = (counts['Chapa calandrada'] || 0) + 1; }
+          else if (w.kind === 'sela') { const sd = pr.create('saddle', { D, d: w.d, Dp: w.Dp, t: w.t, a0: w.a0, y0: w.y0 }); sd.pos = P0; sd.q = q; res.created.push(sd); counts['Sela'] = (counts['Sela'] || 0) + 1; }
+          else for (const e of (w.end === 'both' ? ['top', 'base'] : [w.end])) { const hd = pr.create('head', { D, kind: w.head, sf: w.sf, t: w.t }); if (e === 'top') { hd.pos = P0.add(q.rot(new V3(0, c.H, 0))); hd.q = q; } else { hd.pos = P0; hd.q = q.mul(Q.axisAngle(TP.AX, Math.PI)); } res.created.push(hd); counts['Tampo'] = (counts['Tampo'] || 0) + 1; }
+        }
       }
       if (!res.created.length) return false;
       S.sel = null; S.active = null;
@@ -4191,9 +4234,11 @@ function refresh() {
   if (S.tab === 'bom') renderBom();
   if (S.tab === 'iso') ISOM.update();
 }
+const isoModeHTML = () => { const m = store.get('tecplan.isomode', 'draw'); return `<span class="ims"><button class="${m === 'draw' ? 'on' : ''}" data-im="draw">✏ Desenho</button><button class="${m === 'model' ? 'on' : ''}" data-im="model">🧊 Modelo</button></span>`; };
+function bindIsoMode() { document.querySelectorAll('[data-im]').forEach(b => b.onclick = () => { isoMode(b.dataset.im); if (b.dataset.im === 'model') toast('Modo Modelo: o mesmo projeto em isométrico. Arraste os losangos âmbar para puxar tubo; toque numa peça para selecionar.'); }); }
 function isoMode(m) {
   store.set('tecplan.isomode', m);
-  document.querySelectorAll('#isomode [data-im]').forEach(b => { b.classList.toggle('on', b.dataset.im === m); b.onclick = () => { isoMode(b.dataset.im); if (b.dataset.im === 'model') toast('Modo Modelo: o mesmo projeto em isométrico. Arraste os losangos âmbar para puxar tubo; toque numa peça para selecionar.'); }; });
+  document.querySelectorAll('[data-im]').forEach(b => { b.classList.toggle('on', b.dataset.im === m); b.onclick = () => { isoMode(b.dataset.im); if (b.dataset.im === 'model') toast('Modo Modelo: o mesmo projeto em isométrico. Arraste os losangos âmbar para puxar tubo; toque numa peça para selecionar.'); }; });
   ISOM.show(m === 'model');
 }
 function setTab(t) {
@@ -5129,7 +5174,7 @@ const ISOM = (() => {
   function bar() {
     const pip = has('TB');
     const Q = [['pipe', {}, 'Tubo'], ['elbow', { angle: 90 }, 'Curva 90°'], ['elbow', { angle: 45 }, 'Curva 45°'], ['tee', {}, 'Tê'], ['valve', { sub: 'gate' }, 'Gaveta'], ['valve', { sub: 'ball' }, 'Esfera'], ['flange', {}, 'Flange'], ['reducer', { dn2: 'down' }, 'Redução'], ['cap', {}, 'Tampão']];
-    $('#isombar').innerHTML = `<div class="ibrow"><button class="ib sm" id="mRotL" title="Girar vista">⟲ 90°</button><button class="ib sm" id="mRotR">⟳ 90°</button><button class="ib sm" id="mFit">Enquadrar</button>
+    $('#isombar').innerHTML = `<div class="ibrow">${isoModeHTML()}<span class="sep"></span><button class="ib sm" id="mRotL" title="Girar vista">⟲ 90°</button><button class="ib sm" id="mRotR">⟳ 90°</button><button class="ib sm" id="mFit">Enquadrar</button>
       <span class="sep"></span><span class="mut">Piso</span><select class="in" id="mTile" style="width:auto">${[250, 500, 1000, 2000].map(t => `<option ${t === tile ? 'selected' : ''} value="${t}">${t} mm</option>`).join('')}</select>
       <button class="ib sm ${showTags ? 'on' : ''}" id="mTags">TAGs</button>${S.sel ? `<span class="sep"></span><button class="ib sm" id="mRoll">↻ Girar peça</button><button class="ib sm" id="mDel">🗑</button><button class="ib sm" id="mDet">Detalhes</button>` : ''}</div>
       ${pip ? `<div class="ibrow mq">${Q.map((q, i) => `<button class="ib sm" data-mq="${i}">${q[2]}</button>`).join('')}</div>` : ''}`;
@@ -5140,6 +5185,7 @@ const ISOM = (() => {
     on('mRoll', () => { const id = S.sel; mutate(() => { const r = TP.roll(pr, id, 90); if (r && !r.ok) { toast(r.msg, 'er'); return false; } }); });
     on('mDel', deleteSel);
     on('mDet', () => { if (innerWidth < 768) openDrawer('right'); else toast('Detalhes da peça no painel da direita (aba 3D).'); });
+    bindIsoMode();
     $('#isombar').querySelectorAll('[data-mq]').forEach(b => b.onclick = () => { const q = Q[+b.dataset.mq]; if (!S.active) toast('Toque num losango âmbar para escolher onde a peça entra.', 'er'); insert(q[0], q[1]); });
   }
   function resize() { if (!inited) return; const r = $('#isom').getBoundingClientRect(); dpr = Math.min(2, window.devicePixelRatio || 1); W = r.width; H = r.height; cv.width = Math.max(1, W * dpr); cv.height = Math.max(1, H * dpr); if (!fitted && faces.length) { fit(); fitted = true; } draw(); }
